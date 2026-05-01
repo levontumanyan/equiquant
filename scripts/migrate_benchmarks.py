@@ -8,7 +8,9 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def migrate_file(repo: DatabaseRepository, file_path: Path, asset_type: str):
+def migrate_file(
+	repo: DatabaseRepository, file_path: Path, asset_type: str, version: str = "1.0.0"
+):
 	if not file_path.exists():
 		logger.warning(f"{file_path} not found, skipping.")
 		return
@@ -38,19 +40,28 @@ def migrate_file(repo: DatabaseRepository, file_path: Path, asset_type: str):
 				display_key=item.get("display_key"),
 				params_json=json.dumps(params),
 				weight=float(item.get("weight", 1.0)),
+				version=version,
 			)
-			logger.info(f"Migrated benchmark: {asset_type} -> {metric_key}")
+			logger.info(
+				f"Migrated benchmark: {asset_type} -> {metric_key} (v{version})"
+			)
 
 	except Exception as e:
 		logger.error(f"Failed to migrate {file_path}: {e}")
 
 
 def main():
+	import argparse
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--version", default="1.0.0", help="Benchmark version")
+	args = parser.parse_args()
+
 	db_manager = DatabaseManager()
 	repo = DatabaseRepository(db_manager)
 
-	migrate_file(repo, Path("benchmarks/stock.json"), "STOCK")
-	migrate_file(repo, Path("benchmarks/etf.json"), "ETF")
+	migrate_file(repo, Path("benchmarks/stock.json"), "STOCK", version=args.version)
+	migrate_file(repo, Path("benchmarks/etf.json"), "ETF", version=args.version)
 
 	logger.info("Global benchmarks migration complete.")
 

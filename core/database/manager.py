@@ -82,6 +82,7 @@ class DatabaseManager:
 				profile TEXT,
 				total_score REAL,
 				results_json TEXT,
+				benchmark_version TEXT DEFAULT '1.0.0',
 				FOREIGN KEY (symbol) REFERENCES assets(symbol)
 			)
 		""")
@@ -110,7 +111,8 @@ class DatabaseManager:
 				value_a REAL,
 				value_b REAL,
 				last_updated DATETIME,
-				PRIMARY KEY (sector, metric_key)
+				version TEXT DEFAULT '1.0.0',
+				PRIMARY KEY (sector, metric_key, version)
 			)
 		""")
 
@@ -156,7 +158,8 @@ class DatabaseManager:
 				display_key TEXT,
 				params_json TEXT,
 				weight REAL,
-				PRIMARY KEY (asset_type, metric_key)
+				version TEXT DEFAULT '1.0.0',
+				PRIMARY KEY (asset_type, metric_key, version)
 			)
 		""")
 

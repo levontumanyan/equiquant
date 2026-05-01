@@ -11,6 +11,7 @@ def load_benchmarks(
 	asset_type: str,
 	sector: Optional[str] = None,
 	repo: Optional[DatabaseRepository] = None,
+	version: str = "1.0.0",
 ) -> List[Dict[str, Any]]:
 	"""
 	Load benchmarks for a specific asset type and optionally apply sector overrides from the DB.
@@ -20,13 +21,13 @@ def load_benchmarks(
 
 	try:
 		# 1. Load Global Benchmarks for the asset type (STOCK or ETF)
-		global_benchmarks = repo.get_global_benchmarks(asset_type)
+		global_benchmarks = repo.get_global_benchmarks(asset_type, version=version)
 
 		if not sector:
 			return global_benchmarks
 
 		# 2. Apply Sector Overrides from the database
-		db_overrides = repo.get_sector_benchmarks(sector)
+		db_overrides = repo.get_sector_benchmarks(sector, version=version)
 		if not db_overrides:
 			return global_benchmarks
 

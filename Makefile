@@ -1,9 +1,10 @@
 .PHONY: run lint format test check setup clean
 
 # Run the analysis for one or more tickers
-# Usage: make run TICKER="AAPL MSFT" PROFILE="growth" EXPORT="report.csv"
+# Usage: make run TICKER="AAPL MSFT" PROFILE="growth" EXPORT="report.csv" BENCHMARK_VERSION="1.0.0"
 PROFILE ?= balanced
 LOG_LEVEL ?= INFO
+BENCHMARK_VERSION ?= 1.0.0
 TICKER ?=
 FILE ?=
 EXPORT ?=
@@ -16,15 +17,17 @@ run:
 		$(if $(EXPORT),--export $(EXPORT)) \
 		$(if $(INDEX),--index $(INDEX)) \
 		$(if $(VERBOSE),--verbose) \
-		--profile $(PROFILE)
+		--profile $(PROFILE) \
+		--benchmark-version $(BENCHMARK_VERSION)
 
 # Run analysis against all stocks in the database
-# Usage: make run-all-stocks PROFILE="growth" EXPORT="full_report.csv"
+# Usage: make run-all-stocks PROFILE="growth" EXPORT="full_report.csv" BENCHMARK_VERSION="1.0.0"
 run-all-stocks:
 	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py --all \
 		$(if $(EXPORT),--export $(EXPORT)) \
 		$(if $(VERBOSE),--verbose) \
-		--profile $(PROFILE)
+		--profile $(PROFILE) \
+		--benchmark-version $(BENCHMARK_VERSION)
 
 # Show historical scores for one or more tickers
 # Usage: make history TICKER=AAPL PROFILE=growth

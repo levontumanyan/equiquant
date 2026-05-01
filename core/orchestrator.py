@@ -15,11 +15,14 @@ def analyze_asset(
 	symbol: str,
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
+	benchmark_version: str = "1.0.0",
 ) -> Optional[Dict[str, Any]]:
 	"""
 	Analyze a single asset and return the results and score.
 	"""
-	logger.info(f"Analyzing asset: {symbol} with profile: {profile}")
+	logger.info(
+		f"Analyzing asset: {symbol} with profile: {profile} (benchmarks: {benchmark_version})"
+	)
 	asset = get_stock_data(symbol)
 	if not asset:
 		logger.warning(f"Could not retrieve data for {symbol}")
@@ -28,11 +31,16 @@ def analyze_asset(
 	# Load benchmarks with sector context for stocks
 	sector_context = asset.sector if asset.asset_type == AssetType.STOCK else None
 	benchmark_defs = load_benchmarks(
-		asset.asset_type.value, sector=sector_context, repo=repo
+		asset.asset_type.value,
+		sector=sector_context,
+		repo=repo,
+		version=benchmark_version,
 	)
 
 	if not benchmark_defs:
-		logger.error(f"No benchmarks found for {symbol} in database")
+		logger.error(
+			f"No benchmarks (version {benchmark_version}) found for {symbol} in database"
+		)
 		return None
 
 	profile_weights = get_profile_weights(repo, profile)
@@ -85,6 +93,7 @@ def analyze_asset(
 				profile=profile,
 				total_score=final_pct,
 				results_json=json.dumps(results_summary),
+				benchmark_version=benchmark_version,
 			)
 			logger.info(f"Saved analysis snapshot for {symbol} to DB")
 		except Exception as e:
@@ -108,16 +117,21 @@ def run_bulk_analysis(
 	profile: str,
 	progress_callback: Optional[Any] = None,
 	repo: Optional[DatabaseRepository] = None,
+	benchmark_version: str = "1.0.0",
 ) -> List[Dict[str, Any]]:
 	"""
 	Run analysis for multiple tickers.
 	"""
-	logger.info(f"Starting bulk analysis for {len(tickers)} tickers")
+	logger.info(
+		f"Starting bulk analysis for {len(tickers)} tickers (benchmarks: {benchmark_version})"
+	)
 	all_results = []
 	for ticker in tickers:
 		ticker = ticker.upper().strip()
 		try:
-			res = analyze_asset(ticker, profile, repo=repo)
+			res = analyze_asset(
+				ticker, profile, repo=repo, benchmark_version=benchmark_version
+			)
 			if res:
 				all_results.append(res)
 				if progress_callback:

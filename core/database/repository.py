@@ -128,17 +128,22 @@ class DatabaseRepository:
 		conn.commit()
 
 	def create_analysis_snapshot(
-		self, symbol: str, profile: str, total_score: float, results_json: str
+		self,
+		symbol: str,
+		profile: str,
+		total_score: float,
+		results_json: str,
+		benchmark_version: str = "1.0.0",
 	):
 		"""Create a new analysis snapshot."""
 		conn = self.db.get_connection()
 		cursor = conn.cursor()
 		cursor.execute(
 			"""
-			INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json)
-			VALUES (?, ?, ?, ?)
+			INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
+			VALUES (?, ?, ?, ?, ?)
 		""",
-			(symbol, profile, total_score, results_json),
+			(symbol, profile, total_score, results_json, benchmark_version),
 		)
 		conn.commit()
 
@@ -148,7 +153,7 @@ class DatabaseRepository:
 		cursor = conn.cursor()
 		cursor.execute(
 			"""
-			SELECT timestamp, total_score, results_json FROM analysis_snapshots
+			SELECT timestamp, total_score, results_json, benchmark_version FROM analysis_snapshots
 			WHERE symbol = ? AND profile = ?
 			ORDER BY timestamp DESC
 		""",
@@ -163,29 +168,33 @@ class DatabaseRepository:
 		benchmark_type: str,
 		value_a: float,
 		value_b: float,
+		version: str = "1.0.0",
 	):
 		"""Insert or update a sector-specific benchmark."""
 		conn = self.db.get_connection()
 		cursor = conn.cursor()
 		cursor.execute(
 			"""
-			INSERT INTO sector_benchmarks (sector, metric_key, benchmark_type, value_a, value_b, last_updated)
-			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(sector, metric_key) DO UPDATE SET
+			INSERT INTO sector_benchmarks (sector, metric_key, benchmark_type, value_a, value_b, last_updated, version)
+			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+			ON CONFLICT(sector, metric_key, version) DO UPDATE SET
 				benchmark_type = excluded.benchmark_type,
 				value_a = excluded.value_a,
 				value_b = excluded.value_b,
 				last_updated = CURRENT_TIMESTAMP
 		""",
-			(sector, metric_key, benchmark_type, value_a, value_b),
+			(sector, metric_key, benchmark_type, value_a, value_b, version),
 		)
 		conn.commit()
 
-	def get_sector_benchmarks(self, sector: str) -> List[dict]:
-		"""Get all benchmarks for a specific sector."""
+	def get_sector_benchmarks(self, sector: str, version: str = "1.0.0") -> List[dict]:
+		"""Get all benchmarks for a specific sector and version."""
 		conn = self.db.get_connection()
 		cursor = conn.cursor()
-		cursor.execute("SELECT * FROM sector_benchmarks WHERE sector = ?", (sector,))
+		cursor.execute(
+			"SELECT * FROM sector_benchmarks WHERE sector = ? AND version = ?",
+			(sector, version),
+		)
 		return [dict(row) for row in cursor.fetchall()]
 
 	def insert_metric_history(self, symbol: str, metric_key: str, value: float):
@@ -252,15 +261,16 @@ class DatabaseRepository:
 		display_key: Optional[str],
 		params_json: str,
 		weight: float,
+		version: str = "1.0.0",
 	):
 		"""Insert or update a global benchmark."""
 		conn = self.db.get_connection()
 		cursor = conn.cursor()
 		cursor.execute(
 			"""
-			INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT(asset_type, metric_key) DO UPDATE SET
+			INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight, version)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(asset_type, metric_key, version) DO UPDATE SET
 				name = excluded.name,
 				formula_type = excluded.formula_type,
 				unit = excluded.unit,
@@ -279,18 +289,22 @@ class DatabaseRepository:
 				display_key,
 				params_json,
 				weight,
+				version,
 			),
 		)
 		conn.commit()
 
-	def get_global_benchmarks(self, asset_type: str) -> List[dict]:
-		"""Get all benchmarks for a specific asset type, with params merged in."""
+	def get_global_benchmarks(
+		self, asset_type: str, version: str = "1.0.0"
+	) -> List[dict]:
+		"""Get all benchmarks for a specific asset type and version, with params merged in."""
 		import json
 
 		conn = self.db.get_connection()
 		cursor = conn.cursor()
 		cursor.execute(
-			"SELECT * FROM global_benchmarks WHERE asset_type = ?", (asset_type,)
+			"SELECT * FROM global_benchmarks WHERE asset_type = ? AND version = ?",
+			(asset_type, version),
 		)
 		rows = cursor.fetchall()
 
