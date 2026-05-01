@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 
 from rich.console import Console
@@ -9,8 +8,7 @@ from core.database import DatabaseManager, DatabaseRepository
 from core.io.parsers import parse_ticker_file
 from core.logger import get_logger, setup_logging
 from core.orchestrator import run_bulk_analysis
-from core.reporting.csv_reporter import CSVReporter
-from core.reporting.txt_reporter import TXTReporter
+from core.reporting.factory import generate_report
 from core.stats import stats
 from core.ui.terminal import (
 	display_historical_scores,
@@ -44,9 +42,15 @@ def main():
 		help="Investment profile to use",
 	)
 	parser.add_argument(
+		"--benchmark-version",
+		default="1.0.0",
+		help="Version of benchmarks to use for analysis (default: 1.0.0)",
+	)
+	parser.add_argument(
 		"-e",
 		"--export",
-		help="Export results to a CSV or TXT file (e.g., report.csv or report.txt)",
+		choices=["csv", "txt"],
+		help="Export format (csv or txt). Filename is auto-generated.",
 	)
 	parser.add_argument(
 		"--history",
@@ -124,7 +128,11 @@ def main():
 			)
 
 	all_analysis_results = run_bulk_analysis(
-		tickers, args.profile, progress_callback, repo=repo
+		tickers,
+		args.profile,
+		progress_callback,
+		repo=repo,
+		benchmark_version=args.benchmark_version,
 	)
 	stats.end_stage("Analysis & Scoring")
 
@@ -134,23 +142,10 @@ def main():
 		display_summary_table(all_analysis_results)
 
 	if args.export and all_analysis_results:
-		# Ensure reports directory exists
-		reports_dir = "reports"
-		if not os.path.exists(reports_dir):
-			os.makedirs(reports_dir)
-
-		export_path = os.path.join(reports_dir, args.export)
-		ext = os.path.splitext(args.export)[1].lower()
-
-		if ext == ".csv":
-			reporter = CSVReporter()
-		elif ext == ".txt":
-			reporter = TXTReporter()
-		else:
-			# Default to CSV if extension is unrecognized
-			reporter = CSVReporter()
-
-		reporter.export(all_analysis_results, export_path)
+		export_path = generate_report(
+			all_analysis_results, args.export, tickers, index_name=args.index
+		)
+		console.print(f"\n[bold green]Report exported to: {export_path}[/bold green]")
 	stats.end_stage("Reporting")
 
 	display_run_summary(stats)
