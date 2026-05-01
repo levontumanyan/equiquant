@@ -110,7 +110,7 @@ The project follows a modular, functional architecture designed for high testabi
 
 # TODO
 
-- [ ] when market is closed, we should always hit the last price and then always just hit the cache not no reason to keep calling the API.
+- [x] when market is closed, we should always hit the last price and then always just hit the cache not no reason to keep calling the API.
 - [ ] let's start by calculating ourselves industry averages instead of relying on Google for example in order to understand the P/E ratio in the tech industry we can run the numbers ourselves.	
 - [ ] Add an AI layer for LLM-based qualitative synthesis and sentiment analysis.
 - [ ] Analyst Recommendations: Implementing buy/sell/hold synthesis.
