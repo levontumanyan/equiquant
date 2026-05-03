@@ -34,6 +34,8 @@ make run TICKER="AAPL MSFT GOOGL"
 - `make lint`: Check for code style and logical errors.
 - `make setup`: Install git pre-commit hooks.
 
+For more details on how automated checks work, see [Pre-commit Hooks](docs/pre-commit.md).
+
 # Configuration (Database-Driven)
 
 The "Investment Brain" stores all logic in `market_analysis.db`. You can visualize these rules using:

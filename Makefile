@@ -57,9 +57,8 @@ check: format lint test coverage
 
 # Setup git hooks
 setup:
-	cp scripts/setup_hooks.sh .git/hooks/pre-commit
-	chmod +x .git/hooks/pre-commit
-	@echo "Git hooks installed successfully."
+	uv run pre-commit install
+	@echo "Git hooks installed successfully via pre-commit."
 
 # Database tools
 db-shell:
