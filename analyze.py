@@ -143,7 +143,11 @@ def main():
 
 	if args.export and all_analysis_results:
 		export_path = generate_report(
-			all_analysis_results, args.export, tickers, index_name=args.index
+			all_analysis_results,
+			args.export,
+			tickers,
+			index_name=args.index,
+			profile=args.profile,
 		)
 		console.print(f"\n[bold green]Report exported to: {export_path}[/bold green]")
 	stats.end_stage("Reporting")

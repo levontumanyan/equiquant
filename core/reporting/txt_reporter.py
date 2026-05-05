@@ -10,13 +10,19 @@ console = Console()
 
 
 class TXTReporter(BaseReporter):
-	def export(self, all_results: List[Dict[str, Any]], output_path: str):
+	def export(
+		self, all_results: List[Dict[str, Any]], output_path: str, profile: str = "N/A"
+	):
 		"""Export results to a plain text file mirroring terminal output."""
 		if not all_results:
 			return
 
 		# Use a separate console to capture text output
 		capture_console = Console(file=io.StringIO(), force_terminal=False, width=100)
+		capture_console.print(
+			f"FUNDAMENTAL ANALYSIS REPORT - {profile.upper()} PROFILE"
+		)
+		capture_console.print(f"{'=' * 50}\n")
 
 		sorted_results = sorted(all_results, key=lambda x: x["score"], reverse=True)
 

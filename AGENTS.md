@@ -15,7 +15,7 @@
 	1. Research/Implementation in feature branch.
 	2. Verify with `make check`.
 	3. **Mandatory Functional Check**: Run `make run` in the branch and verify output.
-	4. Merge locally only after user approval.
+	4. Merge locally only after user approval. Do not push branches to remote unless instructed directly.
 - **Tooling**: ALWAYS use `make` commands. Do NOT use `uv` or `python` directly.
 
 ## Testing & Validation

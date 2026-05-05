@@ -12,6 +12,7 @@ def generate_report(
 	tickers: List[str],
 	index_name: Optional[str] = None,
 	base_dir: str = "reports",
+	profile: str = "balanced",
 ) -> str:
 	"""
 	Generates a report file with an automated name and returns the path.
@@ -40,5 +41,5 @@ def generate_report(
 	else:
 		raise ValueError(f"Unsupported report format: {fmt}")
 
-	reporter.export(results, output_path)
+	reporter.export(results, output_path, profile=profile)
 	return output_path
