@@ -1,7 +1,7 @@
 .PHONY: run lint format test check setup clean
 
 # Run the analysis for one or more tickers
-# Usage: make run TICKER="AAPL MSFT" PROFILE="growth" EXPORT="report.csv" BENCHMARK_VERSION="1.0.0"
+# Usage: make run TICKER="AAPL MSFT" PROFILE="growth" EXPORT="csv" BENCHMARK_VERSION="1.0.0"
 PROFILE ?= balanced
 LOG_LEVEL ?= INFO
 BENCHMARK_VERSION ?= 1.0.0
