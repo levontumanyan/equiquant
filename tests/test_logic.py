@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from core.analysis.indices import get_index_components
@@ -61,7 +63,20 @@ def test_format_display_value():
 
 def test_get_index_components():
 	# Test that it returns a list of components for a known ETF
-	components = get_index_components("SPY")
-	assert isinstance(components, list)
-	assert len(components) > 1
-	assert "AAPL" in components or "MSFT" in components or "NVDA" in components
+	import pandas as pd
+
+	with patch("yfinance.Ticker") as mock_yf:
+		# Mock top holdings for fallback
+		mock_yf.return_value.info = {"fundFamily": "Unknown"}
+		mock_holdings = MagicMock(spec=pd.DataFrame)
+		mock_holdings.empty = False
+		mock_holdings.index.tolist.return_value = ["AAPL", "MSFT"]
+
+		mock_funds = MagicMock()
+		mock_funds.top_holdings = mock_holdings
+		mock_yf.return_value.funds_data = mock_funds
+
+		components = get_index_components("SPY")
+		assert isinstance(components, list)
+		assert len(components) > 1
+		assert "AAPL" in components
