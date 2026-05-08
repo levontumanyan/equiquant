@@ -234,10 +234,11 @@ def display_run_summary(stats: SessionStats):
 		table.add_row(f"  └─ {stage}", f"{duration:.2f}s")
 
 	# Cache metrics
-	total_requests = stats.cache_hits + stats.api_calls
+	total_requests = stats.cache_hits + stats.api_attempts
 	cache_rate = (stats.cache_hits / total_requests * 100) if total_requests > 0 else 0
 	table.add_row("Cache Hits", f"{stats.cache_hits} ({cache_rate:.1f}%)")
-	table.add_row("API Calls", str(stats.api_calls))
+	table.add_row("API Attempts", str(stats.api_attempts))
+	table.add_row("API Successes", str(stats.api_successes))
 
 	if stats.errors > 0:
 		table.add_row("Errors", f"[bold red]{stats.errors}[/bold red]")
