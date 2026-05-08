@@ -211,3 +211,6 @@ marimo/_lsp/
 __marimo__/
 reports/
 .DS_Store
+
+# Git Worktrees
+.worktrees/
