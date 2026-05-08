@@ -67,6 +67,30 @@ def test_openbb_provider_mapping(mocker):
 	assert asset.metrics["pe_ratio"] == 25.0
 
 
+def test_asset_data_invalid_metrics():
+	# Test AssetData with empty metrics
+	asset = AssetData(symbol="TEST", metrics={})
+	assert asset.metrics == {}
+	assert asset.display_name == "TEST"
+
+
+def test_asset_data_with_name():
+	asset = AssetData(symbol="TEST", name="Test Asset")
+	assert asset.display_name == "Test Asset"
+
+
+def test_openbb_provider_routing_logic(mocker):
+	provider = OpenBBProvider()
+
+	# Mock get_openbb_data to return ETF data
+	mock_etf = {"symbol": "SPY", "fund_family": "SPDR"}
+	mocker.patch(
+		"core.providers.openbb_provider.get_openbb_data", return_value=mock_etf
+	)
+	asset = provider.get_data("SPY")
+	assert asset.asset_type == AssetType.ETF
+
+
 def test_parse_ticker_file_txt(tmp_path):
 	d = tmp_path / "subdir"
 	d.mkdir()
