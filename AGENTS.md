@@ -26,3 +26,8 @@
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
+
+## Subagent & Data Access
+- **Data Access**: Agents are explicitly authorized to read files in `reports/` and `logs/` even if they are ignored by `.gitignore`.
+- **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.
+- **Fallbacks**: If a high-level tool (like `read_file`) fails due to ignore patterns, use `run_shell_command` with `cat` to ingest the data.
