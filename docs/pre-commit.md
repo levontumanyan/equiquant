@@ -24,7 +24,20 @@ The output is set to **verbose**, so you will see the detailed results of the te
 
 ## Manual Execution
 
-You can run the hooks manually at any time without committing:
+The preferred way to run checks manually is using the `Makefile` targets, which ensure you are using the correct environment:
+
+### Run all checks (Recommended)
+```bash
+make check
+```
+
+### Run specific checks
+```bash
+make test    # Runs pytest with coverage
+make format  # Runs ruff and ruff-format
+```
+
+Alternatively, you can call `pre-commit` directly:
 
 ### Run on staged files
 ```bash
