@@ -40,24 +40,24 @@ history:
 
 # Run code linting and formatting checks
 lint:
-	uv run ruff check .
-	uv run ruff format --check .
+	uv run pre-commit run --all-files ruff
+	uv run pre-commit run --all-files ruff-format
 
 # Automatically fix linting issues and format code
 format:
-	uv run ruff check --fix .
-	uv run ruff format .
+	uv run pre-commit run --all-files ruff
+	uv run pre-commit run --all-files ruff-format
 
 # Run tests
 test:
-	uv run pytest
+	uv run pre-commit run --all-files pytest
 
-# Run tests with coverage report
-coverage:
-	uv run pytest --cov=core --cov-report=term-missing
+# Run tests with coverage report (alias for test as pytest hook includes coverage)
+coverage: test
 
 # Comprehensive check: format, lint, and test
-check: format lint test coverage
+check:
+	uv run pre-commit run --all-files
 
 # Setup git hooks
 setup:

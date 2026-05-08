@@ -27,14 +27,14 @@ make run TICKER="AAPL MSFT GOOGL"
 - `make run TICKER="AAPL MSFT" EXPORT="report.txt"`: Export bulk analysis results to `reports/report.txt` (Human-readable text).
 - `make run INDEX="SPY"`: Analyze components of an index or ETF.
 - `make run PROFILE="growth" TICKER="AAPL"`: Run analysis with a specific investment profile.
-- `make check`: Run formatting, linting, tests, and coverage in sequence.
-- `make test`: Run the test suite (`pytest`).
-- `make coverage`: Run tests and display coverage report.
-- `make format`: Automatically fix code formatting and linting issues.
-- `make lint`: Check for code style and logical errors.
+- `make check`: Run **all** quality checks (linting, formatting, tests, and coverage) via `pre-commit`.
+- `make test`: Run the test suite (`pytest`) via `pre-commit`.
+- `make coverage`: Alias for `make test` (includes coverage report).
+- `make format`: Run code formatting and linting via `pre-commit`.
+- `make lint`: Check for code style and logical errors via `pre-commit`.
 - `make setup`: Install git pre-commit hooks.
 
-For more details on how automated checks work, see [Pre-commit Hooks](docs/pre-commit.md).
+All quality checks are consolidated through `pre-commit` to ensure that manual checks and commit-time hooks are perfectly aligned. For more details, see [Pre-commit Hooks](docs/pre-commit.md).
 
 # Configuration (Database-Driven)
 

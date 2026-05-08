@@ -45,10 +45,9 @@ def test_daemonize_logic(mocker):
 	mocker.patch("sys.exit")
 
 	# Mock open to avoid actual file operations
-	mock_open = mocker.patch("builtins.open")
 	mock_file = MagicMock()
 	mock_file.fileno.return_value = 10
-	mock_open.return_value = mock_file
+	mocker.patch("builtins.open", return_value=mock_file)
 
 	# Mock sys.stdin.fileno() etc to avoid pytest issues
 	mocker.patch("sys.stdin.fileno", return_value=0)
