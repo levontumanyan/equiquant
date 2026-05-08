@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from rich.console import Console
@@ -6,7 +7,7 @@ from rich.console import Console
 from core.analysis.indices import get_index_components
 from core.database import DatabaseManager, DatabaseRepository
 from core.io.parsers import parse_ticker_file
-from core.logger import get_logger, setup_logging
+from core.logger import LOG_FILE, get_logger, setup_logging
 from core.orchestrator import run_bulk_analysis
 from core.reporting.factory import generate_report
 from core.stats import stats
@@ -19,6 +20,51 @@ from core.ui.terminal import (
 
 console = Console()
 logger = get_logger(__name__)
+
+
+def daemonize():
+	"""Detaches the process from the terminal."""
+	try:
+		pid = os.fork()
+		if pid > 0:
+			# exit first parent
+			sys.exit(0)
+	except OSError as e:
+		logger.error(f"fork #1 failed: {e.errno} ({e.strerror})")
+		sys.exit(1)
+
+	# decouple from parent environment
+	os.setsid()
+	os.umask(0)
+
+	# do second fork
+	try:
+		pid = os.fork()
+		if pid > 0:
+			# exit from second parent
+			sys.exit(0)
+	except OSError as e:
+		logger.error(f"fork #2 failed: {e.errno} ({e.strerror})")
+		sys.exit(1)
+
+	# Redirect standard file descriptors to log files
+	# Use the same base name as the JSON log but with .out extension for stdout/stderr
+	out_file = str(LOG_FILE).replace(".log", ".out")
+
+	sys.stdout.flush()
+	sys.stderr.flush()
+
+	si = open(os.devnull, "r")
+	so = open(out_file, "a+")
+	se = open(out_file, "a+")
+
+	os.dup2(si.fileno(), sys.stdin.fileno())
+	os.dup2(so.fileno(), sys.stdout.fileno())
+	os.dup2(se.fileno(), sys.stderr.fileno())
+
+	logger.info(
+		f"Process daemonized. PID: {os.getpid()}. Output redirected to {out_file}"
+	)
 
 
 def main():
@@ -63,10 +109,21 @@ def main():
 		action="store_true",
 		help="Enable verbose output (print logs to console)",
 	)
+	parser.add_argument(
+		"-b",
+		"--background",
+		action="store_true",
+		help="Run the analysis in the background",
+	)
 	args = parser.parse_args()
 
 	# Initialize Logging
 	setup_logging(verbose=args.verbose)
+
+	if args.background:
+		print(f"Starting analysis in background. Logs: {LOG_FILE}")
+		daemonize()
+
 	logger.info("Application started")
 
 	# Initialize Database
