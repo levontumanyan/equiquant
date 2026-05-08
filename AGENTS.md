@@ -20,7 +20,7 @@
 	2. Research and implementation.
 	3. Verify with `make check`.
 	4. **Mandatory Functional Check**: Run `make run` and verify output.
-	5. Merge locally only after user approval. Do not push branches to remote unless instructed directly.
+	5. Once approved, merge to `main` locally and push. Do not push feature branches to remote unless instructed directly.
 
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
