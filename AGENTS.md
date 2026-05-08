@@ -10,13 +10,17 @@
 - **Scalability**: New data sources inherit `BaseProvider`; new metrics update `mappings.py` and `AssetData`.
 - **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
 
-## Environment & Execution
-- **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main`.
-	1. Research/Implementation in feature branch.
-	2. Verify with `make check`.
-	3. **Mandatory Functional Check**: Run `make run` in the branch and verify output.
-	4. Merge locally only after user approval. Do not push branches to remote unless instructed directly.
+## Environment, Branching & Parallelism
 - **Tooling**: ALWAYS use `make` commands. Do NOT use `uv` or `python` directly.
+- **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main`.
+	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`. (e.g., `feat/api-integration`).
+	- **Parallelism**: Use `git worktree` for parallel tasks. Create worktrees in `.worktrees/<branch-name>`.
+- **Workflow**:
+	1. Create a new branch/worktree for the task.
+	2. Research and implementation.
+	3. Verify with `make check`.
+	4. **Mandatory Functional Check**: Run `make run` and verify output.
+	5. Once approved, merge to `main` locally and push. Do not push feature branches to remote unless instructed directly.
 
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
