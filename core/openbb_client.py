@@ -132,11 +132,16 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 
 		if not combined_data:
 			logger.warning(f"No data retrieved for {ticker_symbol}")
+			# Still sleep to avoid hammering on consecutive failures
+			time.sleep(random.uniform(1.0, 2.0))
 			return {}
 
 		# Save to cache
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		cache_file.write_text(json.dumps(combined_data, default=str, indent="\t"))
+
+		# Record success
+		stats.api_successes += 1
 
 		# Light rate limiting
 		time.sleep(random.uniform(0.6, 1.1))

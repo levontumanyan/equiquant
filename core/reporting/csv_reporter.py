@@ -9,7 +9,9 @@ console = Console()
 
 
 class CSVReporter(BaseReporter):
-	def export(self, all_results: List[Dict[str, Any]], output_path: str):
+	def export(
+		self, all_results: List[Dict[str, Any]], output_path: str, profile: str = "N/A"
+	):
 		"""Export full results to a CSV file in horizontal format."""
 		if not all_results:
 			return
@@ -23,7 +25,7 @@ class CSVReporter(BaseReporter):
 					benchmark_names.append(name)
 
 		# 2. Build Headers
-		headers = ["Symbol", "Name", "Asset Type", "Total Score (%)"]
+		headers = ["Symbol", "Name", "Profile", "Asset Type", "Total Score (%)"]
 		for name in benchmark_names:
 			headers.append(f"{name} (Value)")
 			headers.append(f"{name} (Strength %)")
@@ -37,6 +39,7 @@ class CSVReporter(BaseReporter):
 					row = {
 						"Symbol": res["symbol"],
 						"Name": res["name"],
+						"Profile": profile.upper(),
 						"Asset Type": str(res["asset_type"].value),
 						"Total Score (%)": f"{res['score']:.2f}",
 					}

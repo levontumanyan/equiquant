@@ -11,12 +11,15 @@ EXPORT ?=
 INDEX ?=
 VERBOSE ?=
 
+BACKGROUND ?=
+
 run:
 	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py $(TICKER) \
 		$(if $(FILE),--file $(FILE)) \
 		$(if $(EXPORT),--export $(EXPORT)) \
 		$(if $(INDEX),--index $(INDEX)) \
 		$(if $(VERBOSE),--verbose) \
+		$(if $(BACKGROUND),--background) \
 		--profile $(PROFILE) \
 		--benchmark-version $(BENCHMARK_VERSION)
 
@@ -26,6 +29,7 @@ run-all-stocks:
 	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py --all \
 		$(if $(EXPORT),--export $(EXPORT)) \
 		$(if $(VERBOSE),--verbose) \
+		$(if $(BACKGROUND),--background) \
 		--profile $(PROFILE) \
 		--benchmark-version $(BENCHMARK_VERSION)
 
