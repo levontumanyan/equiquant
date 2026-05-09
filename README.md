@@ -14,6 +14,24 @@ Analyze an index:
 ./analyze.py --index QQQ --export csv
 ```
 
+# Installation
+
+The project uses `uv` for dependency management.
+
+### For Users (Minimal)
+If you just want to run the analysis:
+```bash
+make install
+```
+This installs only the necessary runtime dependencies (pandas, requests, openbb, etc.).
+
+### For Developers (Full)
+If you plan to contribute or run tests:
+```bash
+make setup
+```
+This installs all dependencies, including testing tools (pytest, coverage) and linting tools (ruff, pre-commit), and sets up git hooks.
+
 # Features
 
 - **Multi-Source Data**: Scalable architecture supporting multiple data providers (currently Yahoo Finance).

@@ -1,4 +1,4 @@
-.PHONY: help lint format test check setup clean db-shell install-completions
+.PHONY: help lint format test check install setup clean db-shell install-completions
 
 # Default profile
 PROFILE ?= balanced
@@ -12,13 +12,16 @@ help:
 	@echo "  ./analyze.py --index QQQ         Analyze all components of an index"
 	@echo "  ./analyze.py --db assets         Inspect database assets"
 	@echo ""
+	@echo "Installation:"
+	@echo "  make install     Install user dependencies (minimal)"
+	@echo "  make setup       Install all dependencies + git hooks (development)"
+	@echo "  make install-completions  Install zsh completions"
+	@echo ""
 	@echo "Development Tasks (via make):"
 	@echo "  make check       Run all quality checks (lint, format, test)"
 	@echo "  make lint        Check code style"
 	@echo "  make format      Auto-format code"
 	@echo "  make test        Run unit tests"
-	@echo "  make setup       Initial setup (git hooks)"
-	@echo "  make install-completions  Install zsh completions"
 	@echo "  make db-shell    Open sqlite3 shell"
 	@echo "  make clean       Cleanup temp files"
 
@@ -37,10 +40,15 @@ test:
 check:
 	uv run pre-commit run --all-files
 
-# Setup
+# Setup & Installation
+install:
+	uv sync --no-dev
+	@echo "User dependencies installed successfully."
+
 setup:
+	uv sync
 	uv run pre-commit install
-	@echo "Git hooks installed successfully via pre-commit."
+	@echo "Development environment and git hooks installed successfully."
 
 install-completions:
 	@mkdir -p ~/.zsh/completions
