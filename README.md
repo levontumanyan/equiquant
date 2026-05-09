@@ -16,17 +16,36 @@ Analyze an index:
 
 # Installation
 
-The project uses `uv` for dependency management.
+The project uses `uv` for extremely fast dependency management.
 
-### For Users (Minimal)
-If you just want to run the analysis:
+### 1. Install `uv`
+
+**macOS (Homebrew):**
+```bash
+brew install uv
+```
+
+**Linux/macOS (Official Script):**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows:**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### 2. Install Project Dependencies
+
+Once `uv` is installed, run one of the following from the project root:
+
+**For Users (Minimal):**
 ```bash
 make install
 ```
 This installs only the necessary runtime dependencies (pandas, requests, openbb, etc.).
 
-### For Developers (Full)
-If you plan to contribute or run tests:
+**For Developers (Full):**
 ```bash
 make setup
 ```
