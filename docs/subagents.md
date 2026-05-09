@@ -1,6 +1,6 @@
 # Subagent Options & Definitions
 
-This document defines specialized subagents tailored to the `market-analysis` architecture and financial domain.
+This document defines specialized subagents tailored to the `equiquant` architecture and financial domain.
 
 ## 1. Financial Expert
 | Attribute | Definition |

@@ -1,6 +1,6 @@
-# Roadmap to Excellence: The Future of Market Analysis
+# Roadmap to Excellence: The Future of EquiQuant
 
-This document outlines the strategic evolution of the `Market-Analysis` tool, transitioning it from a basic data aggregator into a sophisticated, enterprise-ready quantitative analysis platform.
+This document outlines the strategic evolution of the `EquiQuant` tool, transitioning it from a basic data aggregator into a sophisticated, enterprise-ready quantitative analysis platform.
 
 ---
 

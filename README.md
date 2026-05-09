@@ -1,4 +1,4 @@
-# Market-Analysis
+# EquiQuant
 
 Personal stock market analysis tool. A programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
@@ -81,7 +81,7 @@ Usage:
 To enable completions, add the following to your `.zshrc`:
 
 ```zsh
-fpath=(/path/to/Market-Analysis/scripts/completions $fpath)
+fpath=(/path/to/equiquant/scripts/completions $fpath)
 autoload -Uz compinit && compinit
 ```
 

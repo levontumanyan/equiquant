@@ -1,6 +1,7 @@
 # Report Analyst Subagent Specification
 
-The Report Analyst is a specialized agent designed to interpret the output of the `market-analysis` tool. It transforms raw CSV/TXT data into actionable investment intelligence.
+The Report Analyst is a specialized agent designed to interpret the output of the `equiquant` tool.
+ It transforms raw CSV/TXT data into actionable investment intelligence.
 
 ## Core Capabilities
 

@@ -1,6 +1,7 @@
 # "Investment Brain" Database Schema Design
 
-This document defines the relational architecture for the `Market-Analysis` persistent storage. The goal is to move from volatile JSON caching to a robust, queryable Hybrid Storage system (SQLite + File System).
+This document defines the relational architecture for the `EquiQuant` persistent storage.
+ The goal is to move from volatile JSON caching to a robust, queryable Hybrid Storage system (SQLite + File System).
 
 ---
 
