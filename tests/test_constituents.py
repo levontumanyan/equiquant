@@ -15,7 +15,9 @@ def test_get_constituents_nasdaq100():
 		with patch("pandas.read_html") as mock_read_html:
 			mock_read_html.return_value = [pd.DataFrame({"Ticker": ["AAPL", "MSFT"]})]
 
-			tickers = get_constituents("nasdaq100")
+			# Mock cache file not existing to force fetch
+			with patch("pathlib.Path.exists", return_value=False):
+				tickers = get_constituents("nasdaq100")
 
 	assert "AAPL" in tickers
 	assert "MSFT" in tickers

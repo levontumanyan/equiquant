@@ -11,7 +11,7 @@
 - **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
 
 ## Environment, Branching & Parallelism
-- **Tooling**: ALWAYS use `make` commands. Do NOT use `uv` or `python` directly.
+- **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py` (with `uv run` if necessary) to leverage zsh completions.
 - **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main`.
 	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`. (e.g., `feat/api-integration`).
 	- **Parallelism**: Use `git worktree` for parallel tasks. Create worktrees in `.worktrees/<branch-name>`.
@@ -19,7 +19,7 @@
 	1. Create a new branch/worktree for the task.
 	2. Research and implementation.
 	3. Verify with `make check`.
-	4. **Mandatory Functional Check**: Run `make run` and verify output.
+	4. **Mandatory Functional Check**: Run `./analyze.py` with appropriate flags and verify output.
 	5. Once approved, merge to `main` locally and push. Do not push feature branches to remote unless instructed directly.
 
 ## Testing & Validation
