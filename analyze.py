@@ -1,7 +1,34 @@
+#!/usr/bin/env python3
 import argparse
 import os
 import sys
 
+# Early exit for completion flags to avoid heavy imports
+if len(sys.argv) > 1 and sys.argv[1] in [
+	"--list-tickers",
+	"--list-indices",
+	"--list-profiles",
+]:
+	import sqlite3
+	from pathlib import Path
+
+	db_path = Path("market_analysis.db")
+	if db_path.exists():
+		conn = sqlite3.connect(str(db_path))
+		cursor = conn.cursor()
+		if sys.argv[1] == "--list-tickers":
+			cursor.execute("SELECT symbol FROM assets ORDER BY symbol")
+		elif sys.argv[1] == "--list-indices":
+			cursor.execute("SELECT symbol FROM indices ORDER BY symbol")
+		elif sys.argv[1] == "--list-profiles":
+			cursor.execute("SELECT name FROM investor_profiles ORDER BY name")
+
+		for row in cursor.fetchall():
+			print(row[0])
+		conn.close()
+	sys.exit(0)
+
+# Heavy imports only for actual execution
 from rich.console import Console
 
 from core.analysis.indices import get_index_components
@@ -11,6 +38,7 @@ from core.logger import LOG_FILE, get_logger, setup_logging
 from core.orchestrator import run_bulk_analysis
 from core.reporting.factory import generate_report
 from core.stats import stats
+from core.ui.database import dispatch_db_view
 from core.ui.terminal import (
 	display_historical_scores,
 	display_individual_results,
@@ -27,41 +55,29 @@ def daemonize():
 	try:
 		pid = os.fork()
 		if pid > 0:
-			# exit first parent
 			sys.exit(0)
 	except OSError as e:
 		logger.error(f"fork #1 failed: {e.errno} ({e.strerror})")
 		sys.exit(1)
-
-	# decouple from parent environment
 	os.setsid()
 	os.umask(0)
-
-	# do second fork
 	try:
 		pid = os.fork()
 		if pid > 0:
-			# exit from second parent
 			sys.exit(0)
 	except OSError as e:
 		logger.error(f"fork #2 failed: {e.errno} ({e.strerror})")
 		sys.exit(1)
 
-	# Redirect standard file descriptors to log files
-	# Use the same base name as the JSON log but with .out extension for stdout/stderr
 	out_file = str(LOG_FILE).replace(".log", ".out")
-
 	sys.stdout.flush()
 	sys.stderr.flush()
-
 	si = open(os.devnull, "r")
 	so = open(out_file, "a+")
 	se = open(out_file, "a+")
-
 	os.dup2(si.fileno(), sys.stdin.fileno())
 	os.dup2(so.fileno(), sys.stdout.fileno())
 	os.dup2(se.fileno(), sys.stderr.fileno())
-
 	logger.info(
 		f"Process daemonized. PID: {os.getpid()}. Output redirected to {out_file}"
 	)
@@ -115,10 +131,32 @@ def main():
 		action="store_true",
 		help="Run the analysis in the background",
 	)
+	parser.add_argument(
+		"--db",
+		choices=[
+			"assets",
+			"indices",
+			"snapshots",
+			"sectors",
+			"profiles",
+			"benchmarks",
+			"inventory",
+		],
+		help="Inspect the database (replaces make db-*)",
+	)
+	# Hidden flags for completion (handled early, but kept here for help/parsing)
+	parser.add_argument("--list-tickers", action="store_true", help=argparse.SUPPRESS)
+	parser.add_argument("--list-indices", action="store_true", help=argparse.SUPPRESS)
+	parser.add_argument("--list-profiles", action="store_true", help=argparse.SUPPRESS)
+
 	args = parser.parse_args()
 
 	# Initialize Logging
 	setup_logging(verbose=args.verbose)
+
+	if args.db:
+		dispatch_db_view(args.db)
+		sys.exit(0)
 
 	if args.background:
 		print(f"Starting analysis in background. Logs: {LOG_FILE}")
@@ -138,8 +176,6 @@ def main():
 	if args.index:
 		tickers.extend(get_index_components(args.index, repo=repo))
 	if args.all:
-		# Fetch all symbols that aren't indices themselves
-		# This includes STOCK and assets not yet tagged (lazy metadata)
 		cursor = db_manager.get_connection().cursor()
 		cursor.execute(
 			"SELECT symbol FROM assets WHERE symbol NOT IN (SELECT symbol FROM indices)"
@@ -147,7 +183,6 @@ def main():
 		all_symbols = [row[0] for row in cursor.fetchall()]
 		tickers.extend(all_symbols)
 
-	# Deduplicate and normalize
 	tickers = sorted(list(set(t.upper().strip() for t in tickers)))
 	stats.end_stage("Data Discovery")
 
@@ -156,7 +191,6 @@ def main():
 		parser.print_help()
 		sys.exit(1)
 
-	# 1.5 Handle History Request
 	if args.history:
 		console.print(
 			f"[bold green]Fetching history for {len(tickers)} asset(s) with [cyan]{args.profile.upper()}[/cyan] profile[/bold green]"
@@ -166,7 +200,6 @@ def main():
 			display_historical_scores(ticker, args.profile, snapshots)
 		sys.exit(0)
 
-	# 2. Process Tickers
 	stats.start_stage("Analysis & Scoring")
 	is_bulk = len(tickers) > 1
 	console.print(
@@ -193,7 +226,6 @@ def main():
 	)
 	stats.end_stage("Analysis & Scoring")
 
-	# 3. Bulk Summary & Export
 	stats.start_stage("Reporting")
 	if is_bulk and all_analysis_results:
 		display_summary_table(all_analysis_results)

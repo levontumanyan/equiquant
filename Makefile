@@ -1,106 +1,61 @@
-.PHONY: run lint format test check setup clean
+.PHONY: help lint format test check setup clean db-shell install-completions
 
-# Run the analysis for one or more tickers
-# Usage: make run TICKER="AAPL MSFT" PROFILE="growth" EXPORT="csv" BENCHMARK_VERSION="1.0.0"
+# Default profile
 PROFILE ?= balanced
-LOG_LEVEL ?= INFO
 BENCHMARK_VERSION ?= 1.0.0
-TICKER ?=
-FILE ?=
-EXPORT ?=
-INDEX ?=
-VERBOSE ?=
 
-BACKGROUND ?=
+help:
+	@echo "Market Analysis CLI"
+	@echo ""
+	@echo "Usage:"
+	@echo "  ./analyze.py TICKER              Analyze a stock"
+	@echo "  ./analyze.py --index QQQ         Analyze all components of an index"
+	@echo "  ./analyze.py --db assets         Inspect database assets"
+	@echo ""
+	@echo "Development Tasks (via make):"
+	@echo "  make check       Run all quality checks (lint, format, test)"
+	@echo "  make lint        Check code style"
+	@echo "  make format      Auto-format code"
+	@echo "  make test        Run unit tests"
+	@echo "  make setup       Initial setup (git hooks)"
+	@echo "  make install-completions  Install zsh completions"
+	@echo "  make db-shell    Open sqlite3 shell"
+	@echo "  make clean       Cleanup temp files"
 
-run:
-	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py $(TICKER) \
-		$(if $(FILE),--file $(FILE)) \
-		$(if $(EXPORT),--export $(EXPORT)) \
-		$(if $(INDEX),--index $(INDEX)) \
-		$(if $(VERBOSE),--verbose) \
-		$(if $(BACKGROUND),--background) \
-		--profile $(PROFILE) \
-		--benchmark-version $(BENCHMARK_VERSION)
-
-# Run analysis against all stocks in the database
-# Usage: make run-all-stocks PROFILE="growth" EXPORT="full_report.csv" BENCHMARK_VERSION="1.0.0"
-run-all-stocks:
-	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py --all \
-		$(if $(EXPORT),--export $(EXPORT)) \
-		$(if $(VERBOSE),--verbose) \
-		$(if $(BACKGROUND),--background) \
-		--profile $(PROFILE) \
-		--benchmark-version $(BENCHMARK_VERSION)
-
-# Show historical scores for one or more tickers
-# Usage: make history TICKER=AAPL PROFILE=growth
-history:
-	@LOG_LEVEL=$(LOG_LEVEL) uv run analyze.py $(TICKER) --history --profile $(PROFILE)
-
-# Run code linting and formatting checks
+# Quality Checks
 lint:
 	uv run pre-commit run --all-files ruff
 	uv run pre-commit run --all-files ruff-format
 
-# Automatically fix linting issues and format code
 format:
 	uv run pre-commit run --all-files ruff
 	uv run pre-commit run --all-files ruff-format
 
-# Run tests
 test:
 	uv run pre-commit run --all-files pytest
 
-# Run tests with coverage report (alias for test as pytest hook includes coverage)
-coverage: test
-
-# Comprehensive check: format, lint, and test
 check:
 	uv run pre-commit run --all-files
 
-# Setup git hooks
+# Setup
 setup:
 	uv run pre-commit install
 	@echo "Git hooks installed successfully via pre-commit."
 
-# Database tools
+install-completions:
+	@mkdir -p ~/.zsh/completions
+	@ln -sf $$(pwd)/scripts/completions/_analyze ~/.zsh/completions/_analyze
+	@echo "Symlinked _analyze to ~/.zsh/completions/_analyze"
+	@echo "To activate, restart your shell or run: autoload -Uz compinit && compinit"
+
+# Development Tools
 db-shell:
 	@sqlite3 market_analysis.db
-
-db-summary:
-	@echo "--- Database Summary ---"
-	@echo "Assets:      $$(sqlite3 market_analysis.db 'SELECT COUNT(*) FROM assets;')"
-	@echo "Indices:     $$(sqlite3 market_analysis.db 'SELECT COUNT(*) FROM indices;')"
-	@echo "Snapshots:   $$(sqlite3 market_analysis.db 'SELECT COUNT(*) FROM analysis_snapshots;')"
-	@echo "Financials:  $$(sqlite3 market_analysis.db 'SELECT COUNT(*) FROM financial_statements;')"
-	@echo "------------------------"
-
-db-assets:
-	@PYTHONPATH=. uv run scripts/db_inspect.py assets
-
-db-indices:
-	@PYTHONPATH=. uv run scripts/db_inspect.py indices
-
-db-snapshots:
-	@PYTHONPATH=. uv run scripts/db_inspect.py snapshots
-
-db-sectors:
-	@PYTHONPATH=. uv run scripts/db_inspect.py sectors
-
-db-profiles:
-	@PYTHONPATH=. uv run scripts/db_inspect.py profiles
-
-db-benchmarks:
-	@PYTHONPATH=. uv run scripts/db_inspect.py benchmarks
-
-db-stock-inventory:
-	@PYTHONPATH=. uv run scripts/db_inspect.py inventory
 
 populate-index:
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
 
-# Remove temporary files and the virtual environment
 clean:
 	rm -rf .venv
 	find . -type d -name "__pycache__" -exec rm -rf {} +
+	rm -rf .pytest_cache .ruff_cache
