@@ -41,11 +41,22 @@ check:
 	uv run pre-commit run --all-files
 
 # Setup & Installation
-install:
+ensure-uv:
+	@command -v uv >/dev/null 2>&1 || { \
+		if [ "$$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then \
+			echo "uv not found. Installing via Homebrew..."; \
+			brew install uv; \
+		else \
+			echo "uv not found. Please install it first: https://docs.astral.sh/uv/getting-started/installation/"; \
+			exit 1; \
+		fi; \
+	}
+
+install: ensure-uv
 	uv sync --no-dev
 	@echo "User dependencies installed successfully."
 
-setup:
+setup: ensure-uv
 	uv sync
 	uv run pre-commit install
 	@echo "Development environment and git hooks installed successfully."
