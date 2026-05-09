@@ -133,6 +133,9 @@ When you run an analysis (e.g., `./analyze.py NVDA --profile growth`), the syste
 # TODO
 
 - [x] Zsh completions and reduced `make` usage.
+- [ ] Docker/Podman dev container.
+- [ ] Automated binary releases.
+- [ ] Visual README updates and screenshots.
 - [ ] Industry average calculations instead of relying on external sector bounds.
 - [ ] AI layer for LLM-based qualitative synthesis.
 - [x] Analyst Recommendations & Short Interest tracking.

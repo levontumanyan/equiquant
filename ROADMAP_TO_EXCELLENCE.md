@@ -75,6 +75,24 @@ Moving from raw data to actionable, visual intelligence.
 
 ---
 
+## 🛠 Pillar 5: Infrastructure & Documentation
+
+Building a robust, portable environment and first-class documentation for seamless onboarding.
+
+### 5.1 Portable Environments
+- **Docker/Podman Integration:** Develop a standardized container image to ensure the tool runs identically across macOS, Linux, and Windows without dependency conflicts.
+- **Dev Containers:** Full support for VS Code Dev Containers to allow one-click development setup.
+
+### 5.2 Accessibility & Distribution
+- **Binary Releases:** Automate the creation of standalone binaries (via PyInstaller or similar) to allow users to run the CLI without needing a local Python environment.
+- **GitHub Actions:** Implement CI/CD for automated testing and binary builds on every release.
+
+### 5.3 Documentation Excellence
+- **Visual README:** Enhance documentation with usage examples, terminal screenshots, and clear architecture diagrams.
+- **Auto-generated Docs:** Maintain a living documentation site or Wiki detailing each metric and scoring formula.
+
+---
+
 ## 🚀 The Path Forward
 
 By implementing these pillars, this tool will bridge the gap between hobbyist scripts and professional-grade quantitative tools used by institutional analysts. Each feature added is a step toward a more rigorous, objective, and data-driven investment process.
