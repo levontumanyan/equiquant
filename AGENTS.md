@@ -16,14 +16,15 @@
 	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`.
 	- **Concurrency**: Use `git worktree` for all tasks to ensure parallel LLM sessions do not overwrite each other. Create worktrees in `.worktrees/<branch-name>`.
 - **Standard Workflow**:
-	1. **Sync**: Ensure you are on `main` and run `git pull origin main`.
-	2. **Issue**: Create a GitHub issue for the task using `gh issue create` if one doesn't already exist for the work you are doing.
-	3. **Worktree**: Create a new worktree and branch: `git worktree add .worktrees/<branch-name> -b <branch-name> main`.
-	4. **Implement**: Perform research, implementation, and testing within the worktree.
-	5. Send periodic issue updates and a final summary upon completion as comments on the issue.
-	6. **Verify**: Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
-	7. **PR**: If the user is satisfied with the changes(ask), push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
-	8. **Finalize**: Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
+	1. Ensure you are on `main` and run `git pull origin main`.
+	2. Create a GitHub issue for the task using `gh issue create` if one doesn't already exist for the work you are doing.
+	3. Create a new worktree and branch: `git worktree add .worktrees/<branch-name> -b <branch-name> main`.
+	4. Open a vscode window of that worktree `code .worktrees/<branch-name>`.
+	5. Perform research, implementation, and testing within the worktree.
+	6. Send periodic issue updates and a final summary upon completion as comments on the issue.
+	7. Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
+	8. If the user is satisfied with the changes(ask), push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	9. Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
