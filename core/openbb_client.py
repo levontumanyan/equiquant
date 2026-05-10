@@ -1,16 +1,48 @@
 import json
+import os
 import random
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-from config import CACHE_DIR
+from config import CACHE_DIR, PROXIES
 from core.logger import get_logger
 from core.stats import stats
 from core.utils.market import get_last_market_close, is_market_closed
 
 logger = get_logger(__name__)
+
+
+class ProxyManager:
+	"""
+	Manages a pool of proxies and rotates them by updating environment variables.
+	OpenBB Platform (and underlying libraries like requests/httpx/urllib3)
+	typically respect HTTP_PROXY/HTTPS_PROXY environment variables.
+	"""
+
+	def __init__(self, proxies: List[str]):
+		self.proxies = proxies
+		self.current_index = -1
+
+	def rotate(self) -> Optional[str]:
+		"""Rotate to the next proxy in the list."""
+		if not self.proxies:
+			return None
+		self.current_index = (self.current_index + 1) % len(self.proxies)
+		proxy = self.proxies[self.current_index]
+		os.environ["HTTP_PROXY"] = proxy
+		os.environ["HTTPS_PROXY"] = proxy
+		logger.info(f"Rotated to proxy: {proxy}")
+		return proxy
+
+	def clear(self):
+		"""Clear proxy environment variables."""
+		os.environ.pop("HTTP_PROXY", None)
+		os.environ.pop("HTTPS_PROXY", None)
+
+
+proxy_manager = ProxyManager(PROXIES)
 
 
 def should_use_cache(ticker_symbol: str) -> bool:
@@ -97,6 +129,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 		logger.info("All symbols in bulk request already cached.")
 		return True
 
+	proxy_manager.rotate()
 	from openbb import obb
 
 	provider = "yfinance"
@@ -121,8 +154,8 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 					for k, v in data.items():
 						if v is not None or k not in bulk_combined[symbol]:
 							bulk_combined[symbol][k] = v
-				# 1. Fundamental Metrics
 
+		# 1. Fundamental Metrics
 		merge_bulk_results(
 			_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
 		)
@@ -193,6 +226,7 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
 			pass
 
+	proxy_manager.rotate()
 	# If not cached, fall back to single-fetch (though orchestrator should have bulk-fetched)
 	from openbb import obb
 
@@ -210,8 +244,8 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 				for k, v in data.items():
 					if v is not None or k not in combined_data:
 						combined_data[k] = v
-			# Endpoints
 
+		# Endpoints
 		merge_res(
 			_fetch_with_retry(obb.equity.fundamental.metrics, ticker_symbol, provider)
 		)
