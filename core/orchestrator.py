@@ -148,23 +148,26 @@ def run_bulk_analysis(
 
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
-		try:
-			success = fetch_openbb_data_bulk(batch)
-			if not success:
-				# Backpressure: Provider returned 0 results for the whole batch
-				cooldown = 45
-				logger.warning(
-					f"Batch fetch returned no results for {len(batch)} symbols. Entering {cooldown}s cooldown..."
-				)
-				stats.record_cooldown(cooldown)
-				time.sleep(cooldown)
-			else:
-				# Inter-batch breather: small delay to look more natural
-				breather = random.uniform(3.0, 5.0)
-				time.sleep(breather)
-		except Exception as e:
-			logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
-
+		max_batch_retries = 1
+		for attempt in range(max_batch_retries + 1):
+			try:
+				success = fetch_openbb_data_bulk(batch)
+				if not success:
+					logger.warning(
+						f"Batch fetch returned zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
+					)
+					if attempt < max_batch_retries:
+						# We rely on the internal backoff in openbb_client for timing,
+						# so we just continue to the next attempt immediately.
+						continue
+				else:
+					# Inter-batch breather: small delay to look more natural
+					breather = random.uniform(3.0, 5.0)
+					time.sleep(breather)
+				break  # Success or max retries reached
+			except Exception as e:
+				logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+				break
 	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []
 	for ticker in tickers:
