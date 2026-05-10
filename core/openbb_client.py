@@ -181,25 +181,40 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 						if v is not None or k not in bulk_combined[symbol]:
 							bulk_combined[symbol][k] = v
 
+		# Endpoints are wrapped in individual try-except to avoid batch failure
 		# 1. Fundamental Metrics
-		merge_bulk_results(
-			_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
-		)
+		try:
+			merge_bulk_results(
+				_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
+			)
+		except Exception as e:
+			logger.warning(f"Bulk fetch (Fundamental Metrics) failed for batch: {e}")
 
 		# 2. Company Profile
-		merge_bulk_results(_fetch_with_retry(obb.equity.profile, symbol_str, provider))
+		try:
+			merge_bulk_results(
+				_fetch_with_retry(obb.equity.profile, symbol_str, provider)
+			)
+		except Exception as e:
+			logger.warning(f"Bulk fetch (Profile) failed for batch: {e}")
 
 		# 3. Analyst Consensus
-		merge_bulk_results(
-			_fetch_with_retry(obb.equity.estimates.consensus, symbol_str, provider)
-		)
+		try:
+			merge_bulk_results(
+				_fetch_with_retry(obb.equity.estimates.consensus, symbol_str, provider)
+			)
+		except Exception as e:
+			logger.warning(f"Bulk fetch (Consensus) failed for batch: {e}")
 
 		# 4. Ownership Statistics
-		merge_bulk_results(
-			_fetch_with_retry(
-				obb.equity.ownership.share_statistics, symbol_str, provider
+		try:
+			merge_bulk_results(
+				_fetch_with_retry(
+					obb.equity.ownership.share_statistics, symbol_str, provider
+				)
 			)
-		)
+		except Exception as e:
+			logger.warning(f"Bulk fetch (Ownership) failed for batch: {e}")
 
 		# 5. ETF Info (only for those that still lack a 'name' or look like ETFs)
 		etf_candidates = [
@@ -220,17 +235,21 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		success_count = 0
 		for symbol, data in bulk_combined.items():
-			if len(data) > 1:  # More than just the 'symbol' key we initialized with
-				cache_file = CACHE_DIR / f"{symbol}.json"
-				cache_file.write_text(json.dumps(data, default=str, indent="\t"))
+			# We always save the cache file, even if it only contains {"symbol": S}
+			# This acts as a negative cache to prevent immediate "one-by-one" retries
+			cache_file = CACHE_DIR / f"{symbol}.json"
+			cache_file.write_text(json.dumps(data, default=str, indent="\t"))
+			if len(data) > 1:
 				success_count += 1
 
-		logger.info(f"Bulk fetch complete. Cached data for {success_count} symbols.")
+		logger.info(
+			f"Bulk fetch phase complete. Cached {len(bulk_combined)} files ({success_count} with data)."
+		)
 		stats.api_successes += 1
 		return success_count > 0
 
 	except Exception as e:
-		logger.error(f"OpenBB bulk fetch failure: {e}")
+		logger.error(f"OpenBB bulk fetch critical failure: {e}")
 		stats.errors += 1
 		return False
 

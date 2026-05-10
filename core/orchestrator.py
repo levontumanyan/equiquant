@@ -152,25 +152,36 @@ def run_bulk_analysis(
 
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
-		try:
-			success = fetch_openbb_data_bulk(batch)
-			if not success:
-				# Backpressure: Provider returned 0 results for the whole batch
-				logger.warning(
-					f"Batch fetch returned no results for {len(batch)} symbols. Entering {current_cooldown}s cooldown..."
-				)
-				stats.record_cooldown(current_cooldown)
-				time.sleep(current_cooldown)
-				# Progressive backoff
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-			else:
-				# Reset cooldown on success
-				current_cooldown = base_cooldown
-				# Inter-batch breather: small delay to look more natural
-				breather = random.uniform(3.0, 5.0)
-				time.sleep(breather)
-		except Exception as e:
-			logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+		max_batch_retries = 1
+		for attempt in range(max_batch_retries + 1):
+			try:
+				success = fetch_openbb_data_bulk(batch)
+				if not success:
+					logger.warning(
+						f"Batch fetch returned zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
+					)
+					if attempt < max_batch_retries:
+						# If we have progressive backoff from main, we can use it here between batch retries
+						logger.info(
+							f"Entering {current_cooldown}s cooldown before batch retry..."
+						)
+						stats.record_cooldown(current_cooldown)
+						time.sleep(current_cooldown)
+						current_cooldown = min(current_cooldown * 2, max_cooldown)
+						continue
+					else:
+						# Already retried once and failed
+						pass
+				else:
+					# Reset cooldown on success
+					current_cooldown = base_cooldown
+					# Inter-batch breather: small delay to look more natural
+					breather = random.uniform(3.0, 5.0)
+					time.sleep(breather)
+				break  # Success or max retries reached
+			except Exception as e:
+				logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+				break
 
 	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []
