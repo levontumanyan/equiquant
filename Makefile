@@ -21,24 +21,34 @@ help:
 	@echo "  make check       Run all quality checks (lint, format, test)"
 	@echo "  make lint        Check code style"
 	@echo "  make format      Auto-format code"
-	@echo "  make test        Run unit tests"
+	@echo "  make test-unit   Run unit tests (fast)"
+	@echo "  make test-integration Run integration tests (database)"
+	@echo "  make test-acceptance Run acceptance tests (E2E)"
+	@echo "  make test        Run all tests"
 	@echo "  make db-shell    Open sqlite3 shell"
 	@echo "  make clean       Cleanup temp files"
 
 # Quality Checks
 lint:
-	uv run pre-commit run --all-files ruff
-	uv run pre-commit run --all-files ruff-format
+	uv run ruff check .
+	uv run ruff format --check .
 
 format:
-	uv run pre-commit run --all-files ruff
-	uv run pre-commit run --all-files ruff-format
+	uv run ruff check --fix .
+	uv run ruff format .
 
-test:
-	uv run pre-commit run --all-files pytest
+test-unit:
+	uv run python -m pytest tests/unit
 
-check:
-	uv run pre-commit run --all-files
+test-integration:
+	uv run python -m pytest tests/integration
+
+test-acceptance:
+	uv run python -m pytest tests/acceptance
+
+test: test-unit test-integration test-acceptance
+
+check: lint test
 
 # Setup & Installation
 ensure-uv:

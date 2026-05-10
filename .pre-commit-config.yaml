@@ -13,7 +13,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: uv run pytest -v --cov=core --cov-report=term-missing
+        entry: uv run python -m pytest -v --cov=core --cov-report=term-missing
         language: system
         types: [python]
         pass_filenames: false
