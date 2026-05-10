@@ -2,6 +2,9 @@
 
 Programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
+> [!IMPORTANT]
+> **Zero-Pollution Policy**: This project is strictly isolated via `uv`. It will NEVER touch your global Python site-packages. All dependencies are managed in a local `.venv` folder.
+
 # Quick Start
 
 Analyze a stock:
