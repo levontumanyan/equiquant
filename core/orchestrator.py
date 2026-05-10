@@ -167,9 +167,11 @@ def run_bulk_analysis(
 
 	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []
-	for ticker in tickers:
+	total = len(tickers)
+	for idx, ticker in enumerate(tickers, 1):
 		ticker = ticker.upper().strip()
 		try:
+			logger.info(f"[{idx}/{total}] Processing {ticker}")
 			res = analyze_asset(
 				ticker, profile, repo=repo, benchmark_version=benchmark_version
 			)
