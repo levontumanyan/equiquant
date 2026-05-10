@@ -5,22 +5,21 @@ PROFILE ?= balanced
 BENCHMARK_VERSION ?= 1.0.0
 
 help:
-	@echo "Market Analysis CLI"
+	@echo "Market Analysis CLI (Strictly Isolated via uv)"
 	@echo ""
 	@echo "Usage:"
-	@echo "  ./analyze.py TICKER              Analyze a stock"
+	@echo "  make run TICKERS=\"AAPL\"        Run analysis safely via uv"
+	@echo "  ./analyze.py TICKER              Analyze a stock (auto-isolates)"
 	@echo "  ./analyze.py --index QQQ         Analyze all components of an index"
 	@echo "  ./analyze.py --db assets         Inspect database assets"
 	@echo ""
-	@echo "Installation:"
-	@echo "  make install     Install user dependencies (minimal)"
+	@echo "Installation (Never pollutes global Python):"
+	@echo "  make install     Install user dependencies (local .venv only)"
 	@echo "  make setup       Install all dependencies + completions + git hooks"
 	@echo "  make install-completions  Install bash and zsh completions"
 	@echo ""
 	@echo "Development Tasks (via make):"
 	@echo "  make check       Run all quality checks (lint, format, test)"
-	@echo "  make lint        Check code style"
-	@echo "  make format      Auto-format code"
 	@echo "  make test-unit   Run unit tests (fast)"
 	@echo "  make test-integration Run integration tests (database)"
 	@echo "  make test-acceptance Run acceptance tests (E2E)"
@@ -29,24 +28,27 @@ help:
 	@echo "  make clean       Cleanup temp files"
 
 # Quality Checks
-lint:
+lint: ensure-uv
 	uv run ruff check .
 	uv run ruff format --check .
 
-format:
+format: ensure-uv
 	uv run ruff check --fix .
 	uv run ruff format .
 
-test-unit:
+test-unit: ensure-uv
 	uv run python -m pytest tests/unit
 
-test-integration:
+test-integration: ensure-uv
 	uv run python -m pytest tests/integration
 
-test-acceptance:
+test-acceptance: ensure-uv
 	uv run python -m pytest tests/acceptance
 
 test: test-unit test-integration test-acceptance
+
+run: ensure-uv
+	uv run ./analyze.py $(TICKERS) $(FLAGS)
 
 check: lint test
 
