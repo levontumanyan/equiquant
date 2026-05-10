@@ -2,7 +2,7 @@
 
 Programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
-## Quick Start
+# Quick Start
 
 Analyze a stock:
 ```bash
@@ -14,20 +14,26 @@ Analyze an index:
 ./analyze.py --index QQQ --export csv
 ```
 
-## Installation
+# Installation
 
-The project uses `uv` for dependency management.
+## For Users (Minimal)
 
-### 1. Install `uv`
-Follow instructions at [astral.sh/uv](https://astral.sh/uv).
+If you just want to run the tool:
+```bash
+make install
+```
+*Installs core runtime dependencies and shell completions.*
 
-### 2. Setup
+## For Developers (Full)
+
+If you want to contribute, run tests, or modify the tool:
 ```bash
 make setup
 ```
-This installs dependencies, shell completions, and git hooks. Use `make install` for a minimal runtime-only installation.
 
-## CLI Usage
+*Installs all dependencies (including dev tools) and git hooks.*
+
+# CLI Usage
 
 ```bash
 ./analyze.py TICKER [TICKERS...]  # Analyze stocks
@@ -37,14 +43,14 @@ This installs dependencies, shell completions, and git hooks. Use `make install`
 ./analyze.py --history AAPL        # Show historical scores
 ```
 
-## Features
+# Features
 
 - **Multi-Source Data**: Scalable architecture supporting multiple data providers.
 - **Sector Intelligence**: Automatic sector-specific valuation benchmarks.
 - **Zsh/Bash Completions**: Tab-complete tickers, indices, and profiles.
 - **Database-Driven**: All scoring rules and profiles are stored in SQLite.
 
-## Documentation
+# Documentation
 
 For more detailed information, see the `docs/` directory:
 - [Architecture](docs/architecture.md)
@@ -53,7 +59,7 @@ For more detailed information, see the `docs/` directory:
 - [Database Schema](docs/DATABASE.md)
 - [Data Providers](docs/PROVIDERS.md)
 
-## Development
+# Development
 
 - `make check`: Run linting, formatting, and tests.
 - `make test`: Run `pytest`.

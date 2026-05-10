@@ -62,9 +62,9 @@ ensure-uv:
 		fi; \
 	}
 
-install: ensure-uv
+install: ensure-uv install-completions
 	uv sync --no-dev
-	@echo "User dependencies installed successfully."
+	@echo "User dependencies and completions installed successfully."
 
 setup: ensure-uv install-completions
 	uv sync
