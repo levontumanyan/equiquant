@@ -122,6 +122,8 @@ class DatabaseRepository:
 			"""
 			INSERT INTO financial_statements (symbol, statement_type, period_type, fiscal_date, metric_key, value)
 			VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT(symbol, statement_type, period_type, fiscal_date, metric_key) DO UPDATE SET
+				value = excluded.value
 		""",
 			(symbol, statement_type, period_type, fiscal_date, metric_key, value),
 		)

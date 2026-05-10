@@ -1,4 +1,4 @@
-.PHONY: help lint format test check install setup clean db-shell install-completions
+.PHONY: help lint format test check install setup clean db-shell install-completions install-zsh-completions install-bash-completions
 
 # Default profile
 PROFILE ?= balanced
@@ -14,8 +14,8 @@ help:
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install     Install user dependencies (minimal)"
-	@echo "  make setup       Install all dependencies + git hooks (development)"
-	@echo "  make install-completions  Install zsh completions"
+	@echo "  make setup       Install all dependencies + completions + git hooks"
+	@echo "  make install-completions  Install bash and zsh completions"
 	@echo ""
 	@echo "Development Tasks (via make):"
 	@echo "  make check       Run all quality checks (lint, format, test)"
@@ -56,16 +56,25 @@ install: ensure-uv
 	uv sync --no-dev
 	@echo "User dependencies installed successfully."
 
-setup: ensure-uv
+setup: ensure-uv install-completions
 	uv sync
 	uv run pre-commit install
-	@echo "Development environment and git hooks installed successfully."
+	@echo "Development environment, completions, and git hooks installed successfully."
 
-install-completions:
+install-completions: install-zsh-completions install-bash-completions
+
+install-zsh-completions:
 	@mkdir -p ~/.zsh/completions
 	@ln -sf $$(pwd)/scripts/completions/_analyze ~/.zsh/completions/_analyze
-	@echo "Symlinked _analyze to ~/.zsh/completions/_analyze"
-	@echo "To activate, restart your shell or run: autoload -Uz compinit && compinit"
+	@echo "Symlinked zsh completion (_analyze) to ~/.zsh/completions/_analyze"
+	@echo "To activate zsh completions, ensure ~/.zsh/completions is in your fpath and run: autoload -Uz compinit && compinit"
+
+install-bash-completions:
+	@mkdir -p ~/.bash_completion.d
+	@ln -sf $$(pwd)/scripts/completions/analyze.bash ~/.bash_completion.d/analyze
+	@echo "Symlinked bash completion (analyze.bash) to ~/.bash_completion.d/analyze"
+	@echo "To activate bash completions, add the following to your ~/.bashrc or ~/.bash_profile:"
+	@echo "  if [ -f ~/.bash_completion.d/analyze ]; then . ~/.bash_completion.d/analyze; fi"
 
 # Development Tools
 db-shell:

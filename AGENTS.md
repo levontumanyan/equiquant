@@ -15,6 +15,7 @@
 - **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main`.
 	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`. (e.g., `feat/api-integration`).
 	- **Parallelism**: Use `git worktree` for parallel tasks. Create worktrees in `.worktrees/<branch-name>`.
+- After changes are done in the branch, just switch to main and merge the changes locally, then push to remote.
 - **Workflow**:
 	1. Create a new branch/worktree for the task.
 	2. Research and implementation.

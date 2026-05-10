@@ -26,6 +26,11 @@ To handle large-scale analysis (e.g., entire indices like the S&P 500 or Russell
 - **The Vault (File System):** A structured directory for unstructured data (Earnings Presentations, 10-Ks, 10-Qs). Files are indexed in SQLite for rapid retrieval.
 - **Benefits:** ACID compliance for financial data, high-speed trend analysis via SQL window functions, and a unified interface for both quantitative (numbers) and qualitative (PDFs) research.
 
+### 1.4 Data Integrity & Deduplication
+- **Strict Schema Enforcement:** Ensure all core metadata tables (Assets, Indices, Benchmarks) employ Primary Keys and `UNIQUE` constraints to prevent logical duplicates.
+- **Upsert Standardization:** Transition all repository methods (e.g., `financial_statements`) from simple `INSERT` to `INSERT ... ON CONFLICT` logic. This ensures that re-running a data fetch for the same fiscal period updates existing records instead of creating redundant ones.
+- **Composite Key Optimization:** Refine membership tables like `index_constituents` to use composite keys `(index_symbol, asset_symbol)` to maintain a clean many-to-many mapping.
+
 ---
 
 ## 📈 Pillar 2: Advanced Quantitative Metrics
@@ -73,6 +78,10 @@ Moving from raw data to actionable, visual intelligence.
 ### 4.2 Executive PDF Summaries
 - Generate professional, one-page "Investment Theses" for any ticker, combining scoring data, technical trends (RSI, Moving Averages), and key fundamental risks.
 
+### 4.3 EquiQuant Web Dashboard
+- Host a static dashboard on **GitHub Pages** to visualize exported reports.
+- Provide interactive filtering and sorting for all analysis snapshots stored in the database.
+
 ---
 
 ## 🛠 Pillar 5: Infrastructure & Documentation
@@ -90,6 +99,11 @@ Building a robust, portable environment and first-class documentation for seamle
 ### 5.3 Documentation Excellence
 - **Visual README:** Enhance documentation with usage examples, terminal screenshots, and clear architecture diagrams.
 - **Auto-generated Docs:** Maintain a living documentation site or Wiki detailing each metric and scoring formula.
+
+### 5.4 CLI Experience & Productivity
+- **Shell Completions:** Maintain and distribute high-quality completions for `zsh` and `bash`.
+- **Installation Integration:** Ensure completions are automatically offered or installed during the `make setup` process to improve the developer experience.
+- **Dynamic Completion Providers:** Enhance completion scripts to dynamically fetch tickers, profiles, and indices from the live database for real-time suggestions.
 
 ---
 
