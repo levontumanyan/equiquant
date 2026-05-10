@@ -188,6 +188,14 @@ def main():
 	db_manager = DatabaseManager()
 	repo = DatabaseRepository(db_manager)
 
+	# Resource Tracking: Initial DB Size
+	db_path = db_manager.db_path
+	if db_path.exists():
+		stats.initial_db_size = db_path.stat().st_size
+
+	# Artifact Tracking: Always record log file
+	stats.record_artifact(LOG_FILE)
+
 	# 1. Collect Tickers
 	stats.start_stage("Data Discovery")
 	tickers = list(args.tickers)
@@ -277,8 +285,13 @@ def main():
 			index_name=args.index,
 			profile=args.profile,
 		)
+		stats.record_artifact(export_path)
 		console.print(f"\n[bold green]Report exported to: {export_path}[/bold green]")
 	stats.end_stage("Reporting")
+
+	# Final Resource Tracking
+	if db_path.exists():
+		stats.final_db_size = db_path.stat().st_size
 
 	display_run_summary(stats)
 	logger.info({"event": "run_summary", "stats": stats.to_dict()})
