@@ -146,6 +146,10 @@ def run_bulk_analysis(
 	batch_size = 20
 	import time
 
+	base_cooldown = 5.0
+	max_cooldown = 45.0
+	current_cooldown = base_cooldown
+
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
 		max_batch_retries = 1
@@ -157,10 +161,20 @@ def run_bulk_analysis(
 						f"Batch fetch returned zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
 					)
 					if attempt < max_batch_retries:
-						# We rely on the internal backoff in openbb_client for timing,
-						# so we just continue to the next attempt immediately.
+						# If we have progressive backoff from main, we can use it here between batch retries
+						logger.info(
+							f"Entering {current_cooldown}s cooldown before batch retry..."
+						)
+						stats.record_cooldown(current_cooldown)
+						time.sleep(current_cooldown)
+						current_cooldown = min(current_cooldown * 2, max_cooldown)
 						continue
+					else:
+						# Already retried once and failed
+						pass
 				else:
+					# Reset cooldown on success
+					current_cooldown = base_cooldown
 					# Inter-batch breather: small delay to look more natural
 					breather = random.uniform(3.0, 5.0)
 					time.sleep(breather)
@@ -168,11 +182,14 @@ def run_bulk_analysis(
 			except Exception as e:
 				logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
 				break
+
 	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []
-	for ticker in tickers:
+	total = len(tickers)
+	for idx, ticker in enumerate(tickers, 1):
 		ticker = ticker.upper().strip()
 		try:
+			logger.info(f"[{idx}/{total}] Processing {ticker}")
 			res = analyze_asset(
 				ticker, profile, repo=repo, benchmark_version=benchmark_version
 			)
