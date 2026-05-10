@@ -69,7 +69,8 @@ class DatabaseManager:
 				fiscal_date DATE,
 				metric_key TEXT,
 				value REAL,
-				FOREIGN KEY (symbol) REFERENCES assets(symbol)
+				FOREIGN KEY (symbol) REFERENCES assets(symbol),
+				UNIQUE(symbol, statement_type, period_type, fiscal_date, metric_key)
 			)
 		""")
 
