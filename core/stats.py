@@ -7,6 +7,7 @@ class SessionStats:
 		self.cache_hits = 0
 		self.api_attempts = 0
 		self.api_successes = 0
+		self.http_requests = 0
 		self.errors = 0
 		self.stage_times: Dict[str, float] = {}
 		self._stage_starts: Dict[str, float] = {}

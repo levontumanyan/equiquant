@@ -120,11 +120,24 @@ def run_bulk_analysis(
 	benchmark_version: str = "1.0.0",
 ) -> List[Dict[str, Any]]:
 	"""
-	Run analysis for multiple tickers.
+	Run analysis for multiple tickers using efficient bulk fetching.
 	"""
+	from core.openbb_client import fetch_openbb_data_bulk
+
 	logger.info(
 		f"Starting bulk analysis for {len(tickers)} tickers (benchmarks: {benchmark_version})"
 	)
+
+	# 1. Pre-fetch data in batches of 20 to warm the cache
+	batch_size = 20
+	for i in range(0, len(tickers), batch_size):
+		batch = tickers[i : i + batch_size]
+		try:
+			fetch_openbb_data_bulk(batch)
+		except Exception as e:
+			logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+
+	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []
 	for ticker in tickers:
 		ticker = ticker.upper().strip()

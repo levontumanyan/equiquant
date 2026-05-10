@@ -239,6 +239,7 @@ def display_run_summary(stats: SessionStats):
 	table.add_row("Cache Hits", f"{stats.cache_hits} ({cache_rate:.1f}%)")
 	table.add_row("API Attempts", str(stats.api_attempts))
 	table.add_row("API Successes", str(stats.api_successes))
+	table.add_row("HTTP Requests", str(stats.http_requests))
 
 	if stats.errors > 0:
 		table.add_row("Errors", f"[bold red]{stats.errors}[/bold red]")
