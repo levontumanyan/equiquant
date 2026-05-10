@@ -37,15 +37,18 @@ format: ensure-uv
 	uv run ruff format .
 
 test-unit: ensure-uv
-	uv run python -m pytest tests/unit
+	uv run python -m pytest -q --disable-warnings tests/unit
 
 test-integration: ensure-uv
-	uv run python -m pytest tests/integration
+	uv run python -m pytest -q --disable-warnings tests/integration
 
 test-acceptance: ensure-uv
-	uv run python -m pytest tests/acceptance
+	uv run python -m pytest -q --disable-warnings tests/acceptance
 
 test: test-unit test-integration test-acceptance
+
+coverage: ensure-uv
+	uv run python -m pytest --cov=core --cov-report=term-missing
 
 run: ensure-uv
 	uv run ./analyze.py $(TICKERS) $(FLAGS)

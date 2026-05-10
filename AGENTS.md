@@ -2,7 +2,7 @@
 
 ## Code Standards
 - **Indentation**: **Tabs** exclusively for all code (except YAML).
-- **Quality**: Always run `make check` (format, lint, test, coverage) before finishing any task.
+- **Quality**: Prioritize **targeted testing** (e.g., `make test-unit` or running a specific test file) during development. Only run `make check` (full suite) as a final verification before a PR or if specifically required. Rely on **pre-commit hooks** to catch linting and basic test failures during the commit process.
 
 ## Architecture Mandates
 - **Modularity**: All logic belongs in `core/`. `analyze.py` is for CLI orchestration only.
@@ -21,7 +21,7 @@
 	3. **Worktree**: Create a new worktree and branch: `git worktree add .worktrees/<branch-name> -b <branch-name> main`.
 	4. **Implement**: Perform research, implementation, and testing within the worktree.
 	5. Send periodic issue updates and a final summary upon completion as comments on the issue.
-	6. **Verify**: Run `make check` and perform a **Mandatory Functional Check** with `./analyze.py`.
+	6. **Verify**: Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
 	7. **PR**: If the user is satisfied with the changes(ask), push the branch and create a PR using `gh pr create`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
 	8. **Finalize**: Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 ## Testing & Validation
