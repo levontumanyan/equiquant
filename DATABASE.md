@@ -1,7 +1,29 @@
 # "Investment Brain" Database Schema Design
 
 This document defines the relational architecture for the `EquiQuant` persistent storage.
- The goal is to move from volatile JSON caching to a robust, queryable Hybrid Storage system (SQLite + File System).
+The goal is to move from volatile JSON caching to a robust, queryable Hybrid Storage system (SQLite + File System).
+
+---
+
+## 📊 Database Map
+
+```text
++-----------------------+------------------------------------------+-----------------------+
+| TABLE NAME            | PURPOSE                                  | TYPE                  |
++-----------------------+------------------------------------------+-----------------------+
+| assets                | Master list of symbols and metadata      | Metadata              |
+| indices               | List of tracked Indices and ETFs         | Metadata              |
+| index_constituents    | Membership mapping (Many-to-Many)        | Relationship          |
+| financial_statements  | Time-series financial line items         | Fundamental Data      |
+| analysis_snapshots    | Historical analysis scores and results   | Analysis Results      |
+| document_index        | Index of local PDF research files        | Qualitative Data      |
+| sector_benchmarks     | Sector-specific metric overrides         | Configuration         |
+| metrics_history       | Daily/Interval metric recording          | Time-Series           |
+| investor_profiles     | Strategy metadata (e.g., 'growth')       | Configuration         |
+| profile_weights       | Metric weights for each profile          | Configuration         |
+| global_benchmarks     | Core evaluation rules and formulas       | Configuration         |
++-----------------------+------------------------------------------+-----------------------+
+```
 
 ---
 

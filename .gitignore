@@ -1,5 +1,7 @@
 cache/
 logs/
+reports/
+reports-analyst/
 dump*.json
 
 # Byte-compiled / optimized / DLL files
