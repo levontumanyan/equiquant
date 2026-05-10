@@ -40,7 +40,7 @@ def should_use_cache(ticker_symbol: str) -> bool:
 
 
 def _fetch_with_retry(
-	obb_func, symbol: str, provider: str, max_retries: int = 1
+	obb_func, symbol: str, provider: str, max_retries: int = 2
 ) -> Optional[Any]:
 	"""
 	Execute an OpenBB endpoint call with intra-ticker jitter and exponential backoff.
@@ -59,7 +59,7 @@ def _fetch_with_retry(
 
 			# If results are empty, it might be a rate limit or missing data
 			if attempt < max_retries:
-				wait_time = (attempt + 1) * 2.0 + random.uniform(0.5, 1.0)
+				wait_time = (attempt + 1) * 2.5 + random.uniform(1.0, 2.0)
 				func_name = getattr(obb_func, "__name__", str(obb_func))
 				logger.debug(
 					f"Empty results for {symbol} on {func_name}. Retrying in {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
@@ -75,8 +75,10 @@ def _fetch_with_retry(
 				time.sleep(wait_time)
 			else:
 				logger.debug(f"All retries failed for {symbol} on {func_name}: {e}")
+				raise
 
-	return None
+	# If we exit the loop without returning, it means results were empty
+	raise RuntimeError(f"No results returned for {symbol} after {max_retries} retries")
 
 
 def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
@@ -147,9 +149,13 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			if not data.get("name") or "fund_family" in str(data)
 		]
 		if etf_candidates:
-			merge_bulk_results(
-				_fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
-			)
+			try:
+				merge_bulk_results(
+					_fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
+				)
+			except Exception:
+				# Non-critical: some might not be ETFs
+				pass
 
 		# Save results to individual cache files
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -165,7 +171,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 		return success_count > 0
 
 	except Exception as e:
-		logger.error(f"OpenBB bulk fetch error: {e}")
+		logger.error(f"OpenBB bulk fetch failure: {e}")
 		stats.errors += 1
 		return False
 
@@ -224,7 +230,11 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 			or "fund_family" in str(combined_data)
 			or not combined_data.get("name")
 		):
-			merge_res(_fetch_with_retry(obb.etf.info, ticker_symbol, provider))
+			try:
+				merge_res(_fetch_with_retry(obb.etf.info, ticker_symbol, provider))
+			except Exception:
+				# Normal for non-ETFs
+				pass
 
 		if not combined_data:
 			logger.warning(f"No data retrieved for {ticker_symbol}")

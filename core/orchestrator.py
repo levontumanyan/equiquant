@@ -130,10 +130,24 @@ def run_bulk_analysis(
 
 	# 1. Pre-fetch data in batches of 20 to warm the cache
 	batch_size = 20
+	import random
+	import time
+
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
 		try:
-			fetch_openbb_data_bulk(batch)
+			success = fetch_openbb_data_bulk(batch)
+			if not success:
+				# Backpressure: Provider returned 0 results for the whole batch
+				cooldown = 45
+				logger.warning(
+					f"Batch fetch returned no results for {len(batch)} symbols. Entering {cooldown}s cooldown..."
+				)
+				time.sleep(cooldown)
+			else:
+				# Inter-batch breather: small delay to look more natural
+				breather = random.uniform(3.0, 5.0)
+				time.sleep(breather)
 		except Exception as e:
 			logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
 

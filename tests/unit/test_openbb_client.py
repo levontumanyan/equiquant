@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from core.openbb_client import get_openbb_data
 
 
@@ -31,22 +33,25 @@ def test_get_openbb_data_fetch_logic(mocker, tmp_path):
 	# Mock the obb calls directly in the openbb package
 	mock_obb = mocker.patch("openbb.obb")
 
-	mock_metrics = mocker.Mock()
-	# OpenBB results have a .results attribute which is a list of objects
-	mock_metric_item = mocker.Mock()
-	mock_metric_item.model_dump.return_value = {"pe_ratio": 30.0, "symbol": "MSFT"}
-	mock_metrics.results = [mock_metric_item]
-	mock_obb.equity.fundamental.metrics.return_value = mock_metrics
+	def mock_res(data):
+		m = mocker.Mock()
+		item = mocker.Mock()
+		item.model_dump.return_value = data
+		m.results = [item]
+		return m
 
-	mock_profile = mocker.Mock()
-	mock_profile_item = mocker.Mock()
-	mock_profile_item.model_dump.return_value = {"name": "Microsoft", "symbol": "MSFT"}
-	mock_profile.results = [mock_profile_item]
-	mock_obb.equity.profile.return_value = mock_profile
-
-	# Mock other calls to return empty/none
-	mock_obb.equity.estimates.consensus.return_value.results = []
-	mock_obb.equity.ownership.share_statistics.return_value.results = []
+	mock_obb.equity.fundamental.metrics.return_value = mock_res(
+		{"pe_ratio": 30.0, "symbol": "MSFT"}
+	)
+	mock_obb.equity.profile.return_value = mock_res(
+		{"name": "Microsoft", "symbol": "MSFT"}
+	)
+	mock_obb.equity.estimates.consensus.return_value = mock_res(
+		{"symbol": "MSFT", "recommendation": "buy"}
+	)
+	mock_obb.equity.ownership.share_statistics.return_value = mock_res(
+		{"symbol": "MSFT"}
+	)
 	mock_obb.etf.info.return_value.results = []
 
 	mocker.patch("time.sleep")  # Disable rate limit sleep
@@ -80,11 +85,11 @@ def test_fetch_with_retry_logic(mocker):
 	assert result == mock_res
 	assert mock_func.call_count == 2
 
-	# Case 3: All retries fail
+	# Case 3: All retries fail (now raises RuntimeError)
 	mock_func.reset_mock()
 	mock_func.side_effect = [None, None]
-	result = _fetch_with_retry(mock_func, "AAPL", "yfinance", max_retries=1)
-	assert result is None
+	with pytest.raises(RuntimeError):
+		_fetch_with_retry(mock_func, "AAPL", "yfinance", max_retries=1)
 	assert mock_func.call_count == 2
 
 
@@ -98,22 +103,33 @@ def test_fetch_openbb_data_bulk(mocker, tmp_path):
 
 	mock_obb = mocker.patch("openbb.obb")
 
-	# Mock metrics for 2 symbols
-	item1 = mocker.Mock()
-	item1.model_dump.return_value = {"symbol": "AAPL", "pe_ratio": 25}
-	item2 = mocker.Mock()
-	item2.model_dump.return_value = {"symbol": "MSFT", "pe_ratio": 35}
+	def mock_bulk_res(data_list):
+		m = mocker.Mock()
+		items = []
+		for d in data_list:
+			item = mocker.Mock()
+			item.model_dump.return_value = d
+			items.append(item)
+		m.results = items
+		return m
 
-	mock_res = mocker.Mock()
-	mock_res.results = [item1, item2]
-	mock_obb.equity.fundamental.metrics.return_value = mock_res
+	# Mock all endpoints to return data for both symbols
+	symbols = ["AAPL", "MSFT"]
+	mock_obb.equity.fundamental.metrics.return_value = mock_bulk_res(
+		[{"symbol": "AAPL", "pe_ratio": 25}, {"symbol": "MSFT", "pe_ratio": 35}]
+	)
+	mock_obb.equity.profile.return_value = mock_bulk_res(
+		[{"symbol": "AAPL", "name": "Apple"}, {"symbol": "MSFT", "name": "Microsoft"}]
+	)
+	mock_obb.equity.estimates.consensus.return_value = mock_bulk_res(
+		[{"symbol": "AAPL"}, {"symbol": "MSFT"}]
+	)
+	mock_obb.equity.ownership.share_statistics.return_value = mock_bulk_res(
+		[{"symbol": "AAPL"}, {"symbol": "MSFT"}]
+	)
+	mock_obb.etf.info.return_value.results = []
 
-	# Mock others as empty
-	mock_obb.equity.profile.return_value.results = []
-	mock_obb.equity.estimates.consensus.return_value.results = []
-	mock_obb.equity.ownership.share_statistics.return_value.results = []
-
-	success = fetch_openbb_data_bulk(["AAPL", "MSFT"])
+	success = fetch_openbb_data_bulk(symbols)
 
 	assert success is True
 	assert (cache_dir / "AAPL.json").exists()
@@ -122,3 +138,4 @@ def test_fetch_openbb_data_bulk(mocker, tmp_path):
 	# Verify AAPL content
 	content = json.loads((cache_dir / "AAPL.json").read_text())
 	assert content["pe_ratio"] == 25
+	assert content["name"] == "Apple"

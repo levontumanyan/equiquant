@@ -11,18 +11,19 @@
 - **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
 
 ## Environment, Branching & Parallelism
-- **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py` (with `uv run` if necessary) to leverage zsh completions.
-- **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main`.
-	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`. (e.g., `feat/api-integration`).
-	- **Parallelism**: Use `git worktree` for parallel tasks. Create worktrees in `.worktrees/<branch-name>`.
-- After changes are done in the branch, just switch to main and merge the changes locally, then push to remote. Only create a PR if we are working on a Github issue.
-- **Workflow**:
-	1. Create a new branch/worktree for the task.
-	2. Research and implementation.
-	3. Verify with `make check`.
-	4. **Mandatory Functional Check**: Run `./analyze.py` with appropriate flags and verify output.
-	5. Once approved, merge to `main` locally and push. Do not push feature branches to remote unless instructed directly.
-
+- **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py`.
+- **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main` unless directly instructed.
+	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`.
+	- **Concurrency**: Use `git worktree` for all tasks to ensure parallel LLM sessions do not overwrite each other. Create worktrees in `.worktrees/<branch-name>`.
+- **Standard Workflow**:
+	1. **Sync**: Ensure you are on `main` and run `git pull origin main`.
+	2. **Issue**: Create a GitHub issue for the task using `gh issue create`.
+	3. Send periodic issue updates and a final summary upon completion as comments on the issue.
+	4. **Worktree**: Create a new worktree and branch: `git worktree add .worktrees/<branch-name> -b <branch-name> main`.
+	5. **Implement**: Perform research, implementation, and testing within the worktree.
+	6. **Verify**: Run `make check` and perform a **Mandatory Functional Check** with `./analyze.py`.
+	7. **PR**: Push the branch and create a PR using `gh pr create`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	8. **Finalize**: Once the PR is created, **STOP** and ask the user if you should merge it locally/remote or if they will handle it via the GitHub GUI.
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
