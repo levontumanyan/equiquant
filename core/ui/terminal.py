@@ -223,26 +223,132 @@ def display_summary_table(all_results: List[Dict[str, Any]]):
 
 
 def display_run_summary(stats: SessionStats):
-	"""Display a summary of the execution run (timers, cache hits, etc)."""
-	table = Table(title="Execution Run Summary", show_header=False, box=None)
-	table.add_column("Metric", style="dim")
-	table.add_column("Value", style="bold")
+	"""Display a detailed summary of the execution run (diagnostics, telemetry, efficiency)."""
+	console.print("\n")
 
-	# Duration metrics
-	table.add_row("Total Duration", f"{stats.get_total_time():.2f}s")
-	for stage, duration in stats.stage_times.items():
-		table.add_row(f"  └─ {stage}", f"{duration:.2f}s")
+	# 1. High-Level Performance
+	perf_table = Table(title="Performance & I/O Telemetry", box=None, show_header=False)
+	perf_table.add_column("Metric", style="dim")
+	perf_table.add_column("Value", style="bold")
 
-	# Cache metrics
-	total_requests = stats.cache_hits + stats.api_attempts
-	cache_rate = (stats.cache_hits / total_requests * 100) if total_requests > 0 else 0
-	table.add_row("Cache Hits", f"{stats.cache_hits} ({cache_rate:.1f}%)")
-	table.add_row("API Attempts", str(stats.api_attempts))
-	table.add_row("API Successes", str(stats.api_successes))
-	table.add_row("HTTP Requests", str(stats.http_requests))
+	total_time = stats.get_total_time()
+	perf_table.add_row("Total Duration", f"{total_time:.2f}s")
+	perf_table.add_row(
+		"  └─ Network I/O",
+		f"{stats.io_time_total:.2f}s ({stats.io_time_total / total_time * 100:.1f}%)",
+	)
+	perf_table.add_row(
+		"  └─ Local Scoring",
+		f"{stats.scoring_time_total:.2f}s ({stats.scoring_time_total / total_time * 100:.1f}%)",
+	)
+	if stats.cooldown_time_total > 0:
+		perf_table.add_row(
+			"  └─ Backpressure Cooldown",
+			f"[bold yellow]{stats.cooldown_time_total:.2f}s[/bold yellow]",
+		)
 
-	if stats.errors > 0:
-		table.add_row("Errors", f"[bold red]{stats.errors}[/bold red]")
+	console.print(perf_table)
+
+	# 2. Endpoint Granularity
+	if stats.endpoint_counts:
+		ep_table = Table(title="Endpoint Granularity", header_style="bold cyan")
+		ep_table.add_column("Endpoint")
+		ep_table.add_column("Calls", justify="right")
+		ep_table.add_column("Avg Latency", justify="right")
+
+		# Sort by calls descending
+		for ep in sorted(
+			stats.endpoint_counts, key=stats.endpoint_counts.get, reverse=True
+		):
+			count = stats.endpoint_counts[ep]
+			latencies = stats.endpoint_latencies.get(ep, [])
+			avg_lat = sum(latencies) / len(latencies) if latencies else 0
+			ep_table.add_row(ep, str(count), f"{avg_lat:.3f}s")
+
+		console.print(ep_table)
+
+	# 3. Data Quality / Coverage
+	if stats.data_coverage:
+		coverage_table = Table(
+			title="Data Quality Audit (Coverage Density)", header_style="bold magenta"
+		)
+		coverage_table.add_column("Metric Key")
+		coverage_table.add_column("Density", justify="right")
+		coverage_table.add_column("Missing", justify="right")
+
+		for metric, counts in sorted(stats.data_coverage.items()):
+			total = counts["present"] + counts["missing"]
+			density = (counts["present"] / total * 100) if total > 0 else 0
+			color = "green" if density >= 95 else "yellow" if density >= 80 else "red"
+			coverage_table.add_row(
+				metric,
+				f"[{color}]{density:.1f}%[/{color}]",
+				f"[dim]{counts['missing']}[/dim]" if counts["missing"] > 0 else "0",
+			)
+
+		console.print(coverage_table)
+
+	# 4. Error & Retry Summary
+	error_data = stats.to_dict()
+	if stats.errors > 0 or stats.retry_attempts > 0:
+		err_table = Table(
+			title="Error Topology & Resilience", box=None, show_header=False
+		)
+		err_table.add_column("Metric", style="dim")
+		err_table.add_column("Value", style="bold")
+
+		if stats.errors > 0:
+			err_table.add_row("Total Errors", f"[bold red]{stats.errors}[/bold red]")
+			for err_type, count in stats.error_types.items():
+				err_table.add_row(f"  └─ {err_type}", str(count))
+
+		if stats.retry_attempts > 0:
+			retry_rate = error_data.get("retry_success_rate_pct", 0)
+			color = (
+				"green" if retry_rate >= 80 else "yellow" if retry_rate >= 50 else "red"
+			)
+			err_table.add_row(
+				"Retry Success Rate",
+				f"[{color}]{retry_rate:.1f}%[/{color}] ({stats.retry_successes}/{stats.retry_attempts})",
+			)
+
+		console.print(err_table)
+
+	# 5. Efficiency & Resources
+	eff_table = Table(
+		title="Efficiency & Resource Footprint", box=None, show_header=False
+	)
+	eff_table.add_column("Metric", style="dim")
+	eff_table.add_column("Value", style="bold")
+
+	# Cache/Batching
+	total_reqs = stats.cache_hits + stats.api_attempts
+	cache_rate = (stats.cache_hits / total_reqs * 100) if total_reqs > 0 else 0
+	eff_table.add_row("Cache Hit Rate", f"{cache_rate:.1f}% ({stats.cache_hits} hits)")
+
+	batch_data = error_data.get("batching", {})
+	bulk_ratio = batch_data.get("bulk_ratio_pct", 0)
+	eff_table.add_row(
+		"Bulk Fetch Ratio",
+		f"{bulk_ratio:.1f}% ({batch_data.get('bulk_symbols', 0)} symbols)",
+	)
+
+	# DB Growth
+	res_data = error_data.get("resource_footprint", {})
+	db_growth = res_data.get("db_growth_bytes", 0)
+	if db_growth > 0:
+		eff_table.add_row("DB Growth", f"+{db_growth / 1024:.1f} KB")
+
+	snapshots = res_data.get("db_snapshots", 0)
+	if snapshots > 0:
+		eff_table.add_row("DB Snapshots", str(snapshots))
+
+	console.print(eff_table)
+
+	# 6. Artifacts
+	if stats.artifacts:
+		console.print("\n[dim]Session Artifacts:[/dim]")
+		for artifact in sorted(stats.artifacts):
+			console.print(f"  [cyan]• {artifact}[/cyan]")
 
 	console.print("\n")
-	console.print(table)

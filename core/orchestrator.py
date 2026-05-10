@@ -1,4 +1,6 @@
 import json
+import random
+import time
 from typing import Any, Dict, List, Optional
 
 from core.data import get_stock_data, load_benchmarks
@@ -7,6 +9,7 @@ from core.evaluation import evaluate_metric
 from core.logger import get_logger
 from core.profiles import get_profile_weights
 from core.schema import AssetType
+from core.stats import stats
 
 logger = get_logger(__name__)
 
@@ -44,7 +47,17 @@ def analyze_asset(
 		return None
 
 	profile_weights = get_profile_weights(repo, profile)
+
+	scoring_start = time.perf_counter()
 	results = [evaluate_metric(asset, b, profile_weights) for b in benchmark_defs]
+	stats.scoring_time_total += time.perf_counter() - scoring_start
+	# Data Quality Audit: Record which metrics were present
+	for res in results:
+		metric_key = res.get("metric")
+		if metric_key:
+			# If 'raw_value' is None or item has no data, it's missing
+			is_present = res.get("raw_value") is not None
+			stats.record_metric_coverage(metric_key, is_present)
 
 	# Calculate total score
 	total_score = 0.0
@@ -95,6 +108,7 @@ def analyze_asset(
 				results_json=json.dumps(results_summary),
 				benchmark_version=benchmark_version,
 			)
+			stats.db_snapshots += 1
 			logger.info(f"Saved analysis snapshot for {symbol} to DB")
 		except Exception as e:
 			logger.error(f"Failed to save analysis to DB for {symbol}: {e}")
@@ -130,7 +144,6 @@ def run_bulk_analysis(
 
 	# 1. Pre-fetch data in batches of 20 to warm the cache
 	batch_size = 20
-	import random
 	import time
 
 	for i in range(0, len(tickers), batch_size):
@@ -143,6 +156,7 @@ def run_bulk_analysis(
 				logger.warning(
 					f"Batch fetch returned no results for {len(batch)} symbols. Entering {cooldown}s cooldown..."
 				)
+				stats.record_cooldown(cooldown)
 				time.sleep(cooldown)
 			else:
 				# Inter-batch breather: small delay to look more natural

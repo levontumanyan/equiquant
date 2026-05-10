@@ -1,5 +1,5 @@
 import time
-from typing import Dict
+from typing import Dict, List, Set
 
 
 class SessionStats:
@@ -12,6 +12,34 @@ class SessionStats:
 		self.stage_times: Dict[str, float] = {}
 		self._stage_starts: Dict[str, float] = {}
 		self.total_start_time = time.time()
+
+		# New Telemetry fields
+		self.endpoint_counts: Dict[str, int] = {}
+		self.endpoint_latencies: Dict[str, List[float]] = {}
+		self.io_time_total = 0.0
+		self.scoring_time_total = 0.0
+		self.cooldown_time_total = 0.0
+		self.rate_limit_errors = 0
+		self.artifacts: Set[str] = set()
+
+		# Data Quality
+		# metric_key -> { "present": int, "missing": int }
+		self.data_coverage: Dict[str, Dict[str, int]] = {}
+
+		# Error Topology
+		# error_type -> count
+		self.error_types: Dict[str, int] = {}
+		self.retry_attempts = 0
+		self.retry_successes = 0
+
+		# Batching Efficiency
+		self.bulk_fetch_symbols = 0
+		self.fallback_fetch_symbols = 0
+
+		# Resource Footprint
+		self.initial_db_size = 0
+		self.final_db_size = 0
+		self.db_snapshots = 0
 
 	@property
 	def api_calls(self) -> int:
@@ -29,6 +57,39 @@ class SessionStats:
 		if name in self._stage_starts:
 			self.stage_times[name] = time.time() - self._stage_starts[name]
 
+	def record_request(self, endpoint: str, duration: float, success: bool = True):
+		"""Record an HTTP request with its endpoint and latency."""
+		self.http_requests += 1
+		self.endpoint_counts[endpoint] = self.endpoint_counts.get(endpoint, 0) + 1
+		if endpoint not in self.endpoint_latencies:
+			self.endpoint_latencies[endpoint] = []
+		self.endpoint_latencies[endpoint].append(duration)
+		self.io_time_total += duration
+
+	def record_cooldown(self, duration: float):
+		"""Record time spent in backpressure cooldown."""
+		self.cooldown_time_total += duration
+
+	def record_metric_coverage(self, metric_key: str, present: bool):
+		"""Record whether a specific metric was found for an asset."""
+		if metric_key not in self.data_coverage:
+			self.data_coverage[metric_key] = {"present": 0, "missing": 0}
+		if present:
+			self.data_coverage[metric_key]["present"] += 1
+		else:
+			self.data_coverage[metric_key]["missing"] += 1
+
+	def record_artifact(self, path: str):
+		"""Record a file path created during the session."""
+		self.artifacts.add(str(path))
+
+	def record_error(self, error_type: str):
+		"""Record a specific type of error."""
+		self.errors += 1
+		self.error_types[error_type] = self.error_types.get(error_type, 0) + 1
+		if error_type == "rate_limit":
+			self.rate_limit_errors += 1
+
 	def get_total_time(self) -> float:
 		return time.time() - self.total_start_time
 
@@ -38,6 +99,28 @@ class SessionStats:
 		cache_rate = (
 			(self.cache_hits / total_requests * 100) if total_requests > 0 else 0
 		)
+
+		endpoint_stats = {}
+		for ep, latencies in self.endpoint_latencies.items():
+			avg_lat = sum(latencies) / len(latencies) if latencies else 0
+			endpoint_stats[ep] = {
+				"count": self.endpoint_counts.get(ep, 0),
+				"avg_latency_s": round(avg_lat, 3),
+			}
+
+		coverage_stats = {}
+		for m, counts in self.data_coverage.items():
+			total = counts["present"] + counts["missing"]
+			density = (counts["present"] / total * 100) if total > 0 else 0
+			coverage_stats[m] = round(density, 1)
+
+		retry_rate = (
+			(self.retry_successes / self.retry_attempts * 100)
+			if self.retry_attempts > 0
+			else 0
+		)
+		db_growth = max(0, self.final_db_size - self.initial_db_size)
+
 		return {
 			"total_duration_s": round(self.get_total_time(), 2),
 			"cache_hits": self.cache_hits,
@@ -45,7 +128,33 @@ class SessionStats:
 			"api_successes": self.api_successes,
 			"cache_rate_pct": round(cache_rate, 2),
 			"errors": self.errors,
+			"error_types": self.error_types,
+			"rate_limit_errors": self.rate_limit_errors,
+			"retry_success_rate_pct": round(retry_rate, 2),
+			"cooldown_time_s": round(self.cooldown_time_total, 2),
+			"io_time_s": round(self.io_time_total, 2),
+			"scoring_time_s": round(self.scoring_time_total, 2),
 			"stage_durations_s": {k: round(v, 2) for k, v in self.stage_times.items()},
+			"endpoints": endpoint_stats,
+			"batching": {
+				"bulk_symbols": self.bulk_fetch_symbols,
+				"fallback_symbols": self.fallback_fetch_symbols,
+				"bulk_ratio_pct": round(
+					self.bulk_fetch_symbols
+					/ (self.bulk_fetch_symbols + self.fallback_fetch_symbols)
+					* 100,
+					2,
+				)
+				if (self.bulk_fetch_symbols + self.fallback_fetch_symbols) > 0
+				else 0,
+			},
+			"data_density_pct": coverage_stats,
+			"resource_footprint": {
+				"db_growth_bytes": db_growth,
+				"db_final_size_bytes": self.final_db_size,
+				"db_snapshots": self.db_snapshots,
+			},
+			"artifacts": list(self.artifacts),
 		}
 
 

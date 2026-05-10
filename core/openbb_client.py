@@ -81,24 +81,49 @@ def _fetch_with_retry(
 	# to avoid "burst" detection by Yahoo Finance.
 	time.sleep(random.uniform(0.1, 0.3))
 
-	stats.http_requests += 1
+	func_name = getattr(obb_func, "__name__", str(obb_func))
+	# Clean up endpoint name (e.g., 'equity.fundamental.metrics' -> 'fundamental_metrics')
+	endpoint_path = getattr(obb_func, "__qualname__", func_name).split(".")
+	endpoint_name = (
+		"_".join(endpoint_path[-2:]) if len(endpoint_path) > 1 else func_name
+	)
+
 	for attempt in range(max_retries + 1):
+		start_time = time.perf_counter()
+		if attempt > 0:
+			stats.retry_attempts += 1
 		try:
 			res = obb_func(symbol=symbol, provider=provider)
+			duration = time.perf_counter() - start_time
+			stats.record_request(endpoint_name, duration)
+
 			# Standard OpenBB result has a .results attribute
 			if res and hasattr(res, "results") and res.results:
+				if attempt > 0:
+					stats.retry_successes += 1
 				return res
 
 			# If results are empty, it might be a rate limit or missing data
 			if attempt < max_retries:
+				stats.record_error("empty_results")
 				wait_time = (attempt + 1) * 2.5 + random.uniform(1.0, 2.0)
-				func_name = getattr(obb_func, "__name__", str(obb_func))
 				logger.debug(
 					f"Empty results for {symbol} on {func_name}. Retrying in {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
 				)
 				time.sleep(wait_time)
 		except Exception as e:
-			func_name = getattr(obb_func, "__name__", str(obb_func))
+			duration = time.perf_counter() - start_time
+			# Classify error
+			err_str = str(e).lower()
+			error_type = "provider_error"
+			if "429" in err_str or "rate limit" in err_str:
+				error_type = "rate_limit"
+			elif "timeout" in err_str or "connection" in err_str:
+				error_type = "network_error"
+
+			stats.record_error(error_type)
+			stats.record_request(endpoint_name, duration, success=False)
+
 			if attempt < max_retries:
 				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)
 				logger.debug(
@@ -137,6 +162,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 
 	logger.info(f"Bulk fetching data for {len(to_fetch)} symbols from OpenBB")
 	stats.api_calls += 1
+	stats.bulk_fetch_symbols += len(to_fetch)
 
 	try:
 		# Data mapping: ticker -> combined_data dict
@@ -232,6 +258,7 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 
 	logger.info(f"Fetching fresh data for {ticker_symbol} from OpenBB (fallback)")
 	stats.api_calls += 1
+	stats.fallback_fetch_symbols += 1
 	try:
 		combined_data = {}
 		provider = "yfinance"
