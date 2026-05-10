@@ -34,7 +34,7 @@ from rich.console import Console
 from core.analysis.indices import get_index_components
 from core.database import DatabaseManager, DatabaseRepository
 from core.io.parsers import parse_ticker_file
-from core.logger import LOG_FILE, get_logger, setup_logging
+from core.logger import LOG_DIR, LOG_FILE, get_logger, setup_logging
 from core.orchestrator import run_bulk_analysis
 from core.reporting.factory import generate_report
 from core.stats import stats
@@ -48,6 +48,9 @@ from core.ui.terminal import (
 
 console = Console()
 logger = get_logger(__name__)
+
+AUTO_BACKGROUND_THRESHOLD = 10
+PID_FILE = LOG_DIR / "latest.pid"
 
 
 def daemonize():
@@ -64,12 +67,16 @@ def daemonize():
 	try:
 		pid = os.fork()
 		if pid > 0:
+			# Save the second child's PID
+			with open(PID_FILE, "w") as f:
+				f.write(str(pid))
 			sys.exit(0)
 	except OSError as e:
 		logger.error(f"fork #2 failed: {e.errno} ({e.strerror})")
 		sys.exit(1)
 
 	out_file = str(LOG_FILE).replace(".log", ".out")
+
 	sys.stdout.flush()
 	sys.stderr.flush()
 	si = open(os.devnull, "r")
@@ -132,6 +139,11 @@ def main():
 		help="Run the analysis in the background",
 	)
 	parser.add_argument(
+		"--logs",
+		action="store_true",
+		help="Tail the latest background run logs",
+	)
+	parser.add_argument(
 		"--db",
 		choices=[
 			"assets",
@@ -154,13 +166,21 @@ def main():
 	# Initialize Logging
 	setup_logging(verbose=args.verbose)
 
+	if args.logs:
+		import glob
+
+		out_files = sorted(glob.glob(str(LOG_DIR / "run_*.out")), reverse=True)
+		if out_files:
+			latest_log = out_files[0]
+			print(f"Tailing latest logs from {latest_log}...")
+			os.system(f"tail -f {latest_log}")
+		else:
+			print(f"No background log files found in {LOG_DIR}")
+		sys.exit(0)
+
 	if args.db:
 		dispatch_db_view(args.db)
 		sys.exit(0)
-
-	if args.background:
-		print(f"Starting analysis in background. Logs: {LOG_FILE}")
-		daemonize()
 
 	logger.info("Application started")
 
@@ -190,6 +210,25 @@ def main():
 		console.print("[bold red]Error: No tickers provided.[/bold red]")
 		parser.print_help()
 		sys.exit(1)
+
+	# 2. Check for Backgrounding
+	should_background = args.background
+	if (
+		not should_background
+		and len(tickers) >= AUTO_BACKGROUND_THRESHOLD
+		and not args.verbose
+	):
+		console.print(
+			f"[bold yellow]Large batch detected ({len(tickers)} assets). Moving to background...[/bold yellow]"
+		)
+		should_background = True
+
+	if should_background:
+		out_file = str(LOG_FILE).replace(".log", ".out")
+		console.print(f"[cyan]Logs: tail -f {out_file}[/cyan]")
+		if os.path.exists(PID_FILE):
+			os.remove(PID_FILE)
+		daemonize()
 
 	if args.history:
 		console.print(
