@@ -115,9 +115,12 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 				data = item.model_dump()
 				symbol = data.get("symbol")
 				if symbol and symbol in bulk_combined:
-					bulk_combined[symbol].update(data)
+					# Only update if the value is not None to avoid overwriting good data
+					for k, v in data.items():
+						if v is not None or k not in bulk_combined[symbol]:
+							bulk_combined[symbol][k] = v
+				# 1. Fundamental Metrics
 
-		# 1. Fundamental Metrics
 		merge_bulk_results(
 			_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
 		)
@@ -198,9 +201,11 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 				return
 			data = res.results[0].model_dump()
 			if data:
-				combined_data.update(data)
+				for k, v in data.items():
+					if v is not None or k not in combined_data:
+						combined_data[k] = v
+			# Endpoints
 
-		# Endpoints
 		merge_res(
 			_fetch_with_retry(obb.equity.fundamental.metrics, ticker_symbol, provider)
 		)
