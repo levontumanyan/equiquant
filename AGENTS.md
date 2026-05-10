@@ -22,7 +22,7 @@
 	4. **Implement**: Perform research, implementation, and testing within the worktree.
 	5. Send periodic issue updates and a final summary upon completion as comments on the issue.
 	6. **Verify**: Run `make check` and perform a **Mandatory Functional Check** with `./analyze.py`.
-	7. **PR**: Push the branch and create a PR using `gh pr create`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	7. **PR**: If the user is satisfied with the changes(ask), push the branch and create a PR using `gh pr create`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
 	8. **Finalize**: Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
