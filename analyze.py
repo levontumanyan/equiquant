@@ -237,6 +237,8 @@ def main():
 		if os.path.exists(PID_FILE):
 			os.remove(PID_FILE)
 		daemonize()
+		# Re-setup logging to force output to the newly redirected stdout/stderr
+		setup_logging(verbose=args.verbose, force_console=True)
 
 	if args.history:
 		console.print(

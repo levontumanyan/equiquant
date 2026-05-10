@@ -46,7 +46,7 @@ class JSONFormatter(logging.Formatter):
 		return json.dumps(log_record)
 
 
-def setup_logging(verbose: bool = False):
+def setup_logging(verbose: bool = False, force_console: bool = False):
 	"""
 	Initializes the root logger with a run-specific file handler
 	and an optional console handler.
@@ -65,8 +65,8 @@ def setup_logging(verbose: bool = False):
 	file_handler.setLevel(LOG_LEVEL)
 	root_logger.addHandler(file_handler)
 
-	# 2. Console Handler (Only if verbose, standard text for readability)
-	if verbose:
+	# 2. Console Handler (Only if verbose or forced, standard text for readability)
+	if verbose or force_console:
 		console_handler = logging.StreamHandler(sys.stdout)
 		console_fmt = logging.Formatter(
 			"%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
