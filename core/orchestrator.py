@@ -146,19 +146,26 @@ def run_bulk_analysis(
 	batch_size = 20
 	import time
 
+	base_cooldown = 5.0
+	max_cooldown = 45.0
+	current_cooldown = base_cooldown
+
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
 		try:
 			success = fetch_openbb_data_bulk(batch)
 			if not success:
 				# Backpressure: Provider returned 0 results for the whole batch
-				cooldown = 45
 				logger.warning(
-					f"Batch fetch returned no results for {len(batch)} symbols. Entering {cooldown}s cooldown..."
+					f"Batch fetch returned no results for {len(batch)} symbols. Entering {current_cooldown}s cooldown..."
 				)
-				stats.record_cooldown(cooldown)
-				time.sleep(cooldown)
+				stats.record_cooldown(current_cooldown)
+				time.sleep(current_cooldown)
+				# Progressive backoff
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
 			else:
+				# Reset cooldown on success
+				current_cooldown = base_cooldown
 				# Inter-batch breather: small delay to look more natural
 				breather = random.uniform(3.0, 5.0)
 				time.sleep(breather)
