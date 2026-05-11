@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import List, Optional
 
 from .manager import DatabaseManager
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 class DatabaseRepository:
 	def __init__(self, db_manager: DatabaseManager):
 		self.db = db_manager
+		self._lock = threading.Lock()
 
 	def upsert_asset(
 		self,
@@ -19,92 +21,97 @@ class DatabaseRepository:
 		industry: Optional[str] = None,
 	):
 		"""Insert or update an asset."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO assets (symbol, name, asset_type, sector, industry, last_updated)
-			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(symbol) DO UPDATE SET
-				name = COALESCE(excluded.name, assets.name),
-				asset_type = COALESCE(excluded.asset_type, assets.asset_type),
-				sector = COALESCE(excluded.sector, assets.sector),
-				industry = COALESCE(excluded.industry, assets.industry),
-				last_updated = CURRENT_TIMESTAMP
-		""",
-			(symbol, name, asset_type, sector, industry),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO assets (symbol, name, asset_type, sector, industry, last_updated)
+				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(symbol) DO UPDATE SET
+					name = COALESCE(excluded.name, assets.name),
+					asset_type = COALESCE(excluded.asset_type, assets.asset_type),
+					sector = COALESCE(excluded.sector, assets.sector),
+					industry = COALESCE(excluded.industry, assets.industry),
+					last_updated = CURRENT_TIMESTAMP
+			""",
+				(symbol, name, asset_type, sector, industry),
+			)
+			conn.commit()
 
 	def upsert_index(self, symbol: str, name: str, is_etf: bool = False):
 		"""Insert or update an index."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO indices (symbol, name, is_etf, last_updated)
-			VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(symbol) DO UPDATE SET
-				name = excluded.name,
-				is_etf = excluded.is_etf,
-				last_updated = CURRENT_TIMESTAMP
-		""",
-			(symbol, name, is_etf),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO indices (symbol, name, is_etf, last_updated)
+				VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(symbol) DO UPDATE SET
+					name = excluded.name,
+					is_etf = excluded.is_etf,
+					last_updated = CURRENT_TIMESTAMP
+			""",
+				(symbol, name, is_etf),
+			)
+			conn.commit()
 
 	def update_index_constituents(self, index_symbol: str, constituents: List[str]):
 		"""Replace all constituents for an index."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
 
-		# First ensure assets exist (minimal entry)
-		for symbol in constituents:
+			# First ensure assets exist (minimal entry)
+			for symbol in constituents:
+				cursor.execute(
+					"""
+					INSERT OR IGNORE INTO assets (symbol, last_updated)
+					VALUES (?, CURRENT_TIMESTAMP)
+				""",
+					(symbol,),
+				)
+
+			# Remove old constituents
 			cursor.execute(
-				"""
-				INSERT OR IGNORE INTO assets (symbol, last_updated)
-				VALUES (?, CURRENT_TIMESTAMP)
-			""",
-				(symbol,),
+				"DELETE FROM index_constituents WHERE index_symbol = ?", (index_symbol,)
 			)
 
-		# Remove old constituents
-		cursor.execute(
-			"DELETE FROM index_constituents WHERE index_symbol = ?", (index_symbol,)
-		)
+			# Add new ones
+			for symbol in constituents:
+				cursor.execute(
+					"""
+					INSERT INTO index_constituents (index_symbol, asset_symbol)
+					VALUES (?, ?)
+				""",
+					(index_symbol, symbol),
+				)
 
-		# Add new ones
-		for symbol in constituents:
-			cursor.execute(
-				"""
-				INSERT INTO index_constituents (index_symbol, asset_symbol)
-				VALUES (?, ?)
-			""",
-				(index_symbol, symbol),
-			)
-
-		conn.commit()
+			conn.commit()
 
 	def get_index_constituents(self, index_symbol: str) -> List[str]:
 		"""Get constituents for an index from the DB."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			SELECT asset_symbol FROM index_constituents
-			WHERE index_symbol = ?
-		""",
-			(index_symbol,),
-		)
-		return [row[0] for row in cursor.fetchall()]
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT asset_symbol FROM index_constituents
+				WHERE index_symbol = ?
+			""",
+				(index_symbol,),
+			)
+			return [row[0] for row in cursor.fetchall()]
 
 	def get_index(self, symbol: str) -> Optional[dict]:
 		"""Get index metadata."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute("SELECT * FROM indices WHERE symbol = ?", (symbol,))
-		row = cursor.fetchone()
-		return dict(row) if row else None
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT * FROM indices WHERE symbol = ?", (symbol,))
+			row = cursor.fetchone()
+			return dict(row) if row else None
 
 	def upsert_financial_statement(
 		self,
@@ -116,18 +123,19 @@ class DatabaseRepository:
 		value: float,
 	):
 		"""Insert or update a financial statement line item."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO financial_statements (symbol, statement_type, period_type, fiscal_date, metric_key, value)
-			VALUES (?, ?, ?, ?, ?, ?)
-			ON CONFLICT(symbol, statement_type, period_type, fiscal_date, metric_key) DO UPDATE SET
-				value = excluded.value
-		""",
-			(symbol, statement_type, period_type, fiscal_date, metric_key, value),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO financial_statements (symbol, statement_type, period_type, fiscal_date, metric_key, value)
+				VALUES (?, ?, ?, ?, ?, ?)
+				ON CONFLICT(symbol, statement_type, period_type, fiscal_date, metric_key) DO UPDATE SET
+					value = excluded.value
+			""",
+				(symbol, statement_type, period_type, fiscal_date, metric_key, value),
+			)
+			conn.commit()
 
 	def create_analysis_snapshot(
 		self,
@@ -138,30 +146,32 @@ class DatabaseRepository:
 		benchmark_version: str = "1.0.0",
 	):
 		"""Create a new analysis snapshot."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
-			VALUES (?, ?, ?, ?, ?)
-		""",
-			(symbol, profile, total_score, results_json, benchmark_version),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
+				VALUES (?, ?, ?, ?, ?)
+			""",
+				(symbol, profile, total_score, results_json, benchmark_version),
+			)
+			conn.commit()
 
 	def get_historical_scores(self, symbol: str, profile: str) -> List[dict]:
 		"""Get historical analysis snapshots for a specific symbol and profile."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			SELECT timestamp, total_score, results_json, benchmark_version FROM analysis_snapshots
-			WHERE symbol = ? AND profile = ?
-			ORDER BY timestamp DESC
-		""",
-			(symbol, profile),
-		)
-		return [dict(row) for row in cursor.fetchall()]
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT timestamp, total_score, results_json, benchmark_version FROM analysis_snapshots
+				WHERE symbol = ? AND profile = ?
+				ORDER BY timestamp DESC
+			""",
+				(symbol, profile),
+			)
+			return [dict(row) for row in cursor.fetchall()]
 
 	def upsert_sector_benchmark(
 		self,
@@ -173,84 +183,90 @@ class DatabaseRepository:
 		version: str = "1.0.0",
 	):
 		"""Insert or update a sector-specific benchmark."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO sector_benchmarks (sector, metric_key, benchmark_type, value_a, value_b, last_updated, version)
-			VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-			ON CONFLICT(sector, metric_key, version) DO UPDATE SET
-				benchmark_type = excluded.benchmark_type,
-				value_a = excluded.value_a,
-				value_b = excluded.value_b,
-				last_updated = CURRENT_TIMESTAMP
-		""",
-			(sector, metric_key, benchmark_type, value_a, value_b, version),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO sector_benchmarks (sector, metric_key, benchmark_type, value_a, value_b, last_updated, version)
+				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+				ON CONFLICT(sector, metric_key, version) DO UPDATE SET
+					benchmark_type = excluded.benchmark_type,
+					value_a = excluded.value_a,
+					value_b = excluded.value_b,
+					last_updated = CURRENT_TIMESTAMP
+			""",
+				(sector, metric_key, benchmark_type, value_a, value_b, version),
+			)
+			conn.commit()
 
 	def get_sector_benchmarks(self, sector: str, version: str = "1.0.0") -> List[dict]:
 		"""Get all benchmarks for a specific sector and version."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"SELECT * FROM sector_benchmarks WHERE sector = ? AND version = ?",
-			(sector, version),
-		)
-		return [dict(row) for row in cursor.fetchall()]
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT * FROM sector_benchmarks WHERE sector = ? AND version = ?",
+				(sector, version),
+			)
+			return [dict(row) for row in cursor.fetchall()]
 
 	def insert_metric_history(self, symbol: str, metric_key: str, value: float):
 		"""Insert a new metric record."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO metrics_history (symbol, metric_key, value)
-			VALUES (?, ?, ?)
-		""",
-			(symbol, metric_key, value),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO metrics_history (symbol, metric_key, value)
+				VALUES (?, ?, ?)
+			""",
+				(symbol, metric_key, value),
+			)
+			conn.commit()
 
 	def upsert_profile(self, name: str, description: Optional[str] = None):
 		"""Insert or update an investor profile."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO investor_profiles (name, description)
-			VALUES (?, ?)
-			ON CONFLICT(name) DO UPDATE SET
-				description = COALESCE(excluded.description, investor_profiles.description)
-		""",
-			(name, description),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO investor_profiles (name, description)
+				VALUES (?, ?)
+				ON CONFLICT(name) DO UPDATE SET
+					description = COALESCE(excluded.description, investor_profiles.description)
+			""",
+				(name, description),
+			)
+			conn.commit()
 
 	def upsert_profile_weight(self, profile_name: str, metric_key: str, weight: float):
 		"""Insert or update a weight for a profile."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO profile_weights (profile_name, metric_key, weight)
-			VALUES (?, ?, ?)
-			ON CONFLICT(profile_name, metric_key) DO UPDATE SET
-				weight = excluded.weight
-		""",
-			(profile_name, metric_key, weight),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO profile_weights (profile_name, metric_key, weight)
+				VALUES (?, ?, ?)
+				ON CONFLICT(profile_name, metric_key) DO UPDATE SET
+					weight = excluded.weight
+			""",
+				(profile_name, metric_key, weight),
+			)
+			conn.commit()
 
 	def get_profile_weights(self, profile_name: str) -> dict:
 		"""Get all weights for a specific profile as a dictionary."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"SELECT metric_key, weight FROM profile_weights WHERE profile_name = ?",
-			(profile_name,),
-		)
-		return {row["metric_key"]: row["weight"] for row in cursor.fetchall()}
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT metric_key, weight FROM profile_weights WHERE profile_name = ?",
+				(profile_name,),
+			)
+			return {row["metric_key"]: row["weight"] for row in cursor.fetchall()}
 
 	def upsert_global_benchmark(
 		self,
@@ -266,35 +282,36 @@ class DatabaseRepository:
 		version: str = "1.0.0",
 	):
 		"""Insert or update a global benchmark."""
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"""
-			INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight, version)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT(asset_type, metric_key, version) DO UPDATE SET
-				name = excluded.name,
-				formula_type = excluded.formula_type,
-				unit = excluded.unit,
-				is_decimal = excluded.is_decimal,
-				display_key = excluded.display_key,
-				params_json = excluded.params_json,
-				weight = excluded.weight
-		""",
-			(
-				asset_type,
-				metric_key,
-				name,
-				formula_type,
-				unit,
-				is_decimal,
-				display_key,
-				params_json,
-				weight,
-				version,
-			),
-		)
-		conn.commit()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight, version)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(asset_type, metric_key, version) DO UPDATE SET
+					name = excluded.name,
+					formula_type = excluded.formula_type,
+					unit = excluded.unit,
+					is_decimal = excluded.is_decimal,
+					display_key = excluded.display_key,
+					params_json = excluded.params_json,
+					weight = excluded.weight
+			""",
+				(
+					asset_type,
+					metric_key,
+					name,
+					formula_type,
+					unit,
+					is_decimal,
+					display_key,
+					params_json,
+					weight,
+					version,
+				),
+			)
+			conn.commit()
 
 	def get_global_benchmarks(
 		self, asset_type: str, version: str = "1.0.0"
@@ -302,28 +319,29 @@ class DatabaseRepository:
 		"""Get all benchmarks for a specific asset type and version, with params merged in."""
 		import json
 
-		conn = self.db.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"SELECT * FROM global_benchmarks WHERE asset_type = ? AND version = ?",
-			(asset_type, version),
-		)
-		rows = cursor.fetchall()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT * FROM global_benchmarks WHERE asset_type = ? AND version = ?",
+				(asset_type, version),
+			)
+			rows = cursor.fetchall()
 
-		benchmarks = []
-		for row in rows:
-			b = dict(row)
-			# Rename columns to match what evaluate_metric expects
-			b["metric"] = b.pop("metric_key")
-			b["type"] = b.pop("formula_type")
+			benchmarks = []
+			for row in rows:
+				b = dict(row)
+				# Rename columns to match what evaluate_metric expects
+				b["metric"] = b.pop("metric_key")
+				b["type"] = b.pop("formula_type")
 
-			# Parse and merge params
-			if b.get("params_json"):
-				try:
-					params = json.loads(b.pop("params_json"))
-					b.update(params)
-				except json.JSONDecodeError:
-					pass
-			benchmarks.append(b)
+				# Parse and merge params
+				if b.get("params_json"):
+					try:
+						params = json.loads(b.pop("params_json"))
+						b.update(params)
+					except json.JSONDecodeError:
+						pass
+				benchmarks.append(b)
 
-		return benchmarks
+			return benchmarks

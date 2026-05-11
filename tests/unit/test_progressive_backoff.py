@@ -14,7 +14,7 @@ def test_run_bulk_analysis_progressive_backoff(mocker):
 	# 3 batches of 20 tickers each (to trigger failures)
 	tickers = ["T" + str(i) for i in range(60)]
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# Should have slept 6 times with progressive durations
 	# Each batch gets 2 attempts.
@@ -40,7 +40,7 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 	# 2 batches of 20 tickers each
 	tickers = ["T" + str(i) for i in range(40)]
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# Sleep durations:
 	# 1. 5.0 (failure)
@@ -71,7 +71,7 @@ def test_run_bulk_analysis_max_cooldown(mocker):
 	# 4 batches to reach max cooldown and stabilize
 	tickers = ["T" + str(i) for i in range(80)]  # 4 batches of 20
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# 4 batches * 2 attempts = 8 sleeps
 	assert mock_sleep.call_count == 8

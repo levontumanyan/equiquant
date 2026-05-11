@@ -1,6 +1,7 @@
 import json
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
 from core.data import get_stock_data, load_benchmarks
@@ -22,25 +23,12 @@ def analyze_asset(
 ) -> Optional[Dict[str, Any]]:
 	"""
 	Analyze a single asset by fetching data, evaluating benchmarks, and optionally saving results.
-
-	Args:
-		symbol: The ticker symbol to analyze.
-		profile: The investor profile name to use for weighting.
-		repo: Optional database repository for persistence.
-		benchmark_version: The version of benchmarks to load.
-
-	Returns:
-		A dictionary containing analysis results and the final score, or None if analysis failed.
 	"""
-	logger.info(
-		f"Analyzing asset: {symbol} with profile: {profile} (benchmarks: {benchmark_version})"
-	)
+	logger.info(f"Analyzing asset: {symbol} with profile: {profile}")
 	asset = get_stock_data(symbol)
 	if not asset:
-		logger.warning(f"Could not retrieve data for {symbol}")
 		return None
 
-	# Load benchmarks with sector context for stocks
 	sector_context = asset.sector if asset.asset_type == AssetType.STOCK else None
 	benchmark_defs = load_benchmarks(
 		asset.asset_type.value,
@@ -50,9 +38,6 @@ def analyze_asset(
 	)
 
 	if not benchmark_defs:
-		logger.error(
-			f"No benchmarks (version {benchmark_version}) found for {symbol} in database"
-		)
 		return None
 
 	profile_weights = get_profile_weights(repo, profile)
@@ -61,14 +46,12 @@ def analyze_asset(
 	results = [evaluate_metric(asset, b, profile_weights) for b in benchmark_defs]
 	stats.scoring_time_total += time.perf_counter() - scoring_start
 
-	# Data Quality Audit: Record which metrics were present
 	for res in results:
 		metric_key = res.get("metric")
 		if metric_key:
 			is_present = res.get("raw_value") is not None
 			stats.record_metric_coverage(metric_key, is_present)
 
-	# Calculate total score
 	total_score = sum(res["score"] for res in results)
 	max_score = sum(res["weight"] for res in results)
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
@@ -99,19 +82,8 @@ def _save_analysis_to_db(
 	results: List[Dict[str, Any]],
 	benchmark_version: str,
 ) -> None:
-	"""
-	Save analysis results, asset metadata, and metric history to the database.
-
-	Args:
-		repo: The database repository.
-		asset: The AssetData object.
-		profile: The investor profile name.
-		final_pct: The final calculated score percentage.
-		results: List of individual metric evaluation results.
-		benchmark_version: The version of benchmarks used.
-	"""
+	"""Save analysis results to the database in a thread-safe manner."""
 	try:
-		# 1. Update Asset Metadata
 		repo.upsert_asset(
 			symbol=asset.symbol,
 			name=asset.name,
@@ -119,8 +91,6 @@ def _save_analysis_to_db(
 			sector=asset.sector,
 			industry=asset.industry,
 		)
-
-		# 2. Record Metric History
 		for res in results:
 			metric_key = res.get("metric")
 			val = res.get("raw_value")
@@ -129,8 +99,6 @@ def _save_analysis_to_db(
 					repo.insert_metric_history(asset.symbol, metric_key, float(val))
 				except (ValueError, TypeError):
 					pass
-
-		# 3. Create Analysis Snapshot
 		results_summary = [
 			{
 				"metric": r["metric"],
@@ -148,9 +116,8 @@ def _save_analysis_to_db(
 			benchmark_version=benchmark_version,
 		)
 		stats.db_snapshots += 1
-		logger.info(f"Saved analysis snapshot for {asset.symbol} to DB")
 	except Exception as e:
-		logger.error(f"Failed to save analysis to DB for {asset.symbol}: {e}")
+		logger.error(f"Failed to save to DB for {asset.symbol}: {e}")
 
 
 def run_bulk_analysis(
@@ -159,95 +126,76 @@ def run_bulk_analysis(
 	progress_callback: Optional[Any] = None,
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
+	max_workers: int = 5,
 ) -> List[Dict[str, Any]]:
 	"""
-	Run analysis for multiple tickers using efficient bulk fetching and caching.
-
-	Args:
-		tickers: List of ticker symbols to analyze.
-		profile: The investor profile name.
-		progress_callback: Optional callback function for each completed analysis.
-		repo: Optional database repository.
-		benchmark_version: The version of benchmarks to use.
-
-	Returns:
-		A list of analysis results for each successfully processed ticker.
+	Run analysis for multiple tickers using overlapped fetching and parallel analysis.
 	"""
 	logger.info(
-		f"Starting bulk analysis for {len(tickers)} tickers (benchmarks: {benchmark_version})"
+		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers"
 	)
-
-	# 1. Warm up the cache
-	_warm_up_data_cache(tickers)
-
-	# 2. Proceed with individual analysis
-	all_results = []
-	total = len(tickers)
-	for idx, ticker in enumerate(tickers, 1):
-		ticker = ticker.upper().strip()
-		try:
-			logger.info(f"[{idx}/{total}] Processing {ticker}")
-			res = analyze_asset(
-				ticker, profile, repo=repo, benchmark_version=benchmark_version
-			)
-			if res:
-				all_results.append(res)
-				if progress_callback:
-					progress_callback(res)
-		except Exception as e:
-			logger.error(f"Error analyzing {ticker}: {e}")
-
-	logger.info(
-		f"Bulk analysis complete. Successfully analyzed {len(all_results)}/{len(tickers)} tickers."
-	)
-	return all_results
-
-
-def _warm_up_data_cache(tickers: List[str], batch_size: int = 20) -> None:
-	"""
-	Pre-fetch data in batches to warm the local cache and handle rate limiting.
-
-	Args:
-		tickers: List of ticker symbols to pre-fetch.
-		batch_size: Number of symbols to fetch in a single bulk request.
-	"""
 	from core.openbb_client import fetch_openbb_data_bulk
+
+	all_results = []
+	batch_size = 20
 
 	base_cooldown = 5.0
 	max_cooldown = 45.0
 	current_cooldown = base_cooldown
 
-	for i in range(0, len(tickers), batch_size):
-		batch = tickers[i : i + batch_size]
-		max_batch_retries = 1
-		batch_success = False
+	with ThreadPoolExecutor(max_workers=max_workers) as executor:
+		futures = []
 
-		for attempt in range(max_batch_retries + 1):
-			try:
-				if fetch_openbb_data_bulk(batch):
-					batch_success = True
+		for i in range(0, len(tickers), batch_size):
+			batch = [t.upper().strip() for t in tickers[i : i + batch_size]]
+
+			logger.info(f"Fetching batch: {batch}")
+			batch_success = False
+			for attempt in range(2):
+				try:
+					if fetch_openbb_data_bulk(batch):
+						batch_success = True
+						break
+
+					logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
+					logger.info(f"Entering {current_cooldown}s cooldown...")
+					stats.record_cooldown(current_cooldown)
+					time.sleep(current_cooldown)
+					current_cooldown = min(current_cooldown * 2, max_cooldown)
+				except Exception as e:
+					logger.warning(f"Fetch error for {batch}: {e}")
+					time.sleep(current_cooldown)
+					current_cooldown = min(current_cooldown * 2, max_cooldown)
 					break
 
-				logger.warning(
-					f"Batch fetch returned incomplete/zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for: {batch}"
+			for ticker in batch:
+				futures.append(
+					executor.submit(
+						analyze_asset,
+						ticker,
+						profile,
+						repo=repo,
+						benchmark_version=benchmark_version,
+					)
 				)
-				logger.info(
-					f"Entering {current_cooldown}s cooldown due to fetch failure..."
-				)
-				stats.record_cooldown(current_cooldown)
-				time.sleep(current_cooldown)
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
 
-				if attempt < max_batch_retries:
-					logger.info(f"Retrying batch: {batch}")
-					continue
+			if batch_success:
+				current_cooldown = base_cooldown
+				time.sleep(random.uniform(3.0, 5.0))
+
+		total = len(tickers)
+		for idx, future in enumerate(as_completed(futures), 1):
+			try:
+				res = future.result()
+				if res:
+					all_results.append(res)
+					if progress_callback:
+						progress_callback(res)
+				logger.info(f"[{idx}/{total}] Completed analysis")
 			except Exception as e:
-				logger.warning(f"Bulk fetch encountered error for batch {batch}: {e}")
-				time.sleep(current_cooldown)
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-				break
+				logger.error(f"Analysis error: {e}")
 
-		if batch_success:
-			current_cooldown = base_cooldown
-			# Mandatory inter-batch breather
-			time.sleep(random.uniform(3.0, 5.0))
+	logger.info(
+		f"Bulk analysis complete. {len(all_results)}/{len(tickers)} successful."
+	)
+	return all_results

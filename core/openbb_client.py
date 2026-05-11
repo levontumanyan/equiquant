@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import threading
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -30,22 +31,25 @@ class ProxyManager:
 	def __init__(self, proxies: List[str]):
 		self.proxies = proxies
 		self.current_index = -1
+		self._lock = threading.Lock()
 
 	def rotate(self) -> Optional[str]:
 		"""Rotate to the next proxy in the list."""
-		if not self.proxies:
-			return None
-		self.current_index = (self.current_index + 1) % len(self.proxies)
-		proxy = self.proxies[self.current_index]
-		os.environ["HTTP_PROXY"] = proxy
-		os.environ["HTTPS_PROXY"] = proxy
-		logger.info(f"Rotated to proxy: {proxy}")
-		return proxy
+		with self._lock:
+			if not self.proxies:
+				return None
+			self.current_index = (self.current_index + 1) % len(self.proxies)
+			proxy = self.proxies[self.current_index]
+			os.environ["HTTP_PROXY"] = proxy
+			os.environ["HTTPS_PROXY"] = proxy
+			logger.info(f"Rotated to proxy: {proxy}")
+			return proxy
 
 	def clear(self):
 		"""Clear proxy environment variables."""
-		os.environ.pop("HTTP_PROXY", None)
-		os.environ.pop("HTTPS_PROXY", None)
+		with self._lock:
+			os.environ.pop("HTTP_PROXY", None)
+			os.environ.pop("HTTPS_PROXY", None)
 
 
 proxy_manager = ProxyManager(PROXIES)
@@ -299,7 +303,7 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 
 	if should_use_cache(ticker_symbol):
 		try:
-			logger.info(f"Cache hit for {ticker_symbol}")
+			logger.debug(f"Cache hit for {ticker_symbol}")
 			stats.cache_hits += 1
 			return json.loads(cache_file.read_text())
 		except Exception as e:
