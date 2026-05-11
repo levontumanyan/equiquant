@@ -22,13 +22,14 @@
 - **Standard Workflow**:
 	1. Ensure you are on `main` and run `git pull origin main`.
 	2. Create a GitHub issue for the task using `gh issue create` if one doesn't already exist for the work you are doing.
-	3. Create a new worktree and branch: `git worktree add ../<branch-name> -b <branch-name> main`.
+	3. Create a new worktree and branch. Use a hyphenated name for the directory to keep the structure flat. `export DIR_NAME=$(echo "<branch-name>" | tr '/' '-')`, `git worktree add ../$DIR_NAME -b <branch-name> main`
+	3. `git worktree add ../<branch-name> -b <branch-name> main`
 	4. Identify the worktree root as WORKTREE_ROOT. Use this path as the cwd (Current Working Directory) for all tool calls and shell commands to avoid repetitive cd operations.
 	5. Prompt to open a vscode window of that worktree `code ../<branch-name>`.
 	6. Perform research, implementation, and testing within the worktree.
 	7. Send periodic issue updates and a final summary upon completion as comments on the issue.
-	8. Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
-	9. If the user is satisfied with the changes(ask), from $WORKTREE_ROOT, push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	8.  Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
+	9.  If the user is satisfied with the changes(ask), from $WORKTREE_ROOT, push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
 	10. Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 	11. After the branch is merged and the session is closed, remove the worktree and the branch.
 
