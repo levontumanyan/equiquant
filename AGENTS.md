@@ -6,6 +6,7 @@
 - **Functional & Modular**: Write pure functions whenever possible. Keep functions small and focused on a single responsibility. If a function exceeds ~50 lines, evaluate it for refactoring.
 - **Documentation**: EVERY function and class must have a descriptive docstring using triple quotes (`"""`). Include a brief description of the purpose, parameters, and return value.
 - **Performance**: Code must be highly efficient and optimized for speed. Performance is a first-class citizen; ensure modularity does not introduce unnecessary overhead.
+- **Location**: Adopt the Encapsulated Sibling Pattern. Create worktrees as siblings to the main/ directory, contained within the master project folder.
 
 ## Architecture Mandates
 - **Modularity**: All logic belongs in `core/`. `analyze.py` is for CLI orchestration only.
@@ -27,9 +28,9 @@
 	6. Perform research, implementation, and testing within the worktree.
 	7. Send periodic issue updates and a final summary upon completion as comments on the issue.
 	8. Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
-	9. If the user is satisfied with the changes(ask), push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	9. If the user is satisfied with the changes(ask), from $WORKTREE_ROOT, push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
 	10. Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
-	11. After the branch is merged and the session is closed, remove the worktree.
+	11. After the branch is merged and the session is closed, remove the worktree and the branch.
 
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
