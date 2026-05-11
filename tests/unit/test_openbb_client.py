@@ -99,7 +99,7 @@ def test_fetch_with_retry_logic(mocker):
 
 
 def test_fetch_with_retry_rate_limit_fail_fast(mocker):
-	from core.openbb_client import _fetch_with_retry, RateLimitError
+	from core.openbb_client import RateLimitError, _fetch_with_retry
 
 	mocker.patch("time.sleep")
 	mock_func = mocker.Mock()

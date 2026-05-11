@@ -21,7 +21,16 @@ def analyze_asset(
 	benchmark_version: str = "1.0.0",
 ) -> Optional[Dict[str, Any]]:
 	"""
-	Analyze a single asset and return the results and score.
+	Analyze a single asset by fetching data, evaluating benchmarks, and optionally saving results.
+
+	Args:
+		symbol: The ticker symbol to analyze.
+		profile: The investor profile name to use for weighting.
+		repo: Optional database repository for persistence.
+		benchmark_version: The version of benchmarks to load.
+
+	Returns:
+		A dictionary containing analysis results and the final score, or None if analysis failed.
 	"""
 	logger.info(
 		f"Analyzing asset: {symbol} with profile: {profile} (benchmarks: {benchmark_version})"
@@ -51,67 +60,23 @@ def analyze_asset(
 	scoring_start = time.perf_counter()
 	results = [evaluate_metric(asset, b, profile_weights) for b in benchmark_defs]
 	stats.scoring_time_total += time.perf_counter() - scoring_start
+
 	# Data Quality Audit: Record which metrics were present
 	for res in results:
 		metric_key = res.get("metric")
 		if metric_key:
-			# If 'raw_value' is None or item has no data, it's missing
 			is_present = res.get("raw_value") is not None
 			stats.record_metric_coverage(metric_key, is_present)
 
 	# Calculate total score
-	total_score = 0.0
-	max_score = 0.0
-	for res in results:
-		total_score += res["score"]
-		max_score += res["weight"]
-
+	total_score = sum(res["score"] for res in results)
+	max_score = sum(res["weight"] for res in results)
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
 
-	# DB Recording
 	if repo:
-		try:
-			# 1. Update Asset Metadata
-			repo.upsert_asset(
-				symbol=asset.symbol,
-				name=asset.name,
-				asset_type=asset.asset_type.value,
-				sector=asset.sector,
-				industry=asset.industry,
-			)
-
-			# 2. Record Metric History (the raw values used for benchmarks)
-			for res in results:
-				metric_key = res.get("metric")
-				val = res.get("raw_value")
-				if metric_key and val is not None:
-					try:
-						repo.insert_metric_history(asset.symbol, metric_key, float(val))
-					except (ValueError, TypeError):
-						pass
-
-			# 3. Create Analysis Snapshot
-			# Convert results to JSON for historical breakdown
-			results_summary = [
-				{
-					"metric": r["metric"],
-					"value": r["value"],
-					"score": r["score"],
-					"weight": r["weight"],
-				}
-				for r in results
-			]
-			repo.create_analysis_snapshot(
-				symbol=asset.symbol,
-				profile=profile,
-				total_score=final_pct,
-				results_json=json.dumps(results_summary),
-				benchmark_version=benchmark_version,
-			)
-			stats.db_snapshots += 1
-			logger.info(f"Saved analysis snapshot for {symbol} to DB")
-		except Exception as e:
-			logger.error(f"Failed to save analysis to DB for {symbol}: {e}")
+		_save_analysis_to_db(
+			repo, asset, profile, final_pct, results, benchmark_version
+		)
 
 	logger.info(f"Analysis complete for {symbol}: {final_pct:.2f}%")
 	return {
@@ -126,6 +91,68 @@ def analyze_asset(
 	}
 
 
+def _save_analysis_to_db(
+	repo: DatabaseRepository,
+	asset: Any,
+	profile: str,
+	final_pct: float,
+	results: List[Dict[str, Any]],
+	benchmark_version: str,
+) -> None:
+	"""
+	Save analysis results, asset metadata, and metric history to the database.
+
+	Args:
+		repo: The database repository.
+		asset: The AssetData object.
+		profile: The investor profile name.
+		final_pct: The final calculated score percentage.
+		results: List of individual metric evaluation results.
+		benchmark_version: The version of benchmarks used.
+	"""
+	try:
+		# 1. Update Asset Metadata
+		repo.upsert_asset(
+			symbol=asset.symbol,
+			name=asset.name,
+			asset_type=asset.asset_type.value,
+			sector=asset.sector,
+			industry=asset.industry,
+		)
+
+		# 2. Record Metric History
+		for res in results:
+			metric_key = res.get("metric")
+			val = res.get("raw_value")
+			if metric_key and val is not None:
+				try:
+					repo.insert_metric_history(asset.symbol, metric_key, float(val))
+				except (ValueError, TypeError):
+					pass
+
+		# 3. Create Analysis Snapshot
+		results_summary = [
+			{
+				"metric": r["metric"],
+				"value": r["value"],
+				"score": r["score"],
+				"weight": r["weight"],
+			}
+			for r in results
+		]
+		repo.create_analysis_snapshot(
+			symbol=asset.symbol,
+			profile=profile,
+			total_score=final_pct,
+			results_json=json.dumps(results_summary),
+			benchmark_version=benchmark_version,
+		)
+		stats.db_snapshots += 1
+		logger.info(f"Saved analysis snapshot for {asset.symbol} to DB")
+	except Exception as e:
+		logger.error(f"Failed to save analysis to DB for {asset.symbol}: {e}")
+
+
 def run_bulk_analysis(
 	tickers: List[str],
 	profile: str,
@@ -134,62 +161,26 @@ def run_bulk_analysis(
 	benchmark_version: str = "1.0.0",
 ) -> List[Dict[str, Any]]:
 	"""
-	Run analysis for multiple tickers using efficient bulk fetching.
-	"""
-	from core.openbb_client import fetch_openbb_data_bulk
+	Run analysis for multiple tickers using efficient bulk fetching and caching.
 
+	Args:
+		tickers: List of ticker symbols to analyze.
+		profile: The investor profile name.
+		progress_callback: Optional callback function for each completed analysis.
+		repo: Optional database repository.
+		benchmark_version: The version of benchmarks to use.
+
+	Returns:
+		A list of analysis results for each successfully processed ticker.
+	"""
 	logger.info(
 		f"Starting bulk analysis for {len(tickers)} tickers (benchmarks: {benchmark_version})"
 	)
 
-	# 1. Pre-fetch data in batches of 20 to warm the cache
-	batch_size = 20
-	import time
+	# 1. Warm up the cache
+	_warm_up_data_cache(tickers)
 
-	base_cooldown = 5.0
-	max_cooldown = 45.0
-	current_cooldown = base_cooldown
-
-	for i in range(0, len(tickers), batch_size):
-		batch = tickers[i : i + batch_size]
-		max_batch_retries = 1
-		batch_success = False
-		for attempt in range(max_batch_retries + 1):
-			try:
-				if fetch_openbb_data_bulk(batch):
-					batch_success = True
-					break
-
-				logger.warning(
-					f"Batch fetch returned incomplete or zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
-				)
-				# Apply progressive backoff on any non-clean fetch
-				logger.info(
-					f"Entering {current_cooldown}s cooldown due to partial/total failure..."
-				)
-				stats.record_cooldown(current_cooldown)
-				time.sleep(current_cooldown)
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-
-				if attempt < max_batch_retries:
-					logger.info(f"Retrying batch: {batch}")
-					continue
-			except Exception as e:
-				logger.warning(f"Bulk fetch encountered error for batch {batch}: {e}")
-				# Mandatory sleep even on exception
-				time.sleep(current_cooldown)
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-				break
-
-		if batch_success:
-			# Reset cooldown on clean success
-			current_cooldown = base_cooldown
-
-			# Mandatory inter-batch breather
-			breather = random.uniform(3.0, 5.0)
-			time.sleep(breather)
-
-	# 2. Proceed with individual analysis (now mostly cache hits)
+	# 2. Proceed with individual analysis
 	all_results = []
 	total = len(tickers)
 	for idx, ticker in enumerate(tickers, 1):
@@ -210,3 +201,53 @@ def run_bulk_analysis(
 		f"Bulk analysis complete. Successfully analyzed {len(all_results)}/{len(tickers)} tickers."
 	)
 	return all_results
+
+
+def _warm_up_data_cache(tickers: List[str], batch_size: int = 20) -> None:
+	"""
+	Pre-fetch data in batches to warm the local cache and handle rate limiting.
+
+	Args:
+		tickers: List of ticker symbols to pre-fetch.
+		batch_size: Number of symbols to fetch in a single bulk request.
+	"""
+	from core.openbb_client import fetch_openbb_data_bulk
+
+	base_cooldown = 5.0
+	max_cooldown = 45.0
+	current_cooldown = base_cooldown
+
+	for i in range(0, len(tickers), batch_size):
+		batch = tickers[i : i + batch_size]
+		max_batch_retries = 1
+		batch_success = False
+
+		for attempt in range(max_batch_retries + 1):
+			try:
+				if fetch_openbb_data_bulk(batch):
+					batch_success = True
+					break
+
+				logger.warning(
+					f"Batch fetch returned incomplete/zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for: {batch}"
+				)
+				logger.info(
+					f"Entering {current_cooldown}s cooldown due to fetch failure..."
+				)
+				stats.record_cooldown(current_cooldown)
+				time.sleep(current_cooldown)
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
+
+				if attempt < max_batch_retries:
+					logger.info(f"Retrying batch: {batch}")
+					continue
+			except Exception as e:
+				logger.warning(f"Bulk fetch encountered error for batch {batch}: {e}")
+				time.sleep(current_cooldown)
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
+				break
+
+		if batch_success:
+			current_cooldown = base_cooldown
+			# Mandatory inter-batch breather
+			time.sleep(random.uniform(3.0, 5.0))
