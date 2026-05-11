@@ -149,6 +149,39 @@ def _fetch_with_retry(
 	raise RuntimeError(f"No results returned for {symbol} after {max_retries} retries")
 
 
+def _merge_bulk_results(res: Any, bulk_combined: Dict[str, Dict[str, Any]]) -> None:
+	"""Merge bulk OpenBB results into the combined data dictionary."""
+	if not res or not hasattr(res, "results") or not res.results:
+		return
+	for item in res.results:
+		data = item.model_dump()
+		symbol = data.get("symbol")
+		if symbol and symbol in bulk_combined:
+			for k, v in data.items():
+				if v is not None or k not in bulk_combined[symbol]:
+					bulk_combined[symbol][k] = v
+
+
+def _fetch_etf_info_bulk(
+	obb: Any, bulk_combined: Dict[str, Dict[str, Any]], provider: str
+) -> None:
+	"""Fetch ETF info for symbols that appear to be ETFs or lack basic info."""
+	etf_candidates = [
+		s
+		for s, data in bulk_combined.items()
+		if not data.get("name") or "fund_family" in str(data)
+	]
+	if etf_candidates:
+		try:
+			res = _fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
+			_merge_bulk_results(res, bulk_combined)
+		except RateLimitError:
+			raise
+		except Exception:
+			# Non-critical: some might not be ETFs
+			pass
+
+
 def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 	"""
 	Fetch data for multiple tickers in bulk to optimize API usage.
@@ -158,7 +191,6 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 		return True
 
 	ticker_symbols = [s.upper() for s in ticker_symbols]
-	# Filter out what's already in cache
 	to_fetch = [s for s in ticker_symbols if not should_use_cache(s)]
 
 	if not to_fetch:
@@ -170,112 +202,41 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 
 	provider = "yfinance"
 	symbol_str = ",".join(to_fetch)
-
 	logger.info(f"Bulk fetching data for {len(to_fetch)} symbols from OpenBB")
 	stats.api_calls += 1
 	stats.bulk_fetch_symbols += len(to_fetch)
 
 	try:
-		# Data mapping: ticker -> combined_data dict
 		bulk_combined: Dict[str, Dict[str, Any]] = {s: {"symbol": s} for s in to_fetch}
-
-		def merge_bulk_results(res):
-			if not res or not hasattr(res, "results") or not res.results:
-				return
-			for item in res.results:
-				# Use model_dump() for Pydantic V2 models
-				data = item.model_dump()
-				symbol = data.get("symbol")
-				if symbol and symbol in bulk_combined:
-					# Only update if the value is not None to avoid overwriting good data
-					for k, v in data.items():
-						if v is not None or k not in bulk_combined[symbol]:
-							bulk_combined[symbol][k] = v
-
-		# Endpoints are wrapped in individual try-except to avoid batch failure
-		critical_success = True
-
-		# 1. Fundamental Metrics
-		try:
-			merge_bulk_results(
-				_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
-			)
-			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
-		except RateLimitError as e:
-			logger.error(f"Bulk fetch (Fundamental Metrics) RATE LIMITED: {e}")
-			return False
-		except Exception as e:
-			logger.warning(f"Bulk fetch (Fundamental Metrics) failed for batch: {e}")
-			critical_success = False
-
-		# 2. Company Profile
-		try:
-			merge_bulk_results(
-				_fetch_with_retry(obb.equity.profile, symbol_str, provider)
-			)
-			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
-		except RateLimitError as e:
-			logger.error(f"Bulk fetch (Profile) RATE LIMITED: {e}")
-			return False
-		except Exception as e:
-			logger.warning(f"Bulk fetch (Profile) failed for batch: {e}")
-			critical_success = False
-
-		# 3. Analyst Consensus
-		try:
-			merge_bulk_results(
-				_fetch_with_retry(obb.equity.estimates.consensus, symbol_str, provider)
-			)
-			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
-		except RateLimitError as e:
-			logger.error(f"Bulk fetch (Consensus) RATE LIMITED: {e}")
-			return False
-		except Exception as e:
-			logger.warning(f"Bulk fetch (Consensus) failed for batch: {e}")
-			# Consensus is semi-critical for rate limiting detection
-			# but we don't set critical_success=False if it's just missing data.
-			# However, if it failed for reasons other than missing data, we should be cautious.
-			if "empty" not in str(e).lower():
-				critical_success = False
-
-		# 4. Ownership Statistics
-		try:
-			merge_bulk_results(
-				_fetch_with_retry(
-					obb.equity.ownership.share_statistics, symbol_str, provider
-				)
-			)
-			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
-		except RateLimitError as e:
-			logger.error(f"Bulk fetch (Ownership) RATE LIMITED: {e}")
-			return False
-		except Exception as e:
-			logger.warning(f"Bulk fetch (Ownership) failed for batch: {e}")
-
-		# 5. ETF Info (only for those that still lack a 'name' or look like ETFs)
-		etf_candidates = [
-			s
-			for s, data in bulk_combined.items()
-			if not data.get("name") or "fund_family" in str(data)
+		endpoints = [
+			(obb.equity.fundamental.metrics, "Fundamental Metrics", True),
+			(obb.equity.profile, "Company Profile", True),
+			(obb.equity.estimates.consensus, "Analyst Consensus", False),
+			(obb.equity.ownership.share_statistics, "Ownership Statistics", False),
 		]
-		if etf_candidates:
+
+		critical_success = True
+		for func, name, is_critical in endpoints:
 			try:
-				merge_bulk_results(
-					_fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
-				)
+				res = _fetch_with_retry(func, symbol_str, provider)
+				_merge_bulk_results(res, bulk_combined)
+				time.sleep(random.uniform(1.0, 2.0))
 			except RateLimitError as e:
-				logger.error(f"Bulk fetch (ETF Info) RATE LIMITED: {e}")
+				logger.error(f"Bulk fetch ({name}) RATE LIMITED: {e}")
 				return False
-			except Exception:
-				# Non-critical: some might not be ETFs
-				pass
+			except Exception as e:
+				logger.warning(f"Bulk fetch ({name}) failed for batch: {e}")
+				if is_critical or (
+					name == "Analyst Consensus" and "empty" not in str(e).lower()
+				):
+					critical_success = False
+
+		_fetch_etf_info_bulk(obb, bulk_combined, provider)
 
 		# Save results to individual cache files
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		success_count = 0
 		for symbol, data in bulk_combined.items():
-			# We always save the cache file, even if it only contains {"symbol": S}
-			# This acts as a negative cache to prevent immediate "one-by-one" retries
 			cache_file = CACHE_DIR / f"{symbol}.json"
 			cache_file.write_text(json.dumps(data, default=str, indent="\t"))
 			if len(data) > 1:
@@ -293,6 +254,17 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 		return False
 
 
+def _merge_single_res(res: Any, combined_data: Dict[str, Any]) -> None:
+	"""Merge single OpenBB result into the combined data dictionary."""
+	if not res or not hasattr(res, "results") or not res.results:
+		return
+	data = res.results[0].model_dump()
+	if data:
+		for k, v in data.items():
+			if v is not None or k not in combined_data:
+				combined_data[k] = v
+
+
 def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 	"""
 	Fetch standardized data via OpenBB Platform using multiple endpoints.
@@ -308,10 +280,8 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 			return json.loads(cache_file.read_text())
 		except Exception as e:
 			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
-			pass
 
 	proxy_manager.rotate()
-	# If not cached, fall back to single-fetch (though orchestrator should have bulk-fetched)
 	from openbb import obb
 
 	logger.info(f"Fetching fresh data for {ticker_symbol} from OpenBB (fallback)")
@@ -320,39 +290,30 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 	try:
 		combined_data = {}
 		provider = "yfinance"
+		endpoints = [
+			obb.equity.fundamental.metrics,
+			obb.equity.profile,
+			obb.equity.estimates.consensus,
+			obb.equity.ownership.share_statistics,
+		]
 
-		def merge_res(res):
-			if not res or not hasattr(res, "results") or not res.results:
-				return
-			data = res.results[0].model_dump()
-			if data:
-				for k, v in data.items():
-					if v is not None or k not in combined_data:
-						combined_data[k] = v
-
-		# Endpoints
-		merge_res(
-			_fetch_with_retry(obb.equity.fundamental.metrics, ticker_symbol, provider)
-		)
-		merge_res(_fetch_with_retry(obb.equity.profile, ticker_symbol, provider))
-		merge_res(
-			_fetch_with_retry(obb.equity.estimates.consensus, ticker_symbol, provider)
-		)
-		merge_res(
-			_fetch_with_retry(
-				obb.equity.ownership.share_statistics, ticker_symbol, provider
+		for func in endpoints:
+			_merge_single_res(
+				_fetch_with_retry(func, ticker_symbol, provider), combined_data
 			)
-		)
 
+		# Try ETF info if needed
 		if (
 			not combined_data
 			or "fund_family" in str(combined_data)
 			or not combined_data.get("name")
 		):
 			try:
-				merge_res(_fetch_with_retry(obb.etf.info, ticker_symbol, provider))
+				_merge_single_res(
+					_fetch_with_retry(obb.etf.info, ticker_symbol, provider),
+					combined_data,
+				)
 			except Exception:
-				# Normal for non-ETFs
 				pass
 
 		if not combined_data:
@@ -360,10 +321,8 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 			time.sleep(random.uniform(2.0, 4.0))
 			return {}
 
-		# Save to cache
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		cache_file.write_text(json.dumps(combined_data, default=str, indent="\t"))
-
 		stats.api_successes += 1
 		time.sleep(random.uniform(0.6, 1.2))
 		return combined_data

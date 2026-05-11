@@ -2,7 +2,7 @@ import json
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.data import get_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -131,6 +131,33 @@ def _save_analysis_to_db(
 		logger.error(f"Failed to save to DB for {asset.symbol}: {e}")
 
 
+def _fetch_batch_with_backoff(
+	batch_tickers: List[str], current_cooldown: float
+) -> Tuple[bool, float]:
+	"""Attempt to fetch a batch of tickers with retry and backoff."""
+	from core.openbb_client import fetch_openbb_data_bulk
+
+	base_cooldown = 5.0
+	max_cooldown = 45.0
+
+	for attempt in range(2):
+		try:
+			if fetch_openbb_data_bulk(batch_tickers):
+				return True, base_cooldown
+
+			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
+			logger.info(f"Entering {current_cooldown}s cooldown...")
+			stats.record_cooldown(current_cooldown)
+			time.sleep(current_cooldown)
+			current_cooldown = min(current_cooldown * 2, max_cooldown)
+		except Exception as e:
+			logger.warning(f"Fetch error for {batch_tickers}: {e}")
+			time.sleep(current_cooldown)
+			current_cooldown = min(current_cooldown * 2, max_cooldown)
+			break
+	return False, current_cooldown
+
+
 def run_bulk_analysis(
 	tickers: List[str],
 	profile: str,
@@ -145,43 +172,22 @@ def run_bulk_analysis(
 	logger.info(
 		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers"
 	)
-	from core.openbb_client import fetch_openbb_data_bulk
 
 	all_results = []
 	batch_size = 20
-
-	base_cooldown = 5.0
-	max_cooldown = 45.0
-	current_cooldown = base_cooldown
+	current_cooldown = 5.0
 
 	with ThreadPoolExecutor(max_workers=max_workers) as executor:
 		futures = []
 
-		# Process in batches: Fetch (Main Thread) -> Analyze (ThreadPool)
 		for i in range(0, len(tickers), batch_size):
 			batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-
 			logger.info(f"Fetching batch: {batch_tickers}")
-			batch_success = False
-			for attempt in range(2):
-				try:
-					if fetch_openbb_data_bulk(batch_tickers):
-						batch_success = True
-						break
 
-					logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
-					logger.info(f"Entering {current_cooldown}s cooldown...")
-					stats.record_cooldown(current_cooldown)
-					time.sleep(current_cooldown)
-					current_cooldown = min(current_cooldown * 2, max_cooldown)
-				except Exception as e:
-					logger.warning(f"Fetch error for {batch_tickers}: {e}")
-					time.sleep(current_cooldown)
-					current_cooldown = min(current_cooldown * 2, max_cooldown)
-					break
+			success, current_cooldown = _fetch_batch_with_backoff(
+				batch_tickers, current_cooldown
+			)
 
-			# Convert symbols to AssetData in the main thread (uses cache hit/API fetch)
-			# This is where the "Cache hit" logs will happen once.
 			for ticker in batch_tickers:
 				asset = get_stock_data(ticker)
 				if asset:
@@ -199,11 +205,9 @@ def run_bulk_analysis(
 						f"Skipping analysis for {ticker}: No data retrieved."
 					)
 
-			if batch_success:
-				current_cooldown = base_cooldown
+			if success:
 				time.sleep(random.uniform(3.0, 5.0))
 
-		# Collect results as they finish
 		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):
 			try:
