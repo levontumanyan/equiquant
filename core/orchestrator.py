@@ -158,29 +158,32 @@ def run_bulk_analysis(
 				success = fetch_openbb_data_bulk(batch)
 				if not success:
 					logger.warning(
-						f"Batch fetch returned zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
+						f"Batch fetch returned incomplete or zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
 					)
+					# Apply progressive backoff on any non-clean fetch
+					logger.info(
+						f"Entering {current_cooldown}s cooldown due to partial/total failure..."
+					)
+					stats.record_cooldown(current_cooldown)
+					time.sleep(current_cooldown)
+					current_cooldown = min(current_cooldown * 2, max_cooldown)
+
 					if attempt < max_batch_retries:
-						# If we have progressive backoff from main, we can use it here between batch retries
-						logger.info(
-							f"Entering {current_cooldown}s cooldown before batch retry..."
-						)
-						stats.record_cooldown(current_cooldown)
-						time.sleep(current_cooldown)
-						current_cooldown = min(current_cooldown * 2, max_cooldown)
+						logger.info(f"Retrying batch: {batch}")
 						continue
-					else:
-						# Already retried once and failed
-						pass
 				else:
-					# Reset cooldown on success
+					# Reset cooldown on clean success
 					current_cooldown = base_cooldown
-					# Inter-batch breather: small delay to look more natural
+					# Mandatory inter-batch breather: small delay to look more natural
+					# This happens AFTER any success to ensure we don't burst
 					breather = random.uniform(3.0, 5.0)
 					time.sleep(breather)
-				break  # Success or max retries reached
+				break  # Success or max retries reached (after cooldown)
 			except Exception as e:
 				logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+				# Mandatory sleep even on exception
+				time.sleep(current_cooldown)
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
 				break
 
 	# 2. Proceed with individual analysis (now mostly cache hits)

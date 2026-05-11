@@ -118,6 +118,8 @@ def _fetch_with_retry(
 			error_type = "provider_error"
 			if "429" in err_str or "rate limit" in err_str:
 				error_type = "rate_limit"
+				# Proactive proxy rotation on rate limit
+				proxy_manager.rotate()
 			elif "timeout" in err_str or "connection" in err_str:
 				error_type = "network_error"
 
@@ -182,6 +184,8 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 							bulk_combined[symbol][k] = v
 
 		# Endpoints are wrapped in individual try-except to avoid batch failure
+		critical_success = True
+
 		# 1. Fundamental Metrics
 		try:
 			merge_bulk_results(
@@ -189,6 +193,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			)
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Fundamental Metrics) failed for batch: {e}")
+			critical_success = False
 
 		# 2. Company Profile
 		try:
@@ -197,6 +202,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			)
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Profile) failed for batch: {e}")
+			critical_success = False
 
 		# 3. Analyst Consensus
 		try:
@@ -246,7 +252,7 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			f"Bulk fetch phase complete. Cached {len(bulk_combined)} files ({success_count} with data)."
 		)
 		stats.api_successes += 1
-		return success_count > 0
+		return critical_success
 
 	except Exception as e:
 		logger.error(f"OpenBB bulk fetch critical failure: {e}")
