@@ -3,6 +3,9 @@
 ## Code Standards
 - **Indentation**: **Tabs** exclusively for all code (except YAML).
 - **Quality**: Prioritize **targeted testing** (e.g., `make test-unit` or running a specific test file) during development. Only run `make check` (full suite) as a final verification before a PR or if specifically required. Rely on **pre-commit hooks** to catch linting and basic test failures during the commit process.
+- **Functional & Modular**: Write pure functions whenever possible. Keep functions small and focused on a single responsibility. If a function exceeds ~50 lines, evaluate it for refactoring.
+- **Documentation**: EVERY function and class must have a descriptive docstring using triple quotes (`"""`). Include a brief description of the purpose, parameters, and return value.
+- **Performance**: Code must be highly efficient and optimized for speed. Performance is a first-class citizen; ensure modularity does not introduce unnecessary overhead.
 
 ## Architecture Mandates
 - **Modularity**: All logic belongs in `core/`. `analyze.py` is for CLI orchestration only.
