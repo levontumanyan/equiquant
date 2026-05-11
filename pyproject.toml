@@ -22,9 +22,12 @@ quote-style = "double"
 
 [tool.ruff.lint]
 # Enable Pyflakes (F), Error (E), and Implicit String Concatenation (ISC)
-select = ["F", "E", "ISC", "I"]
+select = ["F", "E", "ISC", "I", "C901"]
 # E501 is the "Line too long" rule. Adding it here kills the warning.
 ignore = ["E501"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.lint.flake8-implicit-str-concat]
 # Ensure it catches multi-line implicit concatenations

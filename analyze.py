@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from typing import List
 
 # Early exit for completion flags to avoid heavy imports
 if len(sys.argv) > 1 and sys.argv[1] in [
@@ -67,7 +68,6 @@ def daemonize():
 	try:
 		pid = os.fork()
 		if pid > 0:
-			# Save the second child's PID
 			with open(PID_FILE, "w") as f:
 				f.write(str(pid))
 			sys.exit(0)
@@ -76,7 +76,6 @@ def daemonize():
 		sys.exit(1)
 
 	out_file = str(LOG_FILE).replace(".log", ".out")
-
 	sys.stdout.flush()
 	sys.stderr.flush()
 	si = open(os.devnull, "r")
@@ -90,121 +89,8 @@ def daemonize():
 	)
 
 
-def main():
-	parser = argparse.ArgumentParser(description="Stock & ETF Fundamental Analyzer")
-	parser.add_argument("tickers", nargs="*", help="One or more ticker symbols")
-	parser.add_argument("-f", "--file", help="Path to a file containing tickers")
-	parser.add_argument(
-		"-i", "--index", help="Ticker of an index/ETF to analyze its components"
-	)
-	parser.add_argument(
-		"-a",
-		"--all",
-		action="store_true",
-		help="Analyze all assets currently in the database",
-	)
-	parser.add_argument(
-		"-p",
-		"--profile",
-		default="balanced",
-		choices=["balanced", "growth", "dividend"],
-		help="Investment profile to use",
-	)
-	parser.add_argument(
-		"--benchmark-version",
-		default="1.0.0",
-		help="Version of benchmarks to use for analysis (default: 1.0.0)",
-	)
-	parser.add_argument(
-		"-e",
-		"--export",
-		choices=["csv", "txt"],
-		help="Export format (csv or txt). Filename is auto-generated.",
-	)
-	parser.add_argument(
-		"--history",
-		action="store_true",
-		help="Show historical scores for the provided ticker(s)",
-	)
-	parser.add_argument(
-		"-v",
-		"--verbose",
-		action="store_true",
-		help="Enable verbose output (print logs to console)",
-	)
-	parser.add_argument(
-		"-b",
-		"--background",
-		action="store_true",
-		help="Run the analysis in the background",
-	)
-	parser.add_argument(
-		"--logs",
-		action="store_true",
-		help="Tail the latest background run logs",
-	)
-	parser.add_argument(
-		"--db",
-		choices=[
-			"assets",
-			"indices",
-			"snapshots",
-			"sectors",
-			"profiles",
-			"benchmarks",
-			"inventory",
-		],
-		help="Inspect the database (replaces make db-*)",
-	)
-	parser.add_argument(
-		"-w",
-		"--workers",
-		type=int,
-		default=5,
-		help="Number of parallel workers for fetching and analysis (default: 5)",
-	)
-	# Hidden flags for completion (handled early, but kept here for help/parsing)
-	parser.add_argument("--list-tickers", action="store_true", help=argparse.SUPPRESS)
-	parser.add_argument("--list-indices", action="store_true", help=argparse.SUPPRESS)
-	parser.add_argument("--list-profiles", action="store_true", help=argparse.SUPPRESS)
-
-	args = parser.parse_args()
-
-	# Initialize Logging
-	setup_logging(verbose=args.verbose)
-
-	if args.logs:
-		import glob
-
-		out_files = sorted(glob.glob(str(LOG_DIR / "run_*.out")), reverse=True)
-		if out_files:
-			latest_log = out_files[0]
-			print(f"Tailing latest logs from {latest_log}...")
-			os.system(f"tail -f {latest_log}")
-		else:
-			print(f"No background log files found in {LOG_DIR}")
-		sys.exit(0)
-
-	if args.db:
-		dispatch_db_view(args.db)
-		sys.exit(0)
-
-	logger.info("Application started")
-
-	# Initialize Database
-	db_manager = DatabaseManager()
-	repo = DatabaseRepository(db_manager)
-
-	# Resource Tracking: Initial DB Size
-	db_path = db_manager.db_path
-	if db_path.exists():
-		stats.initial_db_size = db_path.stat().st_size
-
-	# Artifact Tracking: Always record log file
-	stats.record_artifact(LOG_FILE)
-
-	# 1. Collect Tickers
-	stats.start_stage("Data Discovery")
+def _collect_tickers(args, repo, db_manager) -> List[str]:
+	"""Collect and deduplicate tickers from various sources."""
 	tickers = list(args.tickers)
 	if args.file:
 		tickers.extend(parse_ticker_file(args.file))
@@ -215,18 +101,12 @@ def main():
 		cursor.execute(
 			"SELECT symbol FROM assets WHERE symbol NOT IN (SELECT symbol FROM indices)"
 		)
-		all_symbols = [row[0] for row in cursor.fetchall()]
-		tickers.extend(all_symbols)
+		tickers.extend([row[0] for row in cursor.fetchall()])
+	return sorted(list(set(t.upper().strip() for t in tickers)))
 
-	tickers = sorted(list(set(t.upper().strip() for t in tickers)))
-	stats.end_stage("Data Discovery")
 
-	if not tickers:
-		console.print("[bold red]Error: No tickers provided.[/bold red]")
-		parser.print_help()
-		sys.exit(1)
-
-	# 2. Check for Backgrounding
+def _handle_backgrounding(args, tickers):
+	"""Daemonize the process if backgrounding is requested or threshold is met."""
 	should_background = args.background
 	if (
 		not should_background
@@ -244,17 +124,115 @@ def main():
 		if os.path.exists(PID_FILE):
 			os.remove(PID_FILE)
 		daemonize()
-		# Re-setup logging to force output to the newly redirected stdout/stderr
 		setup_logging(verbose=args.verbose, force_console=True)
 
-	if args.history:
-		console.print(
-			f"[bold green]Fetching history for {len(tickers)} asset(s) with [cyan]{args.profile.upper()}[/cyan] profile[/bold green]"
-		)
-		for ticker in tickers:
-			snapshots = repo.get_historical_scores(ticker, args.profile)
-			display_historical_scores(ticker, args.profile, snapshots)
+
+def _handle_history_request(repo, tickers, profile):
+	"""Fetch and display historical scores."""
+	console.print(
+		f"[bold green]Fetching history for {len(tickers)} asset(s) with [cyan]{profile.upper()}[/cyan] profile[/bold green]"
+	)
+	for ticker in tickers:
+		snapshots = repo.get_historical_scores(ticker, profile)
+		display_historical_scores(ticker, profile, snapshots)
+	sys.exit(0)
+
+
+def _parse_args():
+	parser = argparse.ArgumentParser(description="Stock & ETF Fundamental Analyzer")
+	parser.add_argument("tickers", nargs="*", help="One or more ticker symbols")
+	parser.add_argument("-f", "--file", help="Path to a file containing tickers")
+	parser.add_argument(
+		"-i", "--index", help="Ticker of an index/ETF to analyze its components"
+	)
+	parser.add_argument(
+		"-a",
+		"--all",
+		action="store_true",
+		help="Analyze all assets currently in the database",
+	)
+	parser.add_argument(
+		"-p",
+		"--profile",
+		default="balanced",
+		choices=["balanced", "growth", "dividend"],
+		help="Investment profile",
+	)
+	parser.add_argument(
+		"--benchmark-version", default="1.0.0", help="Version of benchmarks to use"
+	)
+	parser.add_argument("-e", "--export", choices=["csv", "txt"], help="Export format")
+	parser.add_argument("--history", action="store_true", help="Show historical scores")
+	parser.add_argument(
+		"-v", "--verbose", action="store_true", help="Enable verbose output"
+	)
+	parser.add_argument(
+		"-b",
+		"--background",
+		action="store_true",
+		help="Run the analysis in the background",
+	)
+	parser.add_argument("--logs", action="store_true", help="Tail background run logs")
+	parser.add_argument(
+		"--db",
+		choices=[
+			"assets",
+			"indices",
+			"snapshots",
+			"sectors",
+			"profiles",
+			"benchmarks",
+			"inventory",
+		],
+		help="Inspect database",
+	)
+	parser.add_argument(
+		"-w", "--workers", type=int, default=5, help="Number of parallel workers"
+	)
+	parser.add_argument("--list-tickers", action="store_true", help=argparse.SUPPRESS)
+	parser.add_argument("--list-indices", action="store_true", help=argparse.SUPPRESS)
+	parser.add_argument("--list-profiles", action="store_true", help=argparse.SUPPRESS)
+	return parser.parse_args(), parser
+
+
+def _handle_special_flags(args):
+	if args.logs:
+		import glob
+
+		out_files = sorted(glob.glob(str(LOG_DIR / "run_*.out")), reverse=True)
+		if out_files:
+			print(f"Tailing latest logs from {out_files[0]}...")
+			os.system(f"tail -f {out_files[0]}")
 		sys.exit(0)
+
+	if args.db:
+		dispatch_db_view(args.db)
+		sys.exit(0)
+
+
+def main():
+	args, parser = _parse_args()
+	setup_logging(verbose=args.verbose)
+	_handle_special_flags(args)
+
+	db_manager = DatabaseManager()
+	repo = DatabaseRepository(db_manager)
+	if (db_path := db_manager.db_path).exists():
+		stats.initial_db_size = db_path.stat().st_size
+	stats.record_artifact(LOG_FILE)
+
+	stats.start_stage("Data Discovery")
+	tickers = _collect_tickers(args, repo, db_manager)
+	stats.end_stage("Data Discovery")
+
+	if not tickers:
+		console.print("[bold red]Error: No tickers provided.[/bold red]")
+		parser.print_help()
+		sys.exit(1)
+
+	_handle_backgrounding(args, tickers)
+	if args.history:
+		_handle_history_request(repo, tickers, args.profile)
 
 	stats.start_stage("Analysis & Scoring")
 	is_bulk = len(tickers) > 1
@@ -262,7 +240,7 @@ def main():
 		f"[bold green]Analyzing {len(tickers)} asset(s) with [cyan]{args.profile.upper()}[/cyan] profile[/bold green]"
 	)
 
-	def progress_callback(res):
+	def progress_cb(res):
 		if not is_bulk:
 			display_individual_results(
 				res["symbol"],
@@ -276,7 +254,7 @@ def main():
 	all_analysis_results = run_bulk_analysis(
 		tickers,
 		args.profile,
-		progress_callback,
+		progress_cb,
 		repo=repo,
 		benchmark_version=args.benchmark_version,
 		max_workers=args.workers,
@@ -286,7 +264,6 @@ def main():
 	stats.start_stage("Reporting")
 	if is_bulk and all_analysis_results:
 		display_summary_table(all_analysis_results)
-
 	if args.export and all_analysis_results:
 		export_path = generate_report(
 			all_analysis_results,
@@ -299,12 +276,9 @@ def main():
 		console.print(f"\n[bold green]Report exported to: {export_path}[/bold green]")
 	stats.end_stage("Reporting")
 
-	# Final Resource Tracking
 	if db_path.exists():
 		stats.final_db_size = db_path.stat().st_size
-
 	display_run_summary(stats)
-	logger.info({"event": "run_summary", "stats": stats.to_dict()})
 	logger.info("Application finished")
 
 
