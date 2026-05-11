@@ -303,7 +303,7 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 
 	if should_use_cache(ticker_symbol):
 		try:
-			logger.debug(f"Cache hit for {ticker_symbol}")
+			logger.info(f"Cache hit for {ticker_symbol}")
 			stats.cache_hits += 1
 			return json.loads(cache_file.read_text())
 		except Exception as e:

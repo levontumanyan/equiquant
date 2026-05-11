@@ -9,26 +9,34 @@ from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
 from core.profiles import get_profile_weights
-from core.schema import AssetType
+from core.schema import AssetData, AssetType
 from core.stats import stats
 
 logger = get_logger(__name__)
 
 
 def analyze_asset(
-	symbol: str,
+	asset: AssetData,
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
 ) -> Optional[Dict[str, Any]]:
 	"""
-	Analyze a single asset by fetching data, evaluating benchmarks, and optionally saving results.
-	"""
-	logger.info(f"Analyzing asset: {symbol} with profile: {profile}")
-	asset = get_stock_data(symbol)
-	if not asset:
-		return None
+	Analyze a single pre-loaded asset by evaluating benchmarks and optionally saving results.
 
+	Args:
+		asset: Pre-loaded AssetData object.
+		profile: The investor profile name to use for weighting.
+		repo: Optional database repository for persistence.
+		benchmark_version: The version of benchmarks to load.
+
+	Returns:
+		A dictionary containing analysis results and the final score, or None if analysis failed.
+	"""
+	symbol = asset.symbol
+	logger.info(f"Analyzing asset: {symbol} with profile: {profile}")
+
+	# Load benchmarks with sector context for stocks
 	sector_context = asset.sector if asset.asset_type == AssetType.STOCK else None
 	benchmark_defs = load_benchmarks(
 		asset.asset_type.value,
@@ -38,6 +46,7 @@ def analyze_asset(
 	)
 
 	if not benchmark_defs:
+		logger.error(f"No benchmarks found for {symbol}")
 		return None
 
 	profile_weights = get_profile_weights(repo, profile)
@@ -46,12 +55,14 @@ def analyze_asset(
 	results = [evaluate_metric(asset, b, profile_weights) for b in benchmark_defs]
 	stats.scoring_time_total += time.perf_counter() - scoring_start
 
+	# Data Quality Audit: Record which metrics were present
 	for res in results:
 		metric_key = res.get("metric")
 		if metric_key:
 			is_present = res.get("raw_value") is not None
 			stats.record_metric_coverage(metric_key, is_present)
 
+	# Calculate total score
 	total_score = sum(res["score"] for res in results)
 	max_score = sum(res["weight"] for res in results)
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
@@ -76,7 +87,7 @@ def analyze_asset(
 
 def _save_analysis_to_db(
 	repo: DatabaseRepository,
-	asset: Any,
+	asset: AssetData,
 	profile: str,
 	final_pct: float,
 	results: List[Dict[str, Any]],
@@ -146,14 +157,15 @@ def run_bulk_analysis(
 	with ThreadPoolExecutor(max_workers=max_workers) as executor:
 		futures = []
 
+		# Process in batches: Fetch (Main Thread) -> Analyze (ThreadPool)
 		for i in range(0, len(tickers), batch_size):
-			batch = [t.upper().strip() for t in tickers[i : i + batch_size]]
+			batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
 
-			logger.info(f"Fetching batch: {batch}")
+			logger.info(f"Fetching batch: {batch_tickers}")
 			batch_success = False
 			for attempt in range(2):
 				try:
-					if fetch_openbb_data_bulk(batch):
+					if fetch_openbb_data_bulk(batch_tickers):
 						batch_success = True
 						break
 
@@ -163,27 +175,36 @@ def run_bulk_analysis(
 					time.sleep(current_cooldown)
 					current_cooldown = min(current_cooldown * 2, max_cooldown)
 				except Exception as e:
-					logger.warning(f"Fetch error for {batch}: {e}")
+					logger.warning(f"Fetch error for {batch_tickers}: {e}")
 					time.sleep(current_cooldown)
 					current_cooldown = min(current_cooldown * 2, max_cooldown)
 					break
 
-			for ticker in batch:
-				futures.append(
-					executor.submit(
-						analyze_asset,
-						ticker,
-						profile,
-						repo=repo,
-						benchmark_version=benchmark_version,
+			# Convert symbols to AssetData in the main thread (uses cache hit/API fetch)
+			# This is where the "Cache hit" logs will happen once.
+			for ticker in batch_tickers:
+				asset = get_stock_data(ticker)
+				if asset:
+					futures.append(
+						executor.submit(
+							analyze_asset,
+							asset,
+							profile,
+							repo=repo,
+							benchmark_version=benchmark_version,
+						)
 					)
-				)
+				else:
+					logger.warning(
+						f"Skipping analysis for {ticker}: No data retrieved."
+					)
 
 			if batch_success:
 				current_cooldown = base_cooldown
 				time.sleep(random.uniform(3.0, 5.0))
 
-		total = len(tickers)
+		# Collect results as they finish
+		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):
 			try:
 				res = future.result()

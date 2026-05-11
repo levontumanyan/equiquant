@@ -1,4 +1,5 @@
 from core.orchestrator import run_bulk_analysis
+from core.schema import AssetData
 
 
 def test_run_bulk_analysis_progressive_backoff(mocker):
@@ -6,7 +7,10 @@ def test_run_bulk_analysis_progressive_backoff(mocker):
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	# Mock time.sleep to record sleep durations and not actually sleep
 	mock_sleep = mocker.patch("time.sleep")
-	# Mock analyze_asset to avoid deep analysis
+	# Mock data retrieval and analysis
+	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
 	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)
@@ -33,6 +37,9 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 	mock_bulk.side_effect = [False, True, False, False]
 
 	mock_sleep = mocker.patch("time.sleep")
+	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
 	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)
@@ -64,6 +71,9 @@ def test_run_bulk_analysis_max_cooldown(mocker):
 	# Mock fetch_openbb_data_bulk to always return False
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	mock_sleep = mocker.patch("time.sleep")
+	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
 	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)

@@ -4,6 +4,7 @@ from core.data import get_stock_data, load_benchmarks
 from core.database import DatabaseManager, DatabaseRepository
 from core.orchestrator import run_bulk_analysis
 from core.profiles import get_profile_weights
+from core.schema import AssetData
 
 
 @pytest.fixture
@@ -28,7 +29,10 @@ def test_load_benchmarks_no_repo():
 
 
 def test_run_bulk_analysis(mocker, repo):
-	# Mock analyze_asset to avoid hitting the network/provider
+	# Mock data retrieval and analysis
+	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="AAPL")
+	)
 	mock_res = {"symbol": "AAPL", "score": 80.0}
 	mocker.patch("core.orchestrator.analyze_asset", return_value=mock_res)
 
@@ -39,7 +43,7 @@ def test_run_bulk_analysis(mocker, repo):
 		callback_called = True
 
 	results = run_bulk_analysis(
-		["AAPL"], "balanced", progress_callback=callback, repo=repo
+		["AAPL"], "balanced", progress_callback=callback, repo=repo, max_workers=1
 	)
 
 	assert len(results) == 1
@@ -57,5 +61,6 @@ def test_get_profile_weights_invalid(repo):
 
 def test_get_stock_data(mocker):
 	# Mock the provider to avoid real API calls
+	# We patch where it is used or defined
 	mocker.patch("core.data.OpenBBProvider.get_data", return_value="mocked_data")
 	assert get_stock_data("AAPL") == "mocked_data"
