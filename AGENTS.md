@@ -17,23 +17,25 @@
 - **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py`.
 - **Branching Strategy**: **STRICT MANDATE**: Always work in a new branch. NEVER work on `main` unless directly instructed.
 	- **Naming**: Use semantic prefixes: `feat/`, `bug/`, `improvement/`, `docs/`, `refactor/`.
-	- **Concurrency**: Use `git worktree` for all tasks to ensure parallel LLM sessions do not overwrite each other. Create worktrees in `.worktrees/<branch-name>`.
+	- **Concurrency**: Use `git worktree` for all tasks to ensure parallel LLM sessions do not overwrite each other. Create worktrees in `../<branch-name>`.
 - **Standard Workflow**:
 	1. Ensure you are on `main` and run `git pull origin main`.
 	2. Create a GitHub issue for the task using `gh issue create` if one doesn't already exist for the work you are doing.
-	3. Create a new worktree and branch: `git worktree add .worktrees/<branch-name> -b <branch-name> main`.
-	4. Open a vscode window of that worktree `code .worktrees/<branch-name>`.
-	5. Perform research, implementation, and testing within the worktree.
-	6. Send periodic issue updates and a final summary upon completion as comments on the issue.
-	7. Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
-	8. If the user is satisfied with the changes(ask), push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
-	9. Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
+	3. Create a new worktree and branch: `git worktree add ..worktrees/<branch-name> -b <branch-name> main`.
+	4. Identify the worktree root as WORKTREE_ROOT. Use this path as the cwd (Current Working Directory) for all tool calls and shell commands to avoid repetitive cd operations.
+	5. Prompt to open a vscode window of that worktree `code ..worktrees/<branch-name>`.
+	6. Perform research, implementation, and testing within the worktree.
+	7. Send periodic issue updates and a final summary upon completion as comments on the issue.
+	8. Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.
+	9. If the user is satisfied with the changes(ask), push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+	10. Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
+	11. After the branch is merged and the session is closed, remove the worktree.
+
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
 
 ## Subagent & Data Access
-- **Data Access**: Agents are explicitly authorized to read files in `reports/` and `logs/` even if they are ignored by `.gitignore`.
 - **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.
 - **Fallbacks**: If a high-level tool (like `read_file`) fails due to ignore patterns, use `run_shell_command` with `cat` to ingest the data.
