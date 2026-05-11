@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 
 class RateLimitError(Exception):
 	"""Raised when a provider returns a 429 or rate limit error."""
+
 	pass
 
 
