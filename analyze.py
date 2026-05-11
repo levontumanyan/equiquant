@@ -156,6 +156,13 @@ def main():
 		],
 		help="Inspect the database (replaces make db-*)",
 	)
+	parser.add_argument(
+		"-w",
+		"--workers",
+		type=int,
+		default=5,
+		help="Number of parallel workers for fetching and analysis (default: 5)",
+	)
 	# Hidden flags for completion (handled early, but kept here for help/parsing)
 	parser.add_argument("--list-tickers", action="store_true", help=argparse.SUPPRESS)
 	parser.add_argument("--list-indices", action="store_true", help=argparse.SUPPRESS)
@@ -272,6 +279,7 @@ def main():
 		progress_callback,
 		repo=repo,
 		benchmark_version=args.benchmark_version,
+		max_workers=args.workers,
 	)
 	stats.end_stage("Analysis & Scoring")
 

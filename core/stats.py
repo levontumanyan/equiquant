@@ -1,9 +1,11 @@
+import threading
 import time
 from typing import Dict, List, Set
 
 
 class SessionStats:
 	def __init__(self):
+		self._lock = threading.Lock()
 		self.cache_hits = 0
 		self.api_attempts = 0
 		self.api_successes = 0
@@ -44,118 +46,130 @@ class SessionStats:
 	@property
 	def api_calls(self) -> int:
 		"""Legacy support for api_calls property, maps to attempts."""
-		return self.api_attempts
+		with self._lock:
+			return self.api_attempts
 
 	@api_calls.setter
 	def api_calls(self, value: int):
-		self.api_attempts = value
+		with self._lock:
+			self.api_attempts = value
 
 	def start_stage(self, name: str):
-		self._stage_starts[name] = time.time()
+		with self._lock:
+			self._stage_starts[name] = time.time()
 
 	def end_stage(self, name: str):
-		if name in self._stage_starts:
-			self.stage_times[name] = time.time() - self._stage_starts[name]
+		with self._lock:
+			if name in self._stage_starts:
+				self.stage_times[name] = time.time() - self._stage_starts[name]
 
 	def record_request(self, endpoint: str, duration: float, success: bool = True):
 		"""Record an HTTP request with its endpoint and latency."""
-		self.http_requests += 1
-		self.endpoint_counts[endpoint] = self.endpoint_counts.get(endpoint, 0) + 1
-		if endpoint not in self.endpoint_latencies:
-			self.endpoint_latencies[endpoint] = []
-		self.endpoint_latencies[endpoint].append(duration)
-		self.io_time_total += duration
+		with self._lock:
+			self.http_requests += 1
+			self.endpoint_counts[endpoint] = self.endpoint_counts.get(endpoint, 0) + 1
+			if endpoint not in self.endpoint_latencies:
+				self.endpoint_latencies[endpoint] = []
+			self.endpoint_latencies[endpoint].append(duration)
+			self.io_time_total += duration
 
 	def record_cooldown(self, duration: float):
 		"""Record time spent in backpressure cooldown."""
-		self.cooldown_time_total += duration
+		with self._lock:
+			self.cooldown_time_total += duration
 
 	def record_metric_coverage(self, metric_key: str, present: bool):
 		"""Record whether a specific metric was found for an asset."""
-		if metric_key not in self.data_coverage:
-			self.data_coverage[metric_key] = {"present": 0, "missing": 0}
-		if present:
-			self.data_coverage[metric_key]["present"] += 1
-		else:
-			self.data_coverage[metric_key]["missing"] += 1
+		with self._lock:
+			if metric_key not in self.data_coverage:
+				self.data_coverage[metric_key] = {"present": 0, "missing": 0}
+			if present:
+				self.data_coverage[metric_key]["present"] += 1
+			else:
+				self.data_coverage[metric_key]["missing"] += 1
 
 	def record_artifact(self, path: str):
 		"""Record a file path created during the session."""
-		self.artifacts.add(str(path))
+		with self._lock:
+			self.artifacts.add(str(path))
 
 	def record_error(self, error_type: str):
 		"""Record a specific type of error."""
-		self.errors += 1
-		self.error_types[error_type] = self.error_types.get(error_type, 0) + 1
-		if error_type == "rate_limit":
-			self.rate_limit_errors += 1
+		with self._lock:
+			self.errors += 1
+			self.error_types[error_type] = self.error_types.get(error_type, 0) + 1
+			if error_type == "rate_limit":
+				self.rate_limit_errors += 1
 
 	def get_total_time(self) -> float:
 		return time.time() - self.total_start_time
 
 	def to_dict(self) -> Dict:
 		"""Return the session statistics as a dictionary."""
-		total_requests = self.cache_hits + self.api_attempts
-		cache_rate = (
-			(self.cache_hits / total_requests * 100) if total_requests > 0 else 0
-		)
+		with self._lock:
+			total_requests = self.cache_hits + self.api_attempts
+			cache_rate = (
+				(self.cache_hits / total_requests * 100) if total_requests > 0 else 0
+			)
 
-		endpoint_stats = {}
-		for ep, latencies in self.endpoint_latencies.items():
-			avg_lat = sum(latencies) / len(latencies) if latencies else 0
-			endpoint_stats[ep] = {
-				"count": self.endpoint_counts.get(ep, 0),
-				"avg_latency_s": round(avg_lat, 3),
+			endpoint_stats = {}
+			for ep, latencies in self.endpoint_latencies.items():
+				avg_lat = sum(latencies) / len(latencies) if latencies else 0
+				endpoint_stats[ep] = {
+					"count": self.endpoint_counts.get(ep, 0),
+					"avg_latency_s": round(avg_lat, 3),
+				}
+
+			coverage_stats = {}
+			for m, counts in self.data_coverage.items():
+				total = counts["present"] + counts["missing"]
+				density = (counts["present"] / total * 100) if total > 0 else 0
+				coverage_stats[m] = round(density, 1)
+
+			retry_rate = (
+				(self.retry_successes / self.retry_attempts * 100)
+				if self.retry_attempts > 0
+				else 0
+			)
+			db_growth = max(0, self.final_db_size - self.initial_db_size)
+
+			return {
+				"total_duration_s": round(self.get_total_time(), 2),
+				"cache_hits": self.cache_hits,
+				"api_attempts": self.api_attempts,
+				"api_successes": self.api_successes,
+				"cache_rate_pct": round(cache_rate, 2),
+				"errors": self.errors,
+				"error_types": self.error_types,
+				"rate_limit_errors": self.rate_limit_errors,
+				"retry_success_rate_pct": round(retry_rate, 2),
+				"cooldown_time_s": round(self.cooldown_time_total, 2),
+				"io_time_s": round(self.io_time_total, 2),
+				"scoring_time_s": round(self.scoring_time_total, 2),
+				"stage_durations_s": {
+					k: round(v, 2) for k, v in self.stage_times.items()
+				},
+				"endpoints": endpoint_stats,
+				"batching": {
+					"bulk_symbols": self.bulk_fetch_symbols,
+					"fallback_symbols": self.fallback_fetch_symbols,
+					"bulk_ratio_pct": round(
+						self.bulk_fetch_symbols
+						/ (self.bulk_fetch_symbols + self.fallback_fetch_symbols)
+						* 100,
+						2,
+					)
+					if (self.bulk_fetch_symbols + self.fallback_fetch_symbols) > 0
+					else 0,
+				},
+				"data_density_pct": coverage_stats,
+				"resource_footprint": {
+					"db_growth_bytes": db_growth,
+					"db_final_size_bytes": self.final_db_size,
+					"db_snapshots": self.db_snapshots,
+				},
+				"artifacts": list(self.artifacts),
 			}
-
-		coverage_stats = {}
-		for m, counts in self.data_coverage.items():
-			total = counts["present"] + counts["missing"]
-			density = (counts["present"] / total * 100) if total > 0 else 0
-			coverage_stats[m] = round(density, 1)
-
-		retry_rate = (
-			(self.retry_successes / self.retry_attempts * 100)
-			if self.retry_attempts > 0
-			else 0
-		)
-		db_growth = max(0, self.final_db_size - self.initial_db_size)
-
-		return {
-			"total_duration_s": round(self.get_total_time(), 2),
-			"cache_hits": self.cache_hits,
-			"api_attempts": self.api_attempts,
-			"api_successes": self.api_successes,
-			"cache_rate_pct": round(cache_rate, 2),
-			"errors": self.errors,
-			"error_types": self.error_types,
-			"rate_limit_errors": self.rate_limit_errors,
-			"retry_success_rate_pct": round(retry_rate, 2),
-			"cooldown_time_s": round(self.cooldown_time_total, 2),
-			"io_time_s": round(self.io_time_total, 2),
-			"scoring_time_s": round(self.scoring_time_total, 2),
-			"stage_durations_s": {k: round(v, 2) for k, v in self.stage_times.items()},
-			"endpoints": endpoint_stats,
-			"batching": {
-				"bulk_symbols": self.bulk_fetch_symbols,
-				"fallback_symbols": self.fallback_fetch_symbols,
-				"bulk_ratio_pct": round(
-					self.bulk_fetch_symbols
-					/ (self.bulk_fetch_symbols + self.fallback_fetch_symbols)
-					* 100,
-					2,
-				)
-				if (self.bulk_fetch_symbols + self.fallback_fetch_symbols) > 0
-				else 0,
-			},
-			"data_density_pct": coverage_stats,
-			"resource_footprint": {
-				"db_growth_bytes": db_growth,
-				"db_final_size_bytes": self.final_db_size,
-				"db_snapshots": self.db_snapshots,
-			},
-			"artifacts": list(self.artifacts),
-		}
 
 
 # Global instance for tracking the current execution run

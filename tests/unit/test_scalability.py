@@ -5,9 +5,8 @@ from core.schema import AssetData, AssetType
 
 
 def test_analyze_asset_routing(mocker):
-	# Mock get_stock_data to return an ETF
+	# Create an ETF asset
 	etf_asset = AssetData(symbol="SPY", asset_type=AssetType.ETF)
-	mocker.patch("core.orchestrator.get_stock_data", return_value=etf_asset)
 
 	# Mock load_benchmarks and get_profile_weights
 	mocker.patch(
@@ -21,7 +20,7 @@ def test_analyze_asset_routing(mocker):
 		"core.orchestrator.evaluate_metric", return_value={"score": 1.0, "weight": 1.0}
 	)
 
-	result = analyze_asset("SPY", "balanced")
+	result = analyze_asset(etf_asset, "balanced")
 	assert result["asset_type"] == AssetType.ETF
 	assert result["symbol"] == "SPY"
 

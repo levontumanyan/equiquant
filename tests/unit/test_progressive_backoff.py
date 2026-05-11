@@ -1,4 +1,5 @@
 from core.orchestrator import run_bulk_analysis
+from core.schema import AssetData
 
 
 def test_run_bulk_analysis_progressive_backoff(mocker):
@@ -6,7 +7,10 @@ def test_run_bulk_analysis_progressive_backoff(mocker):
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	# Mock time.sleep to record sleep durations and not actually sleep
 	mock_sleep = mocker.patch("time.sleep")
-	# Mock analyze_asset to avoid deep analysis
+	# Mock data retrieval and analysis
+	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
 	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)
@@ -14,7 +18,7 @@ def test_run_bulk_analysis_progressive_backoff(mocker):
 	# 3 batches of 20 tickers each (to trigger failures)
 	tickers = ["T" + str(i) for i in range(60)]
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# Should have slept 6 times with progressive durations
 	# Each batch gets 2 attempts.
@@ -34,13 +38,16 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 
 	mock_sleep = mocker.patch("time.sleep")
 	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
+	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)
 
 	# 2 batches of 20 tickers each
 	tickers = ["T" + str(i) for i in range(40)]
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# Sleep durations:
 	# 1. 5.0 (failure)
@@ -65,13 +72,16 @@ def test_run_bulk_analysis_max_cooldown(mocker):
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	mock_sleep = mocker.patch("time.sleep")
 	mocker.patch(
+		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
+	)
+	mocker.patch(
 		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
 	)
 
 	# 4 batches to reach max cooldown and stabilize
 	tickers = ["T" + str(i) for i in range(80)]  # 4 batches of 20
 
-	run_bulk_analysis(tickers, "balanced")
+	run_bulk_analysis(tickers, "balanced", max_workers=1)
 
 	# 4 batches * 2 attempts = 8 sleeps
 	assert mock_sleep.call_count == 8

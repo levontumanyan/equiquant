@@ -169,11 +169,9 @@ def test_load_benchmarks_with_version(repo):
 
 def test_analyze_asset_saves_version(repo):
 	"""Test that analyze_asset saves the correct benchmark version to the database."""
-	from unittest.mock import patch
-
 	from core.schema import AssetData, AssetType
 
-	# Mock get_stock_data to return a dummy asset
+	# Create a dummy asset
 	dummy_asset = AssetData(
 		symbol="TEST",
 		asset_type=AssetType.STOCK,
@@ -196,8 +194,7 @@ def test_analyze_asset_saves_version(repo):
 		"2.0.0",
 	)
 
-	with patch("core.orchestrator.get_stock_data", return_value=dummy_asset):
-		res = analyze_asset("TEST", "balanced", repo=repo, benchmark_version="2.0.0")
+	res = analyze_asset(dummy_asset, "balanced", repo=repo, benchmark_version="2.0.0")
 
 	assert res is not None
 	assert res["score"] > 0

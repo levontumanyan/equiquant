@@ -1,5 +1,6 @@
 import logging
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -10,14 +11,18 @@ class DatabaseManager:
 	def __init__(self, db_path: str = "market_analysis.db"):
 		self.db_path = Path(db_path)
 		self.conn: Optional[sqlite3.Connection] = None
+		self._lock = threading.Lock()
 		self.initialize()
 
 	def initialize(self):
 		"""Initialize the database and create tables if they don't exist."""
-		self.db_path.parent.mkdir(parents=True, exist_ok=True)
-		self.conn = sqlite3.connect(str(self.db_path))
-		self.conn.row_factory = sqlite3.Row
-		self._create_tables()
+		with self._lock:
+			self.db_path.parent.mkdir(parents=True, exist_ok=True)
+			# Use check_same_thread=False to allow cross-thread connection usage.
+			# Access MUST be serialized using self._lock.
+			self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+			self.conn.row_factory = sqlite3.Row
+			self._create_tables()
 
 	def _create_tables(self):
 		"""Create schema tables."""
@@ -167,11 +172,14 @@ class DatabaseManager:
 		self.conn.commit()
 
 	def get_connection(self) -> sqlite3.Connection:
+		"""Return the DB connection. Serialized access should be managed via DatabaseRepository lock."""
 		if self.conn is None:
 			self.initialize()
 		return self.conn
 
 	def close(self):
-		if self.conn:
-			self.conn.close()
-			self.conn = None
+		"""Close the database connection."""
+		with self._lock:
+			if self.conn:
+				self.conn.close()
+				self.conn = None
