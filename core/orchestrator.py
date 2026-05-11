@@ -153,38 +153,41 @@ def run_bulk_analysis(
 	for i in range(0, len(tickers), batch_size):
 		batch = tickers[i : i + batch_size]
 		max_batch_retries = 1
+		batch_success = False
 		for attempt in range(max_batch_retries + 1):
 			try:
-				success = fetch_openbb_data_bulk(batch)
-				if not success:
-					logger.warning(
-						f"Batch fetch returned incomplete or zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
-					)
-					# Apply progressive backoff on any non-clean fetch
-					logger.info(
-						f"Entering {current_cooldown}s cooldown due to partial/total failure..."
-					)
-					stats.record_cooldown(current_cooldown)
-					time.sleep(current_cooldown)
-					current_cooldown = min(current_cooldown * 2, max_cooldown)
+				if fetch_openbb_data_bulk(batch):
+					batch_success = True
+					break
 
-					if attempt < max_batch_retries:
-						logger.info(f"Retrying batch: {batch}")
-						continue
-				else:
-					# Reset cooldown on clean success
-					current_cooldown = base_cooldown
-					# Mandatory inter-batch breather: small delay to look more natural
-					# This happens AFTER any success to ensure we don't burst
-					breather = random.uniform(3.0, 5.0)
-					time.sleep(breather)
-				break  # Success or max retries reached (after cooldown)
+				logger.warning(
+					f"Batch fetch returned incomplete or zero results (attempt {attempt + 1}/{max_batch_retries + 1}) for symbols: {batch}"
+				)
+				# Apply progressive backoff on any non-clean fetch
+				logger.info(
+					f"Entering {current_cooldown}s cooldown due to partial/total failure..."
+				)
+				stats.record_cooldown(current_cooldown)
+				time.sleep(current_cooldown)
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
+
+				if attempt < max_batch_retries:
+					logger.info(f"Retrying batch: {batch}")
+					continue
 			except Exception as e:
-				logger.warning(f"Bulk fetch failed for batch {batch}: {e}")
+				logger.warning(f"Bulk fetch encountered error for batch {batch}: {e}")
 				# Mandatory sleep even on exception
 				time.sleep(current_cooldown)
 				current_cooldown = min(current_cooldown * 2, max_cooldown)
 				break
+
+		if batch_success:
+			# Reset cooldown on clean success
+			current_cooldown = base_cooldown
+
+			# Mandatory inter-batch breather
+			breather = random.uniform(3.0, 5.0)
+			time.sleep(breather)
 
 	# 2. Proceed with individual analysis (now mostly cache hits)
 	all_results = []

@@ -32,6 +32,11 @@ def test_get_openbb_data_fetch_logic(mocker, tmp_path):
 
 	# Mock the obb calls directly in the openbb package
 	mock_obb = mocker.patch("openbb.obb")
+	mock_obb.equity.fundamental.metrics.__name__ = "metrics"
+	mock_obb.equity.profile.__name__ = "profile"
+	mock_obb.equity.estimates.consensus.__name__ = "consensus"
+	mock_obb.equity.ownership.share_statistics.__name__ = "ownership"
+	mock_obb.etf.info.__name__ = "etf_info"
 
 	def mock_res(data):
 		m = mocker.Mock()
@@ -85,12 +90,53 @@ def test_fetch_with_retry_logic(mocker):
 	assert result == mock_res
 	assert mock_func.call_count == 2
 
-	# Case 3: All retries fail (now raises RuntimeError)
+	# Case 3: All retries fail (now raises provider exception if it hit one, or uses RuntimeError)
 	mock_func.reset_mock()
 	mock_func.side_effect = [None, None]
-	with pytest.raises(RuntimeError):
+	with pytest.raises(Exception):
 		_fetch_with_retry(mock_func, "AAPL", "yfinance", max_retries=1)
 	assert mock_func.call_count == 2
+
+
+def test_fetch_with_retry_rate_limit_fail_fast(mocker):
+	from core.openbb_client import _fetch_with_retry, RateLimitError
+
+	mocker.patch("time.sleep")
+	mock_func = mocker.Mock()
+
+	# 429 error should fail fast (no retries)
+	mock_func.side_effect = Exception("429 Too Many Requests")
+
+	with pytest.raises(RateLimitError):
+		_fetch_with_retry(mock_func, "AAPL", "yfinance", max_retries=2)
+
+	# Should only be called once if it's a 429
+	assert mock_func.call_count == 1
+
+
+def test_fetch_openbb_data_bulk_rate_limit(mocker, tmp_path):
+	from core.openbb_client import fetch_openbb_data_bulk
+
+	cache_dir = tmp_path / "cache"
+	cache_dir.mkdir()
+	mocker.patch("core.openbb_client.CACHE_DIR", cache_dir)
+	mocker.patch("time.sleep")
+
+	mock_obb = mocker.patch("openbb.obb")
+	mock_obb.equity.fundamental.metrics.__name__ = "metrics"
+	mock_obb.equity.profile.__name__ = "profile"
+	mock_obb.equity.estimates.consensus.__name__ = "consensus"
+	mock_obb.equity.ownership.share_statistics.__name__ = "ownership"
+	mock_obb.etf.info.__name__ = "etf_info"
+	# Mock first endpoint to return 429
+	mock_obb.equity.fundamental.metrics.side_effect = Exception("429 Rate Limit")
+
+	success = fetch_openbb_data_bulk(["AAPL", "MSFT"])
+
+	# Should return False immediately on rate limit
+	assert success is False
+	# Should not have proceeded to profile endpoint
+	assert mock_obb.equity.profile.call_count == 0
 
 
 def test_fetch_openbb_data_bulk(mocker, tmp_path):
@@ -102,6 +148,11 @@ def test_fetch_openbb_data_bulk(mocker, tmp_path):
 	mocker.patch("time.sleep")
 
 	mock_obb = mocker.patch("openbb.obb")
+	mock_obb.equity.fundamental.metrics.__name__ = "metrics"
+	mock_obb.equity.profile.__name__ = "profile"
+	mock_obb.equity.estimates.consensus.__name__ = "consensus"
+	mock_obb.equity.ownership.share_statistics.__name__ = "ownership"
+	mock_obb.etf.info.__name__ = "etf_info"
 
 	def mock_bulk_res(data_list):
 		m = mocker.Mock()

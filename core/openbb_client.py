@@ -14,6 +14,11 @@ from core.utils.market import get_last_market_close, is_market_closed
 logger = get_logger(__name__)
 
 
+class RateLimitError(Exception):
+	"""Raised when a provider returns a 429 or rate limit error."""
+	pass
+
+
 class ProxyManager:
 	"""
 	Manages a pool of proxies and rotates them by updating environment variables.
@@ -72,22 +77,14 @@ def should_use_cache(ticker_symbol: str) -> bool:
 
 
 def _fetch_with_retry(
-	obb_func, symbol: str, provider: str, max_retries: int = 2
-) -> Optional[Any]:
-	"""
-	Execute an OpenBB endpoint call with intra-ticker jitter and exponential backoff.
-	"""
-	# Intra-ticker jitter: tiny sleep before EVERY internal endpoint call
-	# to avoid "burst" detection by Yahoo Finance.
-	time.sleep(random.uniform(0.1, 0.3))
-
-	func_name = getattr(obb_func, "__name__", str(obb_func))
-	# Clean up endpoint name (e.g., 'equity.fundamental.metrics' -> 'fundamental_metrics')
-	endpoint_path = getattr(obb_func, "__qualname__", func_name).split(".")
-	endpoint_name = (
-		"_".join(endpoint_path[-2:]) if len(endpoint_path) > 1 else func_name
-	)
-
+	obb_func: Any,
+	symbol: str,
+	provider: str,
+	max_retries: int = 1,
+	endpoint_name: str = "unknown",
+) -> Any:
+	"""Internal helper to handle retries and classification of OpenBB errors."""
+	func_name = getattr(obb_func, "__name__", "unknown_func")
 	for attempt in range(max_retries + 1):
 		start_time = time.perf_counter()
 		if attempt > 0:
@@ -106,7 +103,8 @@ def _fetch_with_retry(
 			# If results are empty, it might be a rate limit or missing data
 			if attempt < max_retries:
 				stats.record_error("empty_results")
-				wait_time = (attempt + 1) * 2.5 + random.uniform(1.0, 2.0)
+				# Exponentially increasing wait time for empty results
+				wait_time = (attempt + 1) * 3.5 + random.uniform(1.0, 3.0)
 				logger.debug(
 					f"Empty results for {symbol} on {func_name}. Retrying in {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
 				)
@@ -116,12 +114,18 @@ def _fetch_with_retry(
 			# Classify error
 			err_str = str(e).lower()
 			error_type = "provider_error"
-			if "429" in err_str or "rate limit" in err_str:
+
+			is_rate_limit = "429" in err_str or "rate limit" in err_str
+			if is_rate_limit:
 				error_type = "rate_limit"
 				# Proactive proxy rotation on rate limit
 				proxy_manager.rotate()
-			elif "timeout" in err_str or "connection" in err_str:
-				error_type = "network_error"
+				stats.record_error(error_type)
+				stats.record_request(endpoint_name, duration, success=False)
+				logger.warning(
+					f"Rate limit hit on {func_name} for {symbol}. Failing fast to trigger orchestrator backoff."
+				)
+				raise RateLimitError(f"Rate limit exceeded: {e}")
 
 			stats.record_error(error_type)
 			stats.record_request(endpoint_name, duration, success=False)
@@ -191,6 +195,10 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			merge_bulk_results(
 				_fetch_with_retry(obb.equity.fundamental.metrics, symbol_str, provider)
 			)
+			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
+		except RateLimitError as e:
+			logger.error(f"Bulk fetch (Fundamental Metrics) RATE LIMITED: {e}")
+			return False
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Fundamental Metrics) failed for batch: {e}")
 			critical_success = False
@@ -200,6 +208,10 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			merge_bulk_results(
 				_fetch_with_retry(obb.equity.profile, symbol_str, provider)
 			)
+			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
+		except RateLimitError as e:
+			logger.error(f"Bulk fetch (Profile) RATE LIMITED: {e}")
+			return False
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Profile) failed for batch: {e}")
 			critical_success = False
@@ -209,8 +221,17 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 			merge_bulk_results(
 				_fetch_with_retry(obb.equity.estimates.consensus, symbol_str, provider)
 			)
+			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
+		except RateLimitError as e:
+			logger.error(f"Bulk fetch (Consensus) RATE LIMITED: {e}")
+			return False
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Consensus) failed for batch: {e}")
+			# Consensus is semi-critical for rate limiting detection
+			# but we don't set critical_success=False if it's just missing data.
+			# However, if it failed for reasons other than missing data, we should be cautious.
+			if "empty" not in str(e).lower():
+				critical_success = False
 
 		# 4. Ownership Statistics
 		try:
@@ -219,6 +240,10 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 					obb.equity.ownership.share_statistics, symbol_str, provider
 				)
 			)
+			time.sleep(random.uniform(1.0, 2.0))  # Inter-endpoint breather
+		except RateLimitError as e:
+			logger.error(f"Bulk fetch (Ownership) RATE LIMITED: {e}")
+			return False
 		except Exception as e:
 			logger.warning(f"Bulk fetch (Ownership) failed for batch: {e}")
 
@@ -233,6 +258,9 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 				merge_bulk_results(
 					_fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
 				)
+			except RateLimitError as e:
+				logger.error(f"Bulk fetch (ETF Info) RATE LIMITED: {e}")
+				return False
 			except Exception:
 				# Non-critical: some might not be ETFs
 				pass
