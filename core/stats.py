@@ -3,6 +3,36 @@ import time
 from typing import Dict, List, Set
 
 
+class InstrumentedLock:
+	def __init__(self, name: str, stats_instance: "SessionStats"):
+		self._lock = threading.Lock()
+		self.name = name
+		self.stats = stats_instance
+
+	def __enter__(self):
+		start = time.perf_counter()
+		self._lock.acquire()
+		wait_time = time.perf_counter() - start
+		if wait_time > 0:
+			self.stats.record_mutex_wait(self.name, wait_time)
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self._lock.release()
+
+	def acquire(self, blocking=True, timeout=-1):
+		start = time.perf_counter()
+		result = self._lock.acquire(blocking, timeout)
+		if result:
+			wait_time = time.perf_counter() - start
+			if wait_time > 0:
+				self.stats.record_mutex_wait(self.name, wait_time)
+		return result
+
+	def release(self):
+		self._lock.release()
+
+
 class SessionStats:
 	def __init__(self):
 		self._lock = threading.Lock()
@@ -42,6 +72,17 @@ class SessionStats:
 		self.initial_db_size = 0
 		self.final_db_size = 0
 		self.db_snapshots = 0
+
+		# Threading & Pooling
+		self.pool_active_workers = 0
+		self.pool_peak_workers = 0
+		self.pool_tasks_submitted = 0
+		self.pool_tasks_completed = 0
+		self.pool_queued_time_total = 0.0
+		self.pool_worker_time_total = 0.0
+
+		# Contention
+		self.mutex_wait_times: Dict[str, float] = {}
 
 	@property
 	def api_calls(self) -> int:
@@ -101,6 +142,30 @@ class SessionStats:
 			if error_type == "rate_limit":
 				self.rate_limit_errors += 1
 
+	def record_pool_submission(self):
+		with self._lock:
+			self.pool_tasks_submitted += 1
+
+	def record_task_start(self, queued_time: float):
+		with self._lock:
+			self.pool_active_workers += 1
+			self.pool_peak_workers = max(
+				self.pool_peak_workers, self.pool_active_workers
+			)
+			self.pool_queued_time_total += queued_time
+
+	def record_task_complete(self, worker_time: float):
+		with self._lock:
+			self.pool_active_workers -= 1
+			self.pool_tasks_completed += 1
+			self.pool_worker_time_total += worker_time
+
+	def record_mutex_wait(self, name: str, duration: float):
+		with self._lock:
+			self.mutex_wait_times[name] = (
+				self.mutex_wait_times.get(name, 0.0) + duration
+			)
+
 	def get_total_time(self) -> float:
 		return time.time() - self.total_start_time
 
@@ -134,6 +199,29 @@ class SessionStats:
 			db_growth = max(0, self.final_db_size - self.initial_db_size)
 
 			return {
+				"threading": {
+					"active_workers": self.pool_active_workers,
+					"peak_workers": self.pool_peak_workers,
+					"tasks_submitted": self.pool_tasks_submitted,
+					"tasks_completed": self.pool_tasks_completed,
+					"avg_queued_latency_s": round(
+						self.pool_queued_time_total / self.pool_tasks_completed, 4
+					)
+					if self.pool_tasks_completed > 0
+					else 0,
+					"avg_worker_time_s": round(
+						self.pool_worker_time_total / self.pool_tasks_completed, 4
+					)
+					if self.pool_tasks_completed > 0
+					else 0,
+					"total_worker_time_s": round(self.pool_worker_time_total, 2),
+					"mutex_wait_time_total_s": round(
+						sum(self.mutex_wait_times.values()), 4
+					),
+					"mutex_contention": {
+						k: round(v, 4) for k, v in self.mutex_wait_times.items()
+					},
+				},
 				"total_duration_s": round(self.get_total_time(), 2),
 				"cache_hits": self.cache_hits,
 				"api_attempts": self.api_attempts,

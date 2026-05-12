@@ -20,6 +20,7 @@ def test_cli_background_flag(mocker):
 	mocker.patch("analyze.run_bulk_analysis", return_value=[])
 	mock_stats = mocker.patch("analyze.stats")
 	mock_stats.get_total_time.return_value = 0.5
+	mock_stats.to_dict.return_value = {"test": "data"}
 
 	# Mock display functions
 	mocker.patch("analyze.display_run_summary")

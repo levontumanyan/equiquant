@@ -22,6 +22,7 @@ The goal is to move from volatile JSON caching to a robust, queryable Hybrid Sto
 | investor_profiles     | Strategy metadata (e.g., 'growth')       | Configuration         |
 | profile_weights       | Metric weights for each profile          | Configuration         |
 | global_benchmarks     | Core evaluation rules and formulas       | Configuration         |
+| session_telemetry    | Performance and pooling diagnostics      | Telemetry             |
 +-----------------------+------------------------------------------+-----------------------+
 ```
 
@@ -148,6 +149,30 @@ Stores the master scoring rules for each asset type.
 | `display_key` | TEXT | Optional secondary key for labels. |
 | `params_json` | TEXT | JSON string of scorer params (e.g. `{"best": 15, "worst": 50}`). |
 | `weight` | REAL | Default multiplier for the metric. |
+
+---
+
+
+### 12. `session_telemetry` (Diagnostics Vault)
+Stores execution-level diagnostics, including thread utilization, I/O latency, and mutex contention.
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | INTEGER (PK) | Auto-incrementing ID. |
+| `timestamp` | DATETIME | When the session occurred. |
+| `duration_s` | REAL | Total wall-clock duration of the session. |
+| `metrics_json` | TEXT (JSON) | Full telemetry blob (threading, I/O, errors). |
+
+#### 🔍 Analysis Example
+You can query performance bottlenecks directly using SQLite's JSON functions:
+```sql
+SELECT 
+    timestamp, 
+    duration_s,
+    json_extract(metrics_json, '$.threading.peak_workers') as workers,
+    json_extract(metrics_json, '$.threading.mutex_wait_time_total_s') as contention
+FROM session_telemetry 
+ORDER BY duration_s DESC;
+```
 
 ---
 

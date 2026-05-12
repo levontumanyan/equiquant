@@ -1,8 +1,9 @@
 import logging
 import sqlite3
-import threading
 from pathlib import Path
 from typing import Optional
+
+from core.stats import InstrumentedLock, stats
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class DatabaseManager:
 	def __init__(self, db_path: str = "market_analysis.db"):
 		self.db_path = Path(db_path)
 		self.conn: Optional[sqlite3.Connection] = None
-		self._lock = threading.Lock()
+		self._lock = InstrumentedLock("database_manager", stats)
 		self.initialize()
 
 	def initialize(self):
@@ -166,6 +167,16 @@ class DatabaseManager:
 				weight REAL,
 				version TEXT DEFAULT '1.0.0',
 				PRIMARY KEY (asset_type, metric_key, version)
+			)
+		""")
+
+		# Session Telemetry table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS session_telemetry (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+				duration_s REAL,
+				metrics_json TEXT
 			)
 		""")
 
