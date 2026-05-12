@@ -225,6 +225,7 @@ def main():
 	stats.start_stage("Data Discovery")
 	tickers = _collect_tickers(args, repo, db_manager)
 	stats.end_stage("Data Discovery")
+	stats.total_tickers = len(tickers)
 
 	if not tickers:
 		console.print("[bold red]Error: No tickers provided.[/bold red]")
@@ -260,6 +261,7 @@ def main():
 		benchmark_version=args.benchmark_version,
 		max_workers=args.workers,
 	)
+	stats.analyzed_tickers = len(all_analysis_results)
 	stats.end_stage("Analysis & Scoring")
 
 	stats.start_stage("Reporting")

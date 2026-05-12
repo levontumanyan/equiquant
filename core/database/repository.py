@@ -350,15 +350,30 @@ class DatabaseRepository:
 	def save_telemetry(self, duration_s: float, metrics: dict):
 		"""Save session telemetry to the database."""
 		import json
+		import sqlite3
+
+		total_tickers = metrics.get("total_tickers", 0)
+		analyzed_tickers = metrics.get("analyzed_tickers", 0)
 
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure columns exist if schema was older
+			try:
+				cursor.execute("SELECT total_tickers FROM session_telemetry LIMIT 1")
+			except sqlite3.OperationalError:
+				cursor.execute(
+					"ALTER TABLE session_telemetry ADD COLUMN total_tickers INTEGER"
+				)
+				cursor.execute(
+					"ALTER TABLE session_telemetry ADD COLUMN analyzed_tickers INTEGER"
+				)
+
 			cursor.execute(
 				"""
-				INSERT INTO session_telemetry (duration_s, metrics_json)
-				VALUES (?, ?)
+				INSERT INTO session_telemetry (duration_s, total_tickers, analyzed_tickers, metrics_json)
+				VALUES (?, ?, ?, ?)
 				""",
-				(duration_s, json.dumps(metrics)),
+				(duration_s, total_tickers, analyzed_tickers, json.dumps(metrics)),
 			)
 			conn.commit()

@@ -72,6 +72,8 @@ class SessionStats:
 		self.initial_db_size = 0
 		self.final_db_size = 0
 		self.db_snapshots = 0
+		self.total_tickers = 0
+		self.analyzed_tickers = 0
 
 		# Threading & Pooling
 		self.pool_active_workers = 0
@@ -208,6 +210,8 @@ class SessionStats:
 			db_growth = max(0, self.final_db_size - self.initial_db_size)
 
 			return {
+				"total_tickers": self.total_tickers,
+				"analyzed_tickers": self.analyzed_tickers,
 				"threading": {
 					"active_workers": self.pool_active_workers,
 					"peak_workers": self.pool_peak_workers,
