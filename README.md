@@ -1,4 +1,4 @@
-# EquiQuant
+# ![EquiQuant Logo](./docs/assets/equiquant.png) EquiQuant
 
 Programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
