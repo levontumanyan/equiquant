@@ -158,6 +158,23 @@ def _fetch_batch_with_backoff(
 	return False, current_cooldown
 
 
+def _tracked_analyze_asset(
+	asset: AssetData,
+	profile: str,
+	repo: Optional[DatabaseRepository] = None,
+	benchmark_version: str = "1.0.0",
+	submitted_at: float = 0.0,
+) -> Optional[Dict[str, Any]]:
+	queued_latency = time.perf_counter() - submitted_at
+	stats.record_task_start(queued_latency)
+	start_time = time.perf_counter()
+	try:
+		return analyze_asset(asset, profile, repo, benchmark_version)
+	finally:
+		worker_time = time.perf_counter() - start_time
+		stats.record_task_complete(worker_time)
+
+
 def run_bulk_analysis(
 	tickers: List[str],
 	profile: str,
@@ -191,13 +208,15 @@ def run_bulk_analysis(
 			for ticker in batch_tickers:
 				asset = get_stock_data(ticker)
 				if asset:
+					stats.record_pool_submission()
 					futures.append(
 						executor.submit(
-							analyze_asset,
+							_tracked_analyze_asset,
 							asset,
 							profile,
 							repo=repo,
 							benchmark_version=benchmark_version,
+							submitted_at=time.perf_counter(),
 						)
 					)
 				else:

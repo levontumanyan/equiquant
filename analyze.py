@@ -1,5 +1,6 @@
 #!/usr/bin/env -S uv run python3
 import argparse
+import json
 import os
 import sys
 from typing import List
@@ -278,6 +279,13 @@ def main():
 
 	if db_path.exists():
 		stats.final_db_size = db_path.stat().st_size
+		try:
+			repo.save_telemetry(stats.get_total_time(), stats.to_dict())
+		except Exception as e:
+			logger.error(f"Failed to save telemetry: {e}")
+
+	# Log final telemetry summary
+	logger.info("Final Session Telemetry:\n%s", json.dumps(stats.to_dict(), indent=4))
 	display_run_summary(stats)
 	logger.info("Application finished")
 

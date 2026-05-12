@@ -1,6 +1,7 @@
 import logging
-import threading
 from typing import List, Optional
+
+from core.stats import InstrumentedLock, stats
 
 from .manager import DatabaseManager
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 class DatabaseRepository:
 	def __init__(self, db_manager: DatabaseManager):
 		self.db = db_manager
-		self._lock = threading.Lock()
+		self._lock = InstrumentedLock("database_repository", stats)
 
 	def upsert_asset(
 		self,
@@ -345,3 +346,19 @@ class DatabaseRepository:
 				benchmarks.append(b)
 
 			return benchmarks
+
+	def save_telemetry(self, duration_s: float, metrics: dict):
+		"""Save session telemetry to the database."""
+		import json
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO session_telemetry (duration_s, metrics_json)
+				VALUES (?, ?)
+				""",
+				(duration_s, json.dumps(metrics)),
+			)
+			conn.commit()

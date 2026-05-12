@@ -349,6 +349,41 @@ def _display_efficiency_section(stats: SessionStats):
 	console.print(eff_table)
 
 
+def _display_threading_section(stats: SessionStats):
+	threading_data = stats.to_dict().get("threading", {})
+	if not threading_data.get("tasks_submitted"):
+		return
+
+	thread_table = Table(title="Thread Pool & Contention", box=None, show_header=False)
+	thread_table.add_column("Metric", style="dim")
+	thread_table.add_column("Value", style="bold")
+
+	thread_table.add_row(
+		"Pool Workers",
+		f"{threading_data.get('peak_workers')} (peak) / {threading_data.get('active_workers')} (active)",
+	)
+	thread_table.add_row("Tasks Completed", str(threading_data.get("tasks_completed")))
+
+	avg_queued = threading_data.get("avg_queued_latency_s", 0)
+	thread_table.add_row("Avg Queued Latency", f"{avg_queued:.4f}s")
+
+	avg_worker = threading_data.get("avg_worker_time_s", 0)
+	thread_table.add_row("Avg Worker Time", f"{avg_worker:.2f}s")
+
+	mutex_wait = threading_data.get("mutex_wait_time_total_s", 0)
+	if mutex_wait > 0:
+		thread_table.add_row(
+			"Total Mutex Wait", f"[bold yellow]{mutex_wait:.4f}s[/bold yellow]"
+		)
+		contention = threading_data.get("mutex_contention", {})
+		for name, wait in sorted(contention.items(), key=lambda x: x[1], reverse=True)[
+			:2
+		]:
+			thread_table.add_row(f"  └─ {name}", f"{wait:.4f}s")
+
+	console.print(thread_table)
+
+
 def display_run_summary(stats: SessionStats):
 	"""Display a detailed summary of the execution run (diagnostics, telemetry, efficiency)."""
 	console.print("\n")
@@ -357,6 +392,7 @@ def display_run_summary(stats: SessionStats):
 	_display_quality_section(stats)
 	_display_resilience_section(stats)
 	_display_efficiency_section(stats)
+	_display_threading_section(stats)
 
 	if stats.artifacts:
 		console.print("\n[dim]Session Artifacts:[/dim]")
