@@ -83,6 +83,7 @@ class SessionStats:
 
 		# Contention
 		self.mutex_wait_times: Dict[str, float] = {}
+		self.session_fetches: Set[str] = set()
 
 	@property
 	def api_calls(self) -> int:
@@ -165,6 +166,14 @@ class SessionStats:
 			self.mutex_wait_times[name] = (
 				self.mutex_wait_times.get(name, 0.0) + duration
 			)
+
+	def record_fetch(self, symbol: str):
+		with self._lock:
+			self.session_fetches.add(symbol.upper())
+
+	def is_fetched(self, symbol: str) -> bool:
+		with self._lock:
+			return symbol.upper() in self.session_fetches
 
 	def get_total_time(self) -> float:
 		return time.time() - self.total_start_time
