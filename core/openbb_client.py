@@ -182,11 +182,62 @@ def _fetch_etf_info_bulk(
 			pass
 
 
+def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
+	"""Save results to individual cache files and return success count."""
+	CACHE_DIR.mkdir(parents=True, exist_ok=True)
+	success_count = 0
+	for symbol, data in bulk_combined.items():
+		cache_file = CACHE_DIR / f"{symbol}.json"
+		cache_file.write_text(json.dumps(data, default=str, indent="	"))
+		if len(data) > 1:
+			stats.record_fetch(symbol)
+			success_count += 1
+	return success_count
+
+
+def _fetch_bulk_endpoints(
+	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict
+) -> bool:
+	"Iterate through endpoints and populate bulk_combined dictionary."
+	endpoints = [
+		(obb.equity.fundamental.metrics, "Fundamental Metrics", True),
+		(obb.equity.profile, "Company Profile", True),
+		(obb.equity.estimates.consensus, "Analyst Consensus", False),
+		(obb.equity.ownership.share_statistics, "Ownership Statistics", False),
+	]
+
+	critical_success = True
+	for func, name, is_critical in endpoints:
+		try:
+			res = _fetch_with_retry(func, symbol_str, provider)
+			_merge_bulk_results(res, bulk_combined)
+			time.sleep(random.uniform(1.0, 2.0))
+		except RateLimitError:
+			raise
+		except Exception as e:
+			logger.warning(f"Bulk fetch ({name}) failed for batch: {e}")
+			if is_critical or (
+				name == "Analyst Consensus" and "empty" not in str(e).lower()
+			):
+				critical_success = False
+	return critical_success
+
+
+def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
+	"Save results to individual cache files and return success count."
+	CACHE_DIR.mkdir(parents=True, exist_ok=True)
+	success_count = 0
+	for symbol, data in bulk_combined.items():
+		cache_file = CACHE_DIR / f"{symbol}.json"
+		cache_file.write_text(json.dumps(data, default=str, indent="\t"))
+		if len(data) > 1:
+			stats.record_fetch(symbol)
+			success_count += 1
+	return success_count
+
+
 def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
-	"""
-	Fetch data for multiple tickers in bulk to optimize API usage.
-	Results are saved to individual cache files.
-	"""
+	"Fetch data for multiple tickers in bulk to optimize API usage."
 	if not ticker_symbols:
 		return True
 
@@ -208,39 +259,16 @@ def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
 
 	try:
 		bulk_combined: Dict[str, Dict[str, Any]] = {s: {"symbol": s} for s in to_fetch}
-		endpoints = [
-			(obb.equity.fundamental.metrics, "Fundamental Metrics", True),
-			(obb.equity.profile, "Company Profile", True),
-			(obb.equity.estimates.consensus, "Analyst Consensus", False),
-			(obb.equity.ownership.share_statistics, "Ownership Statistics", False),
-		]
-
-		critical_success = True
-		for func, name, is_critical in endpoints:
-			try:
-				res = _fetch_with_retry(func, symbol_str, provider)
-				_merge_bulk_results(res, bulk_combined)
-				time.sleep(random.uniform(1.0, 2.0))
-			except RateLimitError as e:
-				logger.error(f"Bulk fetch ({name}) RATE LIMITED: {e}")
-				return False
-			except Exception as e:
-				logger.warning(f"Bulk fetch ({name}) failed for batch: {e}")
-				if is_critical or (
-					name == "Analyst Consensus" and "empty" not in str(e).lower()
-				):
-					critical_success = False
+		try:
+			critical_success = _fetch_bulk_endpoints(
+				obb, symbol_str, provider, bulk_combined
+			)
+		except RateLimitError as e:
+			logger.error(f"Bulk fetch RATE LIMITED: {e}")
+			return False
 
 		_fetch_etf_info_bulk(obb, bulk_combined, provider)
-
-		# Save results to individual cache files
-		CACHE_DIR.mkdir(parents=True, exist_ok=True)
-		success_count = 0
-		for symbol, data in bulk_combined.items():
-			cache_file = CACHE_DIR / f"{symbol}.json"
-			cache_file.write_text(json.dumps(data, default=str, indent="\t"))
-			if len(data) > 1:
-				success_count += 1
+		success_count = _save_bulk_results_to_cache(bulk_combined)
 
 		logger.info(
 			f"Bulk fetch phase complete. Cached {len(bulk_combined)} files ({success_count} with data)."
@@ -275,7 +303,8 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 
 	if should_use_cache(ticker_symbol):
 		try:
-			logger.info(f"Cache hit for {ticker_symbol}")
+			if not stats.is_fetched(ticker_symbol):
+				logger.info(f"Cache hit for {ticker_symbol}")
 			stats.cache_hits += 1
 			return json.loads(cache_file.read_text())
 		except Exception as e:
