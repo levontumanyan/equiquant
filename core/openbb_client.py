@@ -305,7 +305,7 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 		try:
 			if not stats.is_fetched(ticker_symbol):
 				logger.info(f"Cache hit for {ticker_symbol}")
-			stats.cache_hits += 1
+				stats.cache_hits += 1
 			return json.loads(cache_file.read_text())
 		except Exception as e:
 			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
