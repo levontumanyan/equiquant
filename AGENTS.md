@@ -29,6 +29,7 @@
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
+- When you try to test use always: `uv run python -m pytest ...`
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
 
 ## Subagent & Data Access
