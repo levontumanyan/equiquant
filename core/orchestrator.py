@@ -154,7 +154,16 @@ def _fetch_batch_with_backoff(
 
 			# 2. Probing mechanism: verify health before resuming bulk operations
 			probe_ticker = batch_tickers[0]
+			probe_attempts = 0
+			max_probe_attempts = 10
 			while not probe_api(probe_ticker):
+				probe_attempts += 1
+				if probe_attempts >= max_probe_attempts:
+					logger.error(
+						f"Max probe attempts ({max_probe_attempts}) reached for {probe_ticker}. Aborting batch."
+					)
+					return False, current_cooldown
+
 				current_cooldown = min(current_cooldown * 2, max_cooldown)
 				logger.warning(
 					f"Rate-limit probe failed for {probe_ticker}. Extending cooldown to {current_cooldown}s..."

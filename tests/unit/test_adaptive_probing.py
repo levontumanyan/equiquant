@@ -99,3 +99,17 @@ def test_fetch_batch_with_backoff_probe_hits_max_cooldown(mocker):
 	assert mock_sleep.call_count == 7
 	durations = [args.args[0] for args in mock_sleep.call_args_list]
 	assert durations == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0, 60.0]
+
+
+def test_fetch_batch_with_backoff_probe_hard_cap(mocker):
+	# Fail bulk
+	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
+	# Always fail probe to trigger hard cap
+	mocker.patch("core.openbb_client.probe_api", return_value=False)
+	mock_sleep = mocker.patch("time.sleep")
+
+	success, cooldown = _fetch_batch_with_backoff(["AAPL"], 5.0)
+
+	assert success is False
+	# 1 initial sleep + 9 probe failure sleeps (since it returns on the 10th attempt) = 10 sleeps total
+	assert mock_sleep.call_count == 10
