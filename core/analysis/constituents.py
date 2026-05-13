@@ -85,7 +85,7 @@ def _fetch_wikipedia_with_headers(url: str, column_name: str) -> List[str]:
 
 	# Wrap the content in StringIO for pandas
 	html_content = StringIO(response.text)
-	tables = pd.read_html(html_content)
+	tables = pd.read_html(html_content, flavor="html5lib")
 
 	for table in tables:
 		if column_name in table.columns:
