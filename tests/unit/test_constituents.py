@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pandas as pd
 
@@ -18,6 +18,7 @@ def test_get_constituents_nasdaq100():
 			# Mock cache file not existing to force fetch
 			with patch("pathlib.Path.exists", return_value=False):
 				tickers = get_constituents("nasdaq100")
+			mock_read_html.assert_called_once_with(ANY, flavor="html5lib")
 
 	assert "AAPL" in tickers
 	assert "MSFT" in tickers

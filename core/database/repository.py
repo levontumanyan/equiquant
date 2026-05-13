@@ -350,7 +350,6 @@ class DatabaseRepository:
 	def save_telemetry(self, duration_s: float, metrics: dict):
 		"""Save session telemetry to the database."""
 		import json
-		import sqlite3
 
 		total_tickers = metrics.get("total_tickers", 0)
 		analyzed_tickers = metrics.get("analyzed_tickers", 0)
@@ -362,21 +361,19 @@ class DatabaseRepository:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 			# Ensure columns exist if schema was older
-			columns_to_add = [
-				("total_tickers", "INTEGER"),
-				("analyzed_tickers", "INTEGER"),
-				("cache_hits", "INTEGER"),
-				("api_attempts", "INTEGER"),
-				("errors", "INTEGER"),
-			]
+			cursor.execute("PRAGMA table_info(session_telemetry)")
+			existing_columns = {row["name"] for row in cursor.fetchall()}
+			alter_statements = {
+				"total_tickers": "ALTER TABLE session_telemetry ADD COLUMN total_tickers INTEGER",
+				"analyzed_tickers": "ALTER TABLE session_telemetry ADD COLUMN analyzed_tickers INTEGER",
+				"cache_hits": "ALTER TABLE session_telemetry ADD COLUMN cache_hits INTEGER",
+				"api_attempts": "ALTER TABLE session_telemetry ADD COLUMN api_attempts INTEGER",
+				"errors": "ALTER TABLE session_telemetry ADD COLUMN errors INTEGER",
+			}
 
-			for col_name, col_type in columns_to_add:
-				try:
-					cursor.execute(f"SELECT {col_name} FROM session_telemetry LIMIT 1")
-				except sqlite3.OperationalError:
-					cursor.execute(
-						f"ALTER TABLE session_telemetry ADD COLUMN {col_name} {col_type}"
-					)
+			for col_name, statement in alter_statements.items():
+				if col_name not in existing_columns:
+					cursor.execute(statement)
 
 			cursor.execute(
 				"""

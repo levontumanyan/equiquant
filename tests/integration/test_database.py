@@ -147,3 +147,49 @@ def test_telemetry_persistence(db_manager):
 	assert row[0] == 12.5
 	assert row[1] == 10
 	assert '"custom_metric": 42' in row[2]
+
+
+def test_telemetry_legacy_schema_migration(db_manager):
+	"""Test telemetry save upgrades an old schema without dynamic SQL."""
+	repo = DatabaseRepository(db_manager)
+	conn = db_manager.get_connection()
+	cursor = conn.cursor()
+	cursor.execute("DROP TABLE session_telemetry")
+	cursor.execute("""
+		CREATE TABLE session_telemetry (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+			duration_s REAL,
+			metrics_json TEXT
+		)
+	""")
+	conn.commit()
+
+	metrics = {
+		"total_tickers": 7,
+		"analyzed_tickers": 6,
+		"cache_hits": 2,
+		"api_attempts": 4,
+		"errors": 1,
+	}
+	repo.save_telemetry(3.5, metrics)
+
+	cursor.execute("PRAGMA table_info(session_telemetry)")
+	columns = {row["name"] for row in cursor.fetchall()}
+	assert {
+		"total_tickers",
+		"analyzed_tickers",
+		"cache_hits",
+		"api_attempts",
+		"errors",
+	} <= columns
+
+	cursor.execute(
+		"SELECT total_tickers, analyzed_tickers, cache_hits, api_attempts, errors FROM session_telemetry LIMIT 1"
+	)
+	row = cursor.fetchone()
+	assert row["total_tickers"] == 7
+	assert row["analyzed_tickers"] == 6
+	assert row["cache_hits"] == 2
+	assert row["api_attempts"] == 4
+	assert row["errors"] == 1

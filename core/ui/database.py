@@ -231,12 +231,24 @@ def show_telemetry():
 	cursor.execute("PRAGMA table_info(session_telemetry)")
 	columns = {row["name"] for row in cursor.fetchall()}
 
-	fields = ["id", "timestamp", "duration_s", "total_tickers", "analyzed_tickers"]
 	if "cache_hits" in columns:
-		fields.extend(["cache_hits", "api_attempts", "errors"])
-
-	query = f"SELECT {', '.join(fields)} FROM session_telemetry ORDER BY timestamp DESC LIMIT 15"
-	cursor.execute(query)
+		cursor.execute(
+			"""
+			SELECT id, timestamp, duration_s, total_tickers, analyzed_tickers, cache_hits, api_attempts, errors
+			FROM session_telemetry
+			ORDER BY timestamp DESC
+			LIMIT 15
+		"""
+		)
+	else:
+		cursor.execute(
+			"""
+			SELECT id, timestamp, duration_s, total_tickers, analyzed_tickers
+			FROM session_telemetry
+			ORDER BY timestamp DESC
+			LIMIT 15
+		"""
+		)
 	rows = cursor.fetchall()
 
 	table = Table(title="Historical Session Telemetry")
