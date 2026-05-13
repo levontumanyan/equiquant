@@ -5,6 +5,8 @@ from core.schema import AssetData
 def test_run_bulk_analysis_progressive_backoff(mocker):
 	# Mock fetch_openbb_data_bulk to return False (failure)
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
+	# Mock probe_api to always succeed to keep original test behavior (minimal sleeps)
+	mocker.patch("core.openbb_client.probe_api", return_value=True)
 	# Mock time.sleep to record sleep durations and not actually sleep
 	mock_sleep = mocker.patch("time.sleep")
 	# Mock data retrieval and analysis
@@ -24,10 +26,10 @@ def test_run_bulk_analysis_progressive_backoff(mocker):
 	# Each batch gets 2 attempts.
 	# Batch 1: 5s, 10s
 	# Batch 2: 20s, 40s
-	# Batch 3: 45s (max), 45s (max)
+	# Batch 3: 60s (max), 60s (max)
 	assert mock_sleep.call_count == 6
 	sleep_durations = [args.args[0] for args in mock_sleep.call_args_list]
-	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 45.0, 45.0]
+	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0]
 
 
 def test_run_bulk_analysis_reset_cooldown(mocker):
@@ -35,6 +37,8 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 	# Batch 2: Fail (5s sleep), Fail (10s sleep)
 	mock_bulk = mocker.patch("core.openbb_client.fetch_openbb_data_bulk")
 	mock_bulk.side_effect = [False, True, False, False]
+	# Mock probe_api to always succeed
+	mocker.patch("core.openbb_client.probe_api", return_value=True)
 
 	mock_sleep = mocker.patch("time.sleep")
 	mocker.patch(
@@ -70,6 +74,8 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 def test_run_bulk_analysis_max_cooldown(mocker):
 	# Mock fetch_openbb_data_bulk to always return False
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
+	# Mock probe_api to always succeed
+	mocker.patch("core.openbb_client.probe_api", return_value=True)
 	mock_sleep = mocker.patch("time.sleep")
 	mocker.patch(
 		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
@@ -86,4 +92,4 @@ def test_run_bulk_analysis_max_cooldown(mocker):
 	# 4 batches * 2 attempts = 8 sleeps
 	assert mock_sleep.call_count == 8
 	sleep_durations = [args.args[0] for args in mock_sleep.call_args_list]
-	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 45.0, 45.0, 45.0, 45.0]
+	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0, 60.0, 60.0]
