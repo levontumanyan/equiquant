@@ -350,15 +350,50 @@ class DatabaseRepository:
 	def save_telemetry(self, duration_s: float, metrics: dict):
 		"""Save session telemetry to the database."""
 		import json
+		import sqlite3
+
+		total_tickers = metrics.get("total_tickers", 0)
+		analyzed_tickers = metrics.get("analyzed_tickers", 0)
+		cache_hits = metrics.get("cache_hits", 0)
+		api_attempts = metrics.get("api_attempts", 0)
+		errors = metrics.get("errors", 0)
 
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure columns exist if schema was older
+			columns_to_add = [
+				("total_tickers", "INTEGER"),
+				("analyzed_tickers", "INTEGER"),
+				("cache_hits", "INTEGER"),
+				("api_attempts", "INTEGER"),
+				("errors", "INTEGER"),
+			]
+
+			for col_name, col_type in columns_to_add:
+				try:
+					cursor.execute(f"SELECT {col_name} FROM session_telemetry LIMIT 1")
+				except sqlite3.OperationalError:
+					cursor.execute(
+						f"ALTER TABLE session_telemetry ADD COLUMN {col_name} {col_type}"
+					)
+
 			cursor.execute(
 				"""
-				INSERT INTO session_telemetry (duration_s, metrics_json)
-				VALUES (?, ?)
+				INSERT INTO session_telemetry (
+					duration_s, total_tickers, analyzed_tickers, 
+					cache_hits, api_attempts, errors, metrics_json
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""",
-				(duration_s, json.dumps(metrics)),
+				(
+					duration_s,
+					total_tickers,
+					analyzed_tickers,
+					cache_hits,
+					api_attempts,
+					errors,
+					json.dumps(metrics),
+				),
 			)
 			conn.commit()

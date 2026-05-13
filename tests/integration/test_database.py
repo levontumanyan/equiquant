@@ -121,3 +121,29 @@ def test_historical_scores(db_manager):
 	assert history[0]["total_score"] == 80.0
 	assert history[1]["total_score"] == 75.0
 	assert "timestamp" in history[0]
+
+
+def test_telemetry_persistence(db_manager):
+	"""Test saving and retrieving session telemetry."""
+	repo = DatabaseRepository(db_manager)
+	metrics = {
+		"total_tickers": 10,
+		"analyzed_tickers": 8,
+		"cache_hits": 5,
+		"api_attempts": 3,
+		"errors": 1,
+		"custom_metric": 42,
+	}
+
+	repo.save_telemetry(12.5, metrics)
+
+	conn = db_manager.get_connection()
+	cursor = conn.cursor()
+	cursor.execute(
+		"SELECT duration_s, total_tickers, metrics_json FROM session_telemetry"
+	)
+	row = cursor.fetchone()
+
+	assert row[0] == 12.5
+	assert row[1] == 10
+	assert '"custom_metric": 42' in row[2]

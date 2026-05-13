@@ -221,6 +221,59 @@ def show_all_assets():
 	conn.close()
 
 
+def show_telemetry():
+	conn = get_db_conn()
+	if not conn:
+		return
+
+	cursor = conn.cursor()
+	# Check if columns exist
+	cursor.execute("PRAGMA table_info(session_telemetry)")
+	columns = {row["name"] for row in cursor.fetchall()}
+
+	fields = ["id", "timestamp", "duration_s", "total_tickers", "analyzed_tickers"]
+	if "cache_hits" in columns:
+		fields.extend(["cache_hits", "api_attempts", "errors"])
+
+	query = f"SELECT {', '.join(fields)} FROM session_telemetry ORDER BY timestamp DESC LIMIT 15"
+	cursor.execute(query)
+	rows = cursor.fetchall()
+
+	table = Table(title="Historical Session Telemetry")
+	table.add_column("ID", style="dim")
+	table.add_column("Time", style="dim")
+	table.add_column("Dur", justify="right", style="cyan")
+	table.add_column("Tickers", justify="right", style="green")
+	table.add_column("Analyzed", justify="right", style="magenta")
+
+	if "cache_hits" in columns:
+		table.add_column("Cache", justify="right", style="yellow")
+		table.add_column("API", justify="right", style="blue")
+		table.add_column("Err", justify="right", style="red")
+
+	for row in rows:
+		row_data = [
+			str(row["id"]),
+			row["timestamp"],
+			f"{row['duration_s']:.1f}s",
+			str(row["total_tickers"]),
+			str(row["analyzed_tickers"]),
+		]
+		if "cache_hits" in columns:
+			cache_hits = row["cache_hits"] or 0
+			api_attempts = row["api_attempts"] or 0
+			total = cache_hits + api_attempts
+			rate = (cache_hits / total * 100) if total > 0 else 0
+			row_data.append(f"{rate:.0f}%")
+			row_data.append(str(api_attempts))
+			row_data.append(str(row["errors"] or 0))
+
+		table.add_row(*row_data)
+
+	console.print(table)
+	conn.close()
+
+
 def dispatch_db_view(view: str):
 	if view == "assets":
 		show_assets()
@@ -236,3 +289,5 @@ def dispatch_db_view(view: str):
 		show_benchmarks()
 	elif view == "inventory":
 		show_all_assets()
+	elif view == "telemetry":
+		show_telemetry()
