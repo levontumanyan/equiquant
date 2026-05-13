@@ -376,6 +376,8 @@ def probe_api(ticker: str) -> bool:
 	"""
 	from openbb import obb
 
+	ticker = ticker.upper().strip()
+	proxy_manager.rotate()
 	try:
 		# Directly call the SDK to bypass our local CACHE_DIR logic
 		obb.equity.profile(symbol=ticker, provider="yfinance")
