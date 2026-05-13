@@ -360,3 +360,31 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 		logger.error(f"OpenBB overall error for {ticker_symbol}: {e}")
 		stats.errors += 1
 		return {}
+
+
+def probe_api(ticker: str) -> bool:
+	"""
+	Execute a single, lightweight ticker fetch to probe if rate limit is still active.
+	This bypasses the local cache to ensure a real network request.
+
+	Args:
+		ticker: The ticker symbol to use for the probe.
+
+	Returns:
+		True if the probe succeeds (or fails with a non-rate-limit error),
+		False if rate limited.
+	"""
+	from openbb import obb
+
+	try:
+		# Directly call the SDK to bypass our local CACHE_DIR logic
+		obb.equity.profile(symbol=ticker, provider="yfinance")
+		return True
+	except Exception as e:
+		err_str = str(e).lower()
+		if "429" in err_str or "rate limit" in err_str:
+			logger.warning(f"Rate-limit probe failed for {ticker}.")
+			return False
+		# For other errors, assume the API is at least reachable or it's a transient data error
+		logger.debug(f"Probe encountered non-rate-limit error for {ticker}: {e}")
+		return True

@@ -134,11 +134,11 @@ def _save_analysis_to_db(
 def _fetch_batch_with_backoff(
 	batch_tickers: List[str], current_cooldown: float
 ) -> Tuple[bool, float]:
-	"""Attempt to fetch a batch of tickers with retry and backoff."""
-	from core.openbb_client import fetch_openbb_data_bulk
+	"""Attempt to fetch a batch of tickers with retry and backoff using adaptive probing."""
+	from core.openbb_client import fetch_openbb_data_bulk, probe_api
 
 	base_cooldown = 5.0
-	max_cooldown = 45.0
+	max_cooldown = 60.0
 
 	for attempt in range(2):
 		try:
@@ -146,10 +146,26 @@ def _fetch_batch_with_backoff(
 				return True, base_cooldown
 
 			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
+
+			# 1. Initial Cooldown
 			logger.info(f"Entering {current_cooldown}s cooldown...")
 			stats.record_cooldown(current_cooldown)
 			time.sleep(current_cooldown)
+
+			# 2. Probing mechanism: verify health before resuming bulk operations
+			probe_ticker = batch_tickers[0]
+			while not probe_api(probe_ticker):
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
+				logger.warning(
+					f"Rate-limit probe failed for {probe_ticker}. Extending cooldown to {current_cooldown}s..."
+				)
+				stats.record_cooldown(current_cooldown)
+				time.sleep(current_cooldown)
+
+			# Success: increment cooldown for next attempt's safety and log success
 			current_cooldown = min(current_cooldown * 2, max_cooldown)
+			logger.info(f"Probe successful for {probe_ticker}. Resuming bulk fetch.")
+
 		except Exception as e:
 			logger.warning(f"Fetch error for {batch_tickers}: {e}")
 			time.sleep(current_cooldown)
