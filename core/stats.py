@@ -4,12 +4,33 @@ from typing import Dict, List, Set
 
 
 class InstrumentedLock:
+	"""
+	A wrapper around threading.Lock that records contention metrics.
+
+	Attributes:
+		name (str): The identifier for the lock (e.g., 'db_repo_lock').
+		stats (SessionStats): The telemetry instance to record wait times to.
+	"""
+
 	def __init__(self, name: str, stats_instance: "SessionStats"):
+		"""
+		Initialize the instrumented lock.
+
+		Args:
+			name (str): Name of the lock for telemetry tracking.
+			stats_instance (SessionStats): The stats tracker to notify of wait times.
+		"""
 		self._lock = threading.Lock()
 		self.name = name
 		self.stats = stats_instance
 
 	def __enter__(self):
+		"""
+		Acquire the lock and record wait time.
+
+		Returns:
+			InstrumentedLock: The current instance.
+		"""
 		start = time.perf_counter()
 		self._lock.acquire()
 		wait_time = time.perf_counter() - start
@@ -18,9 +39,22 @@ class InstrumentedLock:
 		return self
 
 	def __exit__(self, exc_type, exc_val, exc_tb):
+		"""
+		Release the lock.
+		"""
 		self._lock.release()
 
 	def acquire(self, blocking=True, timeout=-1):
+		"""
+		Acquire the lock with instrumentation.
+
+		Args:
+			blocking (bool): Whether to block until the lock is available.
+			timeout (float): Max time to wait in seconds.
+
+		Returns:
+			bool: True if the lock was acquired, False otherwise.
+		"""
 		start = time.perf_counter()
 		result = self._lock.acquire(blocking, timeout)
 		if result:
@@ -30,11 +64,17 @@ class InstrumentedLock:
 		return result
 
 	def release(self):
+		"""Release the underlying lock."""
 		self._lock.release()
 
 
 class SessionStats:
+	"""
+	Aggregator for all execution-level diagnostics and performance metrics.
+	"""
+
 	def __init__(self):
+		"""Initialize all telemetry counters and maps."""
 		self._lock = threading.Lock()
 		self.cache_hits = 0
 		self.api_attempts = 0
@@ -99,16 +139,35 @@ class SessionStats:
 			self.api_attempts = value
 
 	def start_stage(self, name: str):
+		"""
+		Mark the start time of an execution stage.
+
+		Args:
+			name (str): The stage identifier (e.g., 'Scoring').
+		"""
 		with self._lock:
 			self._stage_starts[name] = time.time()
 
 	def end_stage(self, name: str):
+		"""
+		Calculate and record the duration of an execution stage.
+
+		Args:
+			name (str): The stage identifier.
+		"""
 		with self._lock:
 			if name in self._stage_starts:
 				self.stage_times[name] = time.time() - self._stage_starts[name]
 
 	def record_request(self, endpoint: str, duration: float, success: bool = True):
-		"""Record an HTTP request with its endpoint and latency."""
+		"""
+		Record an HTTP request with its endpoint and latency.
+
+		Args:
+			endpoint (str): The API or host called.
+			duration (float): The wall-clock time spent waiting for the response.
+			success (bool): Whether the request succeeded. Defaults to True.
+		"""
 		with self._lock:
 			self.http_requests += 1
 			self.endpoint_counts[endpoint] = self.endpoint_counts.get(endpoint, 0) + 1
@@ -118,12 +177,23 @@ class SessionStats:
 			self.io_time_total += duration
 
 	def record_cooldown(self, duration: float):
-		"""Record time spent in backpressure cooldown."""
+		"""
+		Record time spent in backpressure cooldown (e.g., rate limiting).
+
+		Args:
+			duration (float): Seconds spent sleeping/waiting.
+		"""
 		with self._lock:
 			self.cooldown_time_total += duration
 
 	def record_metric_coverage(self, metric_key: str, present: bool):
-		"""Record whether a specific metric was found for an asset."""
+		"""
+		Record whether a specific metric was found for an asset.
+
+		Args:
+			metric_key (str): The metric identifier (e.g., 'pe_ratio').
+			present (bool): True if data was found, False otherwise.
+		"""
 		with self._lock:
 			if metric_key not in self.data_coverage:
 				self.data_coverage[metric_key] = {"present": 0, "missing": 0}
@@ -133,12 +203,22 @@ class SessionStats:
 				self.data_coverage[metric_key]["missing"] += 1
 
 	def record_artifact(self, path: str):
-		"""Record a file path created during the session."""
+		"""
+		Record a file path created during the session.
+
+		Args:
+			path (str): The file path or identifier.
+		"""
 		with self._lock:
 			self.artifacts.add(str(path))
 
 	def record_error(self, error_type: str):
-		"""Record a specific type of error."""
+		"""
+		Record a specific type of error encountered.
+
+		Args:
+			error_type (str): Category of the error (e.g., 'JSONDecodeError').
+		"""
 		with self._lock:
 			self.errors += 1
 			self.error_types[error_type] = self.error_types.get(error_type, 0) + 1
@@ -146,10 +226,17 @@ class SessionStats:
 				self.rate_limit_errors += 1
 
 	def record_pool_submission(self):
+		"""Increment the count of tasks submitted to the thread pool."""
 		with self._lock:
 			self.pool_tasks_submitted += 1
 
 	def record_task_start(self, queued_time: float):
+		"""
+		Record the start of a worker task and its queue latency.
+
+		Args:
+			queued_time (float): Seconds spent in the pool queue before execution.
+		"""
 		with self._lock:
 			self.pool_active_workers += 1
 			self.pool_peak_workers = max(
@@ -158,30 +245,69 @@ class SessionStats:
 			self.pool_queued_time_total += queued_time
 
 	def record_task_complete(self, worker_time: float):
+		"""
+		Record the completion of a worker task and its execution time.
+
+		Args:
+			worker_time (float): Seconds the worker spent processing the task.
+		"""
 		with self._lock:
 			self.pool_active_workers -= 1
 			self.pool_tasks_completed += 1
 			self.pool_worker_time_total += worker_time
 
 	def record_mutex_wait(self, name: str, duration: float):
+		"""
+		Record contention time for a specific named lock.
+
+		Args:
+			name (str): The lock identifier.
+			duration (float): Seconds spent waiting for the lock.
+		"""
 		with self._lock:
 			self.mutex_wait_times[name] = (
 				self.mutex_wait_times.get(name, 0.0) + duration
 			)
 
 	def record_fetch(self, symbol: str):
+		"""
+		Track that a specific asset has been fetched in this session.
+
+		Args:
+			symbol (str): Ticker symbol.
+		"""
 		with self._lock:
 			self.session_fetches.add(symbol.upper())
 
 	def is_fetched(self, symbol: str) -> bool:
+		"""
+		Check if a specific asset was already fetched in this session.
+
+		Args:
+			symbol (str): Ticker symbol.
+
+		Returns:
+			bool: True if already fetched.
+		"""
 		with self._lock:
 			return symbol.upper() in self.session_fetches
 
 	def get_total_time(self) -> float:
+		"""
+		Calculate total session wall-clock time.
+
+		Returns:
+			float: Seconds since SessionStats initialization.
+		"""
 		return time.time() - self.total_start_time
 
 	def to_dict(self) -> Dict:
-		"""Return the session statistics as a dictionary."""
+		"""
+		Serialize all telemetry data into a structured dictionary.
+
+		Returns:
+			Dict: The complete diagnostics report.
+		"""
 		with self._lock:
 			total_requests = self.cache_hits + self.api_attempts
 			cache_rate = (

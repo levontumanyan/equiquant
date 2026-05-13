@@ -184,6 +184,7 @@ def _parse_args():
 			"profiles",
 			"benchmarks",
 			"inventory",
+			"telemetry",
 		],
 		help="Inspect database",
 	)

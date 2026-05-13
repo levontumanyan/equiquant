@@ -176,6 +176,11 @@ class DatabaseManager:
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
 				duration_s REAL,
+				total_tickers INTEGER,
+				analyzed_tickers INTEGER,
+				cache_hits INTEGER,
+				api_attempts INTEGER,
+				errors INTEGER,
 				metrics_json TEXT
 			)
 		""")

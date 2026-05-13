@@ -160,7 +160,12 @@ Stores execution-level diagnostics, including thread utilization, I/O latency, a
 | `id` | INTEGER (PK) | Auto-incrementing ID. |
 | `timestamp` | DATETIME | When the session occurred. |
 | `duration_s` | REAL | Total wall-clock duration of the session. |
-| `metrics_json` | TEXT (JSON) | Full telemetry blob (threading, I/O, errors). |
+| `total_tickers`| INTEGER | Number of tickers requested. |
+| `analyzed_tickers`| INTEGER | Number of tickers successfully analyzed. |
+| `cache_hits` | INTEGER | Total number of data points retrieved from local cache. |
+| `api_attempts` | INTEGER | Total number of external API requests made. |
+| `errors` | INTEGER | Total count of errors encountered during the session. |
+| `metrics_json` | TEXT (JSON) | Full telemetry blob (threading, I/O, error types, data quality). |
 
 #### 🔍 Analysis Example
 You can query performance bottlenecks directly using SQLite's JSON functions:
