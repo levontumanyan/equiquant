@@ -29,8 +29,13 @@
 ## Testing & Validation
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
 - **Granularity**: Every new function requires a corresponding unit test.
+- **Security Integrity**: ALL findings from security scanners (Bandit, Semgrep, etc.) must be taken seriously. **Blanket ignores in configuration files are strictly prohibited.**
+	- **Priority 1**: Refactor code to eliminate the vulnerability (e.g., add timeouts to requests, avoid `os.system`).
+	- **Priority 2**: Use surgical, line-level suppressions (e.g., `# nosec B311`) ONLY when the finding is a confirmed false positive or the risk is provably non-existent (e.g., using `random` for network jitter).
+	- **Requirement**: Every suppression MUST include a brief comment justifying why it is safe.
 - When you try to test use always: `uv run python -m pytest ...`
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
+- When you add any new `uv` package make sure to distinguish between dev level packages or user level. Most things should be in dev to keep the user install as small as possible.
 
 ## Subagent & Data Access
 - **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.

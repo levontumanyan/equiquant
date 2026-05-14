@@ -11,6 +11,16 @@ repos:
         args: [ --verbose ]
   - repo: local
     hooks:
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -c pyproject.toml -r core analyze.py
+        language: system
+        types: [python]
+      - id: semgrep
+        name: semgrep
+        entry: uv run semgrep --config auto --error
+        language: system
+        types: [python]
       - id: pytest
         name: pytest
         entry: uv run python -m pytest -q --cov=core --cov-report=term-missing:skip-covered
