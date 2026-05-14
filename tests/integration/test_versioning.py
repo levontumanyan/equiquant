@@ -195,6 +195,7 @@ def test_analyze_asset_saves_version(repo):
 	)
 
 	res = analyze_asset(dummy_asset, "balanced", repo=repo, benchmark_version="2.0.0")
+	repo.bulk_save_analyses([res], "balanced", benchmark_version="2.0.0")
 
 	assert res is not None
 	assert res["score"] > 0

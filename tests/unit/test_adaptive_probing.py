@@ -1,4 +1,4 @@
-from core.orchestrator import _fetch_batch_with_backoff
+from core.openbb_client import fetch_batch_with_backoff
 
 
 def test_fetch_batch_with_backoff_success(mocker):
@@ -6,7 +6,7 @@ def test_fetch_batch_with_backoff_success(mocker):
 	mock_probe = mocker.patch("core.openbb_client.probe_api")
 	mock_sleep = mocker.patch("time.sleep")
 
-	success, cooldown = _fetch_batch_with_backoff(["AAPL"], 5.0)
+	success, cooldown = fetch_batch_with_backoff(["AAPL"], 5.0)
 
 	assert success is True
 	assert cooldown == 5.0  # Base cooldown returned on success
@@ -23,7 +23,7 @@ def test_fetch_batch_with_backoff_probe_success_immediately(mocker):
 	mock_probe = mocker.patch("core.openbb_client.probe_api", return_value=True)
 	mock_sleep = mocker.patch("time.sleep")
 
-	success, cooldown = _fetch_batch_with_backoff(["AAPL", "MSFT"], 5.0)
+	success, cooldown = fetch_batch_with_backoff(["AAPL", "MSFT"], 5.0)
 
 	assert success is True
 	assert cooldown == 5.0  # Reset to base on final success
@@ -46,7 +46,7 @@ def test_fetch_batch_with_backoff_probe_fails_then_succeeds(mocker):
 
 	mock_sleep = mocker.patch("time.sleep")
 
-	success, cooldown = _fetch_batch_with_backoff(["AAPL", "MSFT"], 5.0)
+	success, cooldown = fetch_batch_with_backoff(["AAPL", "MSFT"], 5.0)
 
 	assert success is True
 	assert mock_bulk.call_count == 2
@@ -76,7 +76,7 @@ def test_fetch_batch_with_backoff_probe_hits_max_cooldown(mocker):
 
 	mock_sleep = mocker.patch("time.sleep")
 
-	success, cooldown = _fetch_batch_with_backoff(["AAPL"], 5.0)
+	success, cooldown = fetch_batch_with_backoff(["AAPL"], 5.0)
 
 	assert success is False
 	# Cooldown should be maxed out
@@ -108,7 +108,7 @@ def test_fetch_batch_with_backoff_probe_hard_cap(mocker):
 	mocker.patch("core.openbb_client.probe_api", return_value=False)
 	mock_sleep = mocker.patch("time.sleep")
 
-	success, cooldown = _fetch_batch_with_backoff(["AAPL"], 5.0)
+	success, cooldown = fetch_batch_with_backoff(["AAPL"], 5.0)
 
 	assert success is False
 	# 1 initial sleep + 9 probe failure sleeps (since it returns on the 10th attempt) = 10 sleeps total

@@ -23,6 +23,13 @@ def is_market_closed(dt: datetime = None) -> bool:
 	"""
 	Checks if the market is currently closed.
 	"""
+	return not is_market_open(dt)
+
+
+def is_market_open(dt: datetime = None) -> bool:
+	"""
+	Checks if the market is currently open.
+	"""
 	if dt is None:
 		dt = datetime.now(ZoneInfo("UTC"))
 
@@ -31,11 +38,11 @@ def is_market_closed(dt: datetime = None) -> bool:
 
 	# Weekends
 	if dt_et.weekday() >= 5:
-		return True
+		return False
 
 	market_open, market_close = get_market_calendar(dt_et)
 
-	return not (market_open <= dt_et <= market_close)
+	return market_open <= dt_et <= market_close
 
 
 def get_last_market_close(dt: datetime) -> datetime:
