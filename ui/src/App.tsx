@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import ScoringExplorer from './components/ScoringExplorer'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [refreshCount, setRefreshCount] = useState(0)
+	const [activeTab, setActiveTab] = useState<'status' | 'math'>('status')
 
 	useEffect(() => {
 		const checkStatus = async () => {
@@ -26,38 +27,61 @@ function App() {
 
 	return (
 		<div className="equiquant-app">
-			<div className="logo-container">
-				<a href="https://github.com/levontumanyan/equiquant" target="_blank">
-					<img src="/logo.png" className="logo" alt="EquiQuant logo" />
-				</a>
-			</div>
-			
-			<h1>EquiQuant</h1>
-
-			<div className="card">
-				<div className="status-indicator">
-					<span className={`dot ${backendStatus}`}></span>
-					<span>
-						{backendStatus === 'online' 
-							? 'Backend Connected (localhost:8000)' 
-							: 'Backend Offline (localhost:8000)'}
-					</span>
-				</div>
-				
-				<button onClick={() => setRefreshCount((c) => c + 1)}>
-					Refresh Data {refreshCount > 0 && `(${refreshCount})`}
+			<nav className="app-nav">
+				<button 
+					className={activeTab === 'status' ? 'active' : ''} 
+					onClick={() => setActiveTab('status')}
+				>
+					Status
 				</button>
-				
-				{backendStatus === 'offline' && (
-					<p>
-						Run <code>make ui-server</code> to connect your local backend.
+				<button 
+					className={activeTab === 'math' ? 'active' : ''} 
+					onClick={() => setActiveTab('math')}
+				>
+					Math Explorer
+				</button>
+			</nav>
+
+			{activeTab === 'status' && (
+				<>
+					<div className="logo-container">
+						<a href="https://github.com/levontumanyan/equiquant" target="_blank">
+							<img src="/logo.png" className="logo" alt="EquiQuant logo" />
+						</a>
+					</div>
+					
+					<h1>EquiQuant</h1>
+
+					<div className="card">
+						<div className="status-indicator">
+							<span className={`dot ${backendStatus}`}></span>
+							<span>
+								{backendStatus === 'online' 
+									? 'Backend Connected (localhost:8000)' 
+									: 'Backend Offline (localhost:8000)'}
+							</span>
+						</div>
+						
+						{backendStatus === 'offline' && (
+							<p>
+								Run <code>make ui-server</code> to connect your local backend.
+							</p>
+						)}
+					</div>
+					
+					<p className="read-the-docs">
+						Minimalistic Quantitative Analysis Dashboard
 					</p>
-				)}
-			</div>
-			
-			<p className="read-the-docs">
-				Minimalistic Quantitative Analysis Dashboard
-			</p>
+				</>
+			)}
+
+			{activeTab === 'math' && (
+				<section className="math-section">
+					<h2>Scoring Function Explorer</h2>
+					<p className="section-desc">Visualize how raw financial metrics are mapped to percentage scores.</p>
+					<ScoringExplorer />
+				</section>
+			)}
 		</div>
 	)
 }
