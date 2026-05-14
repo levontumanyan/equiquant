@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import subprocess  # nosec B404
 import sys
+from pathlib import Path
 
 
 def main():
@@ -9,8 +10,10 @@ def main():
 		sys.exit(1)
 
 	view = sys.argv[1]
-	# B603/B607 safe for local dev script using explicit analyze.py path.
-	subprocess.run([sys.executable, "analyze.py", "--db", view])  # nosec B603 B607
+	# Resolve absolute path to analyze.py relative to this script
+	analyze_path = Path(__file__).parent.parent / "analyze.py"
+	# B603/B607 safe for local dev script using explicit absolute path.
+	subprocess.run([sys.executable, str(analyze_path), "--db", view])  # nosec B603 B607
 
 
 if __name__ == "__main__":
