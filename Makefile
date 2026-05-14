@@ -95,6 +95,10 @@ install-bash-completions:
 db-shell:
 	@sqlite3 market_analysis.db
 
+ui-server: ensure-uv
+	@echo "Starting EquiQuant API Server on http://localhost:8000"
+	@uv run uvicorn core.api:app --reload --port 8000
+
 populate-index:
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
 
