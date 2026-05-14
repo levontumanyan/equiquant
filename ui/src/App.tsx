@@ -18,7 +18,7 @@ function App() {
 				} else {
 					setBackendStatus('offline')
 				}
-			} catch (error) {
+			} catch (_error) {
 				setBackendStatus('offline')
 			}
 		}
@@ -34,38 +34,39 @@ function App() {
 	}
 
 	return (
-		<div className="equiquant-app">
-			<nav className="app-nav">
-				<button 
-					className={activeTab === 'status' ? 'active' : ''} 
-					onClick={() => setActiveTab('status')}
-				>
-					Status
-				</button>
-				<button 
-					className={activeTab === 'benchmarks' ? 'active' : ''} 
-					onClick={() => setActiveTab('benchmarks')}
-				>
-					Benchmarks
-				</button>
-				<button 
-					className={activeTab === 'math' ? 'active' : ''} 
-					onClick={() => setActiveTab('math')}
-				>
-					Math Explorer
-				</button>
-			</nav>
+		<div className={`equiquant-app ${activeTab !== 'status' ? 'tab-mode' : ''}`}>
+			<header className="app-header">
+				<div className="logo-container">
+					<button className="logo-link" onClick={() => setActiveTab('status')}>
+						<img src="/logo.png" className="logo" alt="EquiQuant logo" />
+						<h1 className="logo-title">EquiQuant</h1>
+					</button>
+				</div>
+				
+				<nav className="app-nav">
+					<button 
+						className={activeTab === 'status' ? 'active' : ''} 
+						onClick={() => setActiveTab('status')}
+					>
+						Status
+					</button>
+					<button 
+						className={activeTab === 'benchmarks' ? 'active' : ''} 
+						onClick={() => setActiveTab('benchmarks')}
+					>
+						Benchmarks
+					</button>
+					<button 
+						className={activeTab === 'math' ? 'active' : ''} 
+						onClick={() => setActiveTab('math')}
+					>
+						Math Explorer
+					</button>
+				</nav>
+			</header>
 
 			{activeTab === 'status' && (
 				<>
-					<div className="logo-container">
-						<a href="https://github.com/levontumanyan/equiquant" target="_blank">
-							<img src="/logo.png" className="logo" alt="EquiQuant logo" />
-						</a>
-					</div>
-					
-					<h1>EquiQuant</h1>
-
 					<div className="card">
 						<div className="status-indicator">
 							<span className={`dot ${backendStatus}`}></span>
