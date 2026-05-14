@@ -65,12 +65,12 @@ h1 {
 	box-shadow: 0 0 10px rgba(100, 108, 255, 0.3);
 }
 
-.math-section, .benchmarks-section {
+.math-section, .benchmarks-section, .fetcher-section {
 	width: 100%;
 	text-align: left;
 }
 
-.math-section h2, .benchmarks-section h2 {
+.math-section h2, .benchmarks-section h2, .fetcher-section h2 {
 	margin-bottom: 0.5rem;
 	color: #646cff;
 }

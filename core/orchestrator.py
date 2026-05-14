@@ -200,6 +200,38 @@ def _tracked_analyze_asset(
 		stats.record_task_complete(worker_time)
 
 
+def run_bulk_fetch(
+	tickers: List[str],
+	batch_size: int = 20,
+) -> bool:
+	"""
+	Fetch data for multiple tickers in batches with backoff and retry.
+	This is the decoupled fetching logic.
+	"""
+	logger.info(f"Starting decoupled bulk fetch for {len(tickers)} tickers")
+	current_cooldown = 5.0
+	overall_success = True
+
+	for i in range(0, len(tickers), batch_size):
+		batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
+		logger.info(f"Fetching batch: {batch_tickers}")
+
+		success, current_cooldown = _fetch_batch_with_backoff(
+			batch_tickers, current_cooldown
+		)
+
+		if not success:
+			overall_success = False
+			logger.warning(f"Batch {i // batch_size + 1} failed partially or fully.")
+
+		if i + batch_size < len(tickers):
+			# Jittered wait between batches; B311 safe.
+			time.sleep(random.uniform(2.0, 4.0))  # nosec B311
+
+	logger.info(f"Bulk fetch complete. Success: {overall_success}")
+	return overall_success
+
+
 def run_bulk_analysis(
 	tickers: List[str],
 	profile: str,
