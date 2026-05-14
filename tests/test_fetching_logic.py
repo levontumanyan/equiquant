@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.orchestrator import run_bulk_fetch
+from core.orchestrator import fetch_data
 
 
 @pytest.fixture
@@ -20,12 +20,12 @@ def mock_analyze():
 
 def test_fetch_separation_no_analysis(mock_fetch_bulk, mock_analyze):
 	"""
-	Verify that run_bulk_fetch calls the fetching logic but NEVER triggers analysis.
+	Verify that fetch_data calls the fetching logic but NEVER triggers analysis.
 	"""
 	tickers = ["AAPL", "MSFT", "GOOGL"]
 
 	# Execute fetch
-	success = run_bulk_fetch(tickers, batch_size=2)
+	success = fetch_data(tickers, batch_size=2)
 
 	assert success is True
 	# Verify fetching was called (3 tickers in batches of 2 = 2 calls)
@@ -47,7 +47,7 @@ def test_fetch_threading_concurrency():
 		mock_batch.return_value = (True, 5.0)
 
 		# Set small batch size to force multiple iterations
-		run_bulk_fetch(tickers, batch_size=3)
+		fetch_data(tickers, batch_size=3)
 
 		# 10 tickers / 3 batch_size = 4 batches (3, 3, 3, 1)
 		assert mock_batch.call_count == 4
@@ -64,5 +64,5 @@ def test_fetch_threading_concurrency():
 def test_batching_logic(tickers, batch_size, expected_calls):
 	with patch("core.orchestrator._fetch_batch_with_backoff") as mock_batch:
 		mock_batch.return_value = (True, 5.0)
-		run_bulk_fetch(tickers, batch_size=batch_size)
+		fetch_data(tickers, batch_size=batch_size)
 		assert mock_batch.call_count == expected_calls
