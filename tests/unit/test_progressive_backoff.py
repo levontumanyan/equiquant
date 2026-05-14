@@ -1,38 +1,26 @@
-from core.orchestrator import run_bulk_analysis
-from core.schema import AssetData
+from core.orchestrator import fetch_data
 
 
-def test_run_bulk_analysis_progressive_backoff(mocker):
+def test_fetch_data_progressive_backoff(mocker):
 	# Mock fetch_openbb_data_bulk to return False (failure)
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	# Mock probe_api to always succeed to keep original test behavior (minimal sleeps)
 	mocker.patch("core.openbb_client.probe_api", return_value=True)
 	# Mock time.sleep to record sleep durations and not actually sleep
 	mock_sleep = mocker.patch("time.sleep")
-	# Mock data retrieval and analysis
-	mocker.patch(
-		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
-	)
-	mocker.patch(
-		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
-	)
 
 	# 3 batches of 20 tickers each (to trigger failures)
 	tickers = ["T" + str(i) for i in range(60)]
 
-	run_bulk_analysis(tickers, "balanced", max_workers=1)
+	fetch_data(tickers)
 
-	# Should have slept 6 times with progressive durations
-	# Each batch gets 2 attempts.
-	# Batch 1: 5s, 10s
-	# Batch 2: 20s, 40s
-	# Batch 3: 60s (max), 60s (max)
-	assert mock_sleep.call_count == 6
+	# Should have slept 6 times with progressive durations + 2 inter-batch sleeps
 	sleep_durations = [args.args[0] for args in mock_sleep.call_args_list]
-	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0]
+	backoff_sleeps = [d for d in sleep_durations if d >= 5.0]
+	assert backoff_sleeps == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0]
 
 
-def test_run_bulk_analysis_reset_cooldown(mocker):
+def test_fetch_data_reset_cooldown(mocker):
 	# Batch 1: Fail (5s sleep), then Succeed (breather sleep, reset cooldown)
 	# Batch 2: Fail (5s sleep), Fail (10s sleep)
 	mock_bulk = mocker.patch("core.openbb_client.fetch_openbb_data_bulk")
@@ -41,21 +29,15 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 	mocker.patch("core.openbb_client.probe_api", return_value=True)
 
 	mock_sleep = mocker.patch("time.sleep")
-	mocker.patch(
-		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
-	)
-	mocker.patch(
-		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
-	)
 
 	# 2 batches of 20 tickers each
 	tickers = ["T" + str(i) for i in range(40)]
 
-	run_bulk_analysis(tickers, "balanced", max_workers=1)
+	fetch_data(tickers)
 
 	# Sleep durations:
 	# 1. 5.0 (failure)
-	# 2. random(3, 5) (success)
+	# 2. random(2, 4) (success - jittered wait between batches)
 	# 3. 5.0 (failure) - reset!
 	# 4. 10.0 (failure)
 
@@ -66,30 +48,24 @@ def test_run_bulk_analysis_reset_cooldown(mocker):
 	d4 = mock_sleep.call_args_list[3][0][0]
 
 	assert d1 == 5.0
-	assert 3.0 <= d2 <= 5.0
+	assert 2.0 <= d2 <= 4.0
 	assert d3 == 5.0
 	assert d4 == 10.0
 
 
-def test_run_bulk_analysis_max_cooldown(mocker):
+def test_fetch_data_max_cooldown(mocker):
 	# Mock fetch_openbb_data_bulk to always return False
 	mocker.patch("core.openbb_client.fetch_openbb_data_bulk", return_value=False)
 	# Mock probe_api to always succeed
 	mocker.patch("core.openbb_client.probe_api", return_value=True)
 	mock_sleep = mocker.patch("time.sleep")
-	mocker.patch(
-		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="MOCK")
-	)
-	mocker.patch(
-		"core.orchestrator.analyze_asset", return_value={"symbol": "MOCK", "score": 0}
-	)
 
 	# 4 batches to reach max cooldown and stabilize
 	tickers = ["T" + str(i) for i in range(80)]  # 4 batches of 20
 
-	run_bulk_analysis(tickers, "balanced", max_workers=1)
+	fetch_data(tickers)
 
-	# 4 batches * 2 attempts = 8 sleeps
-	assert mock_sleep.call_count == 8
+	# 4 batches * 2 attempts = 8 backoff sleeps + 3 inter-batch sleeps
 	sleep_durations = [args.args[0] for args in mock_sleep.call_args_list]
-	assert sleep_durations == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0, 60.0, 60.0]
+	backoff_sleeps = [d for d in sleep_durations if d >= 5.0]
+	assert backoff_sleeps == [5.0, 10.0, 20.0, 40.0, 60.0, 60.0, 60.0, 60.0]

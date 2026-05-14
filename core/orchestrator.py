@@ -200,15 +200,14 @@ def _tracked_analyze_asset(
 		stats.record_task_complete(worker_time)
 
 
-def run_bulk_fetch(
+def fetch_data(
 	tickers: List[str],
 	batch_size: int = 20,
 ) -> bool:
 	"""
 	Fetch data for multiple tickers in batches with backoff and retry.
-	This is the decoupled fetching logic.
 	"""
-	logger.info(f"Starting decoupled bulk fetch for {len(tickers)} tickers")
+	logger.info(f"Starting data fetch for {len(tickers)} tickers")
 	current_cooldown = 5.0
 	overall_success = True
 
@@ -228,7 +227,7 @@ def run_bulk_fetch(
 			# Jittered wait between batches; B311 safe.
 			time.sleep(random.uniform(2.0, 4.0))  # nosec B311
 
-	logger.info(f"Bulk fetch complete. Success: {overall_success}")
+	logger.info(f"Data fetch complete. Success: {overall_success}")
 	return overall_success
 
 
@@ -241,49 +240,35 @@ def run_bulk_analysis(
 	max_workers: int = 5,
 ) -> List[Dict[str, Any]]:
 	"""
-	Run analysis for multiple tickers using overlapped fetching and parallel analysis.
+	Run analysis for multiple tickers using parallel processing.
+	Only processes data that is already cached locally.
 	"""
 	logger.info(
 		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers"
 	)
 
 	all_results = []
-	batch_size = 20
-	current_cooldown = 5.0
 
 	with ThreadPoolExecutor(max_workers=max_workers) as executor:
 		futures = []
 
-		for i in range(0, len(tickers), batch_size):
-			batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-			logger.info(f"Fetching batch: {batch_tickers}")
-
-			success, current_cooldown = _fetch_batch_with_backoff(
-				batch_tickers, current_cooldown
-			)
-
-			for ticker in batch_tickers:
-				asset = get_stock_data(ticker)
-				if asset:
-					stats.record_pool_submission()
-					futures.append(
-						executor.submit(
-							_tracked_analyze_asset,
-							asset,
-							profile,
-							repo=repo,
-							benchmark_version=benchmark_version,
-							submitted_at=time.perf_counter(),
-						)
+		for ticker in tickers:
+			ticker = ticker.upper().strip()
+			asset = get_stock_data(ticker)
+			if asset:
+				stats.record_pool_submission()
+				futures.append(
+					executor.submit(
+						_tracked_analyze_asset,
+						asset,
+						profile,
+						repo=repo,
+						benchmark_version=benchmark_version,
+						submitted_at=time.perf_counter(),
 					)
-				else:
-					logger.warning(
-						f"Skipping analysis for {ticker}: No data retrieved."
-					)
-
-			if success:
-				# Coordinated burst mitigation via jitter; B311 safe.
-				time.sleep(random.uniform(3.0, 5.0))  # nosec B311  # nosec B311
+				)
+			else:
+				logger.warning(f"Skipping analysis for {ticker}: No data cached.")
 
 		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):

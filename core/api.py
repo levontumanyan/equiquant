@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
-from core.orchestrator import run_bulk_fetch
+from core.orchestrator import fetch_data as orchestrator_fetch_data
 
 app = FastAPI(
 	title="EquiQuant API",
@@ -144,7 +144,7 @@ async def fetch_data(request: FetchRequest, background_tasks: BackgroundTasks):
 	# but for simplicity let's just run it and return results for now
 	# or just confirm it started.
 
-	success = run_bulk_fetch(tickers)
+	success = orchestrator_fetch_data(tickers)
 
 	return {
 		"status": "success" if success else "partial_success",
