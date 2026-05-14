@@ -18,40 +18,22 @@ app = FastAPI(
 db_manager = DatabaseManager()
 repo = DatabaseRepository(db_manager)
 
-# Configure CORS for local development
+# CORS configuration
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["http://localhost:5173"],
+	allow_origins=["*"],
 	allow_credentials=True,
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
 
 
-class BenchmarkResponse(BaseModel):
-	metric: str
-	name: str
-	type: str
-	weight: float
-	asset_type: str
-	unit: Optional[str] = None
-	best: Optional[float] = None
-	worst: Optional[float] = None
-	target: Optional[float] = None
-	target_min: Optional[float] = None
-	target_max: Optional[float] = None
-	width: Optional[float] = None
-	threshold: Optional[float] = None
-
-
 class FetchRequest(BaseModel):
 	tickers: List[str]
-	provider: str = "openbb"
 
 
 @app.get("/health")
 async def health_check():
-	"""Returns the health status of the API."""
 	return {
 		"status": "online",
 		"version": "0.1.0",
@@ -60,69 +42,90 @@ async def health_check():
 
 
 @app.get("/api/status")
-async def get_status():
-	"""Detailed status for the frontend dashboard."""
-	return {"backend": "connected", "database": "available", "version": "0.1.0"}
-
-
-@app.get("/api/benchmarks", response_model=List[BenchmarkResponse])
-async def get_benchmarks(
-	asset_type: str = "equity", sector: Optional[str] = None, version: str = "1.0.0"
-):
-	"""
-	Fetch all global benchmarks for a given asset type, with optional sector overrides.
-	"""
-	try:
-		benchmarks = repo.get_effective_benchmarks(asset_type, sector, version)
-		return benchmarks
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
+async def get_app_status():
+	return {
+		"backend": "connected",
+		"database": "available",
+		"version": "0.1.0",
+	}
 
 
 @app.get("/api/sectors")
 async def get_sectors():
-	"""
-	Fetch all unique sectors from the database.
-	"""
+	"""Get all unique sectors from the assets table."""
 	try:
-		conn = db_manager.get_connection()
-		cursor = conn.cursor()
-		cursor.execute(
-			"SELECT DISTINCT sector FROM assets WHERE sector IS NOT NULL ORDER BY sector"
-		)
-		sectors = [row[0] for row in cursor.fetchall()]
-
-		# Also check sector_benchmarks just in case
-		cursor.execute("SELECT DISTINCT sector FROM sector_benchmarks ORDER BY sector")
-		for row in cursor.fetchall():
-			if row[0] not in sectors:
-				sectors.append(row[0])
-
-		return sorted(sectors)
+		sectors = repo.get_all_sectors()
+		return {"sectors": sectors}
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/benchmarks/sector/{sector}")
-async def get_sector_benchmarks(sector: str, version: str = "1.0.0"):
-	"""
-	Fetch benchmarks for a specific sector.
-	"""
+@app.get("/api/assets")
+async def get_assets(sector: Optional[str] = None):
+	"""Get all assets, optionally filtered by sector."""
 	try:
-		return repo.get_sector_benchmarks(sector, version)
+		assets = repo.get_assets_by_sector(sector) if sector else repo.get_all_assets()
+		return {"assets": assets}
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/metrics/{metric_key}/history")
-async def get_metric_history(
-	metric_key: str, symbol: Optional[str] = None, limit: int = 100
+@app.get("/api/analysis/{symbol}")
+async def get_analysis(symbol: str):
+	"""Get the latest analysis for a specific symbol."""
+	try:
+		analysis = repo.get_latest_analysis(symbol.upper())
+		if not analysis:
+			raise HTTPException(status_code=404, detail="Analysis not found")
+		return analysis
+	except HTTPException:
+		raise
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/history/{symbol}")
+async def get_history(symbol: str, profile: str = "balanced"):
+	"""Get historical scores for a specific symbol and profile."""
+	try:
+		history = repo.get_historical_scores(symbol.upper(), profile)
+		return {"history": history}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/benchmark-versions")
+async def get_benchmark_versions():
+	"""Get all available benchmark versions."""
+	try:
+		versions = repo.get_benchmark_versions()
+		return {"versions": versions}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/benchmarks")
+async def get_benchmarks(
+	asset_type: str, sector: Optional[str] = None, version: str = "1.0.0"
 ):
-	"""
-	Fetch historical data for a specific metric.
-	"""
+	"""Get benchmarks for a specific asset type and optional sector/version."""
 	try:
-		return repo.get_metric_history(metric_key, symbol, limit)
+		benchmarks = repo.get_global_benchmarks(asset_type.upper(), version=version)
+		if sector:
+			overrides = repo.get_sector_benchmarks(sector, version=version)
+			return {"global": benchmarks, "overrides": overrides}
+		return {"benchmarks": benchmarks}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/stats")
+async def get_stats():
+	"""Get general database statistics."""
+	try:
+		counts = repo.get_asset_counts_by_type()
+		total_analysis = repo.get_total_analysis_count()
+		return {"asset_counts": counts, "total_analysis": total_analysis}
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 
@@ -144,7 +147,7 @@ async def fetch_data(request: FetchRequest, background_tasks: BackgroundTasks):
 	# but for simplicity let's just run it and return results for now
 	# or just confirm it started.
 
-	success = orchestrator_fetch_data(tickers)
+	success = await orchestrator_fetch_data(tickers)
 
 	return {
 		"status": "success" if success else "partial_success",

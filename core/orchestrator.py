@@ -1,8 +1,8 @@
-import json
+import asyncio
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -67,11 +67,6 @@ def analyze_asset(
 	max_score = sum(res["weight"] for res in results)
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
 
-	if repo:
-		_save_analysis_to_db(
-			repo, asset, profile, final_pct, results, benchmark_version
-		)
-
 	logger.info(f"Analysis complete for {symbol}: {final_pct:.2f}%")
 	return {
 		"symbol": asset.symbol,
@@ -85,106 +80,8 @@ def analyze_asset(
 	}
 
 
-def _save_analysis_to_db(
-	repo: DatabaseRepository,
-	asset: AssetData,
-	profile: str,
-	final_pct: float,
-	results: List[Dict[str, Any]],
-	benchmark_version: str,
-) -> None:
-	"""Save analysis results to the database in a thread-safe manner."""
-	try:
-		repo.upsert_asset(
-			symbol=asset.symbol,
-			name=asset.name,
-			asset_type=asset.asset_type.value,
-			sector=asset.sector,
-			industry=asset.industry,
-		)
-		for res in results:
-			metric_key = res.get("metric")
-			val = res.get("raw_value")
-			if metric_key and val is not None:
-				try:
-					repo.insert_metric_history(asset.symbol, metric_key, float(val))
-				except (ValueError, TypeError):
-					pass
-		results_summary = [
-			{
-				"metric": r["metric"],
-				"value": r["value"],
-				"score": r["score"],
-				"weight": r["weight"],
-			}
-			for r in results
-		]
-		repo.create_analysis_snapshot(
-			symbol=asset.symbol,
-			profile=profile,
-			total_score=final_pct,
-			results_json=json.dumps(results_summary),
-			benchmark_version=benchmark_version,
-		)
-		stats.db_snapshots += 1
-	except Exception as e:
-		logger.error(f"Failed to save to DB for {asset.symbol}: {e}")
-
-
-def _fetch_batch_with_backoff(
-	batch_tickers: List[str], current_cooldown: float
-) -> Tuple[bool, float]:
-	"""Attempt to fetch a batch of tickers with retry and backoff using adaptive probing."""
-	from core.openbb_client import fetch_openbb_data_bulk, probe_api
-
-	base_cooldown = 5.0
-	max_cooldown = 60.0
-
-	for attempt in range(2):
-		try:
-			if fetch_openbb_data_bulk(batch_tickers):
-				return True, base_cooldown
-
-			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
-
-			# 1. Initial Cooldown
-			logger.info(f"Entering {current_cooldown}s cooldown...")
-			stats.record_cooldown(current_cooldown)
-			time.sleep(current_cooldown)
-
-			# 2. Probing mechanism: verify health before resuming bulk operations
-			probe_ticker = batch_tickers[0]
-			probe_attempts = 0
-			max_probe_attempts = 10
-			while not probe_api(probe_ticker):
-				probe_attempts += 1
-				if probe_attempts >= max_probe_attempts:
-					logger.error(
-						f"Max probe attempts ({max_probe_attempts}) reached for {probe_ticker}. Aborting batch."
-					)
-					return False, current_cooldown
-
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-				logger.warning(
-					f"Rate-limit probe failed for {probe_ticker}. Extending cooldown to {current_cooldown}s..."
-				)
-				stats.record_cooldown(current_cooldown)
-				time.sleep(current_cooldown)
-
-			# Success: increment cooldown for next attempt's safety and log success
-			current_cooldown = min(current_cooldown * 2, max_cooldown)
-			logger.info(f"Probe successful for {probe_ticker}. Resuming bulk fetch.")
-
-		except Exception as e:
-			logger.warning(f"Fetch error for {batch_tickers}: {e}")
-			time.sleep(current_cooldown)
-			current_cooldown = min(current_cooldown * 2, max_cooldown)
-			break
-	return False, current_cooldown
-
-
 def _tracked_analyze_asset(
-	asset: AssetData,
+	ticker: str,
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
@@ -194,13 +91,17 @@ def _tracked_analyze_asset(
 	stats.record_task_start(queued_latency)
 	start_time = time.perf_counter()
 	try:
+		asset = get_cached_stock_data(ticker)
+		if not asset:
+			logger.warning(f"Skipping analysis for {ticker}: No data cached.")
+			return None
 		return analyze_asset(asset, profile, repo, benchmark_version)
 	finally:
 		worker_time = time.perf_counter() - start_time
 		stats.record_task_complete(worker_time)
 
 
-def fetch_data(
+async def fetch_data(
 	tickers: List[str],
 	batch_size: int = 20,
 ) -> bool:
@@ -215,8 +116,10 @@ def fetch_data(
 		batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
 		logger.info(f"Fetching batch: {batch_tickers}")
 
-		success, current_cooldown = _fetch_batch_with_backoff(
-			batch_tickers, current_cooldown
+		from core.openbb_client import fetch_batch_with_backoff
+
+		success, current_cooldown = await asyncio.to_thread(
+			fetch_batch_with_backoff, batch_tickers, current_cooldown
 		)
 
 		if not success:
@@ -225,7 +128,7 @@ def fetch_data(
 
 		if i + batch_size < len(tickers):
 			# Jittered wait between batches; B311 safe.
-			time.sleep(random.uniform(2.0, 4.0))  # nosec B311
+			await asyncio.sleep(random.uniform(2.0, 4.0))  # nosec B311
 
 	logger.info(f"Data fetch complete. Success: {overall_success}")
 	return overall_success
@@ -254,21 +157,17 @@ def run_bulk_analysis(
 
 		for ticker in tickers:
 			ticker = ticker.upper().strip()
-			asset = get_cached_stock_data(ticker)
-			if asset:
-				stats.record_pool_submission()
-				futures.append(
-					executor.submit(
-						_tracked_analyze_asset,
-						asset,
-						profile,
-						repo=repo,
-						benchmark_version=benchmark_version,
-						submitted_at=time.perf_counter(),
-					)
+			stats.record_pool_submission()
+			futures.append(
+				executor.submit(
+					_tracked_analyze_asset,
+					ticker,
+					profile,
+					repo=repo,
+					benchmark_version=benchmark_version,
+					submitted_at=time.perf_counter(),
 				)
-			else:
-				logger.warning(f"Skipping analysis for {ticker}: No data cached.")
+			)
 
 		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):
@@ -281,6 +180,14 @@ def run_bulk_analysis(
 				logger.info(f"[{idx}/{total}] Completed analysis")
 			except Exception as e:
 				logger.error(f"Analysis error: {e}")
+
+	if repo and all_results:
+		try:
+			logger.info(f"Saving {len(all_results)} analysis results to database...")
+			repo.bulk_save_analyses(all_results, profile, benchmark_version)
+			stats.db_snapshots += len(all_results)
+		except Exception as e:
+			logger.error(f"Failed bulk save to DB: {e}")
 
 	logger.info(
 		f"Bulk analysis complete. {len(all_results)}/{len(tickers)} successful."
