@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import subprocess  # nosec B404
 import sys
 from typing import List
 
@@ -204,9 +205,12 @@ def _handle_special_flags(args):
 		out_files = sorted(glob.glob(str(LOG_DIR / "run_*.out")), reverse=True)
 		if out_files:
 			print(f"Tailing latest logs from {out_files[0]}...")
-			os.system(f"tail -f {out_files[0]}")
+			try:
+				# Use absolute path to mitigate path shadowing; B603/B607 suppressed as arguments are validated glob results.
+				subprocess.run(["/usr/bin/tail", "-f", out_files[0]], check=True)  # nosec B603 B607
+			except KeyboardInterrupt:
+				pass
 		sys.exit(0)
-
 	if args.db:
 		dispatch_db_view(args.db)
 		sys.exit(0)
