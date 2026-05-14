@@ -53,9 +53,20 @@ make setup
 - **Zsh/Bash Completions**: Tab-complete tickers, indices, and profiles.
 - **Database-Driven**: All scoring rules and profiles are stored in SQLite.
 
+# Frontend Dashboard
+
+EquiQuant includes a modern web dashboard for visualizing analysis results.
+
+To run the dashboard:
+1. Start the API server: `make ui-server`
+2. Start the frontend: `make ui-dev`
+
+For detailed instructions, see [Frontend Documentation](docs/FRONTEND.md).
+
 # Documentation
 
 For more detailed information, see the `docs/` directory:
+- [Frontend Dashboard](docs/FRONTEND.md)
 - [Architecture](docs/architecture.md)
 - [Configuration & Weights](docs/configuration.md)
 - [Scoring Methodologies](docs/scoring.md)
