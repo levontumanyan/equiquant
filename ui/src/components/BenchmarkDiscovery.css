@@ -1,0 +1,142 @@
+.discovery-container {
+	width: 100%;
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.discovery-header {
+	display: flex;
+	gap: 1rem;
+	background: #111;
+	padding: 1rem;
+	border-radius: 8px;
+	border: 1px solid #333;
+}
+
+.search-bar, .sector-filter {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: #222;
+	padding: 0.5rem 0.8rem;
+	border-radius: 6px;
+	border: 1px solid #444;
+	color: #888;
+}
+
+.search-bar {
+	flex: 1;
+}
+
+.search-bar input, .sector-filter select {
+	background: transparent;
+	border: none;
+	color: white;
+	width: 100%;
+	outline: none;
+}
+
+.sector-filter select {
+	cursor: pointer;
+}
+
+.benchmark-grid {
+	background: #111;
+	border-radius: 8px;
+	border: 1px solid #333;
+	overflow: hidden;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	text-align: left;
+}
+
+th, td {
+	padding: 1rem;
+	border-bottom: 1px solid #222;
+}
+
+th {
+	background: #1a1a1a;
+	color: #888;
+	font-weight: 500;
+	text-transform: uppercase;
+	font-size: 0.75rem;
+	letter-spacing: 0.05em;
+}
+
+tr:hover {
+	background: #161616;
+}
+
+.metric-name {
+	font-weight: 600;
+	color: #646cff;
+}
+
+.selected-row {
+	background: #1a1a1a !important;
+	border-left: 3px solid #646cff;
+}
+
+.metric-key code {
+	background: #222;
+	padding: 0.2rem 0.4rem;
+	border-radius: 4px;
+	font-size: 0.85rem;
+}
+
+.badge {
+	padding: 0.2rem 0.6rem;
+	border-radius: 12px;
+	font-size: 0.75rem;
+	font-weight: bold;
+	text-transform: uppercase;
+}
+
+.badge.sigmoid { background: rgba(100, 108, 255, 0.2); color: #646cff; }
+.badge.linear { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+.badge.bell_curve { background: rgba(255, 171, 0, 0.2); color: #ffab00; }
+.badge.plateau { background: rgba(162, 155, 254, 0.2); color: #a29bfe; }
+.badge.threshold { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+
+.action-buttons {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.preview-btn, .history-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.4rem 0.8rem;
+	font-size: 0.85rem;
+	background: #222;
+	border: 1px solid #444;
+	color: #ccc;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.preview-btn:hover {
+	background: #646cff;
+	color: white;
+	border-color: #646cff;
+}
+
+.history-btn:hover, .history-btn.active {
+	background: #2ed573;
+	color: white;
+	border-color: #2ed573;
+}
+
+.loading {
+	padding: 3rem;
+	color: #888;
+	font-style: italic;
+}

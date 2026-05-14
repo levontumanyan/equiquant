@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
+import BenchmarkDiscovery from './components/BenchmarkDiscovery'
+import type { Benchmark } from './types'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [activeTab, setActiveTab] = useState<'status' | 'math'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks'>('status')
+	const [previewBenchmark, setPreviewBenchmark] = useState<Benchmark | undefined>(undefined)
 
 	useEffect(() => {
 		const checkStatus = async () => {
@@ -25,6 +28,11 @@ function App() {
 		return () => clearInterval(interval)
 	}, [])
 
+	const handlePreview = (benchmark: Benchmark) => {
+		setPreviewBenchmark(benchmark)
+		setActiveTab('math')
+	}
+
 	return (
 		<div className="equiquant-app">
 			<nav className="app-nav">
@@ -33,6 +41,12 @@ function App() {
 					onClick={() => setActiveTab('status')}
 				>
 					Status
+				</button>
+				<button 
+					className={activeTab === 'benchmarks' ? 'active' : ''} 
+					onClick={() => setActiveTab('benchmarks')}
+				>
+					Benchmarks
 				</button>
 				<button 
 					className={activeTab === 'math' ? 'active' : ''} 
@@ -75,11 +89,19 @@ function App() {
 				</>
 			)}
 
+			{activeTab === 'benchmarks' && (
+				<section className="benchmarks-section">
+					<h2>Benchmark Discovery</h2>
+					<p className="section-desc">Browse and explore metrics defined in the system.</p>
+					<BenchmarkDiscovery onPreview={handlePreview} />
+				</section>
+			)}
+
 			{activeTab === 'math' && (
 				<section className="math-section">
 					<h2>Scoring Function Explorer</h2>
 					<p className="section-desc">Visualize how raw financial metrics are mapped to percentage scores.</p>
-					<ScoringExplorer />
+					<ScoringExplorer initialData={previewBenchmark} />
 				</section>
 			)}
 		</div>
