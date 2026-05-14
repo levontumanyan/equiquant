@@ -1,11 +1,12 @@
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
+from core.orchestrator import run_bulk_fetch
 
 app = FastAPI(
 	title="EquiQuant API",
@@ -41,6 +42,11 @@ class BenchmarkResponse(BaseModel):
 	target_max: Optional[float] = None
 	width: Optional[float] = None
 	threshold: Optional[float] = None
+
+
+class FetchRequest(BaseModel):
+	tickers: List[str]
+	provider: str = "openbb"
 
 
 @app.get("/health")
@@ -119,3 +125,29 @@ async def get_metric_history(
 		return repo.get_metric_history(metric_key, symbol, limit)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/fetch")
+async def fetch_data(request: FetchRequest, background_tasks: BackgroundTasks):
+	"""
+	Trigger a data fetch for the given tickers.
+	This is decoupled from analysis.
+	"""
+	# For now, we just trigger the bulk fetch.
+	# In a real app, we might want to track progress.
+	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
+
+	if not tickers:
+		return {"status": "error", "message": "No tickers provided"}
+
+	# We run it in the background if it's a large request,
+	# but for simplicity let's just run it and return results for now
+	# or just confirm it started.
+
+	success = run_bulk_fetch(tickers)
+
+	return {
+		"status": "success" if success else "partial_success",
+		"message": f"Fetched data for {len(tickers)} tickers",
+		"tickers": tickers,
+	}

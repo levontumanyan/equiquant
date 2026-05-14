@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
 import BenchmarkDiscovery from './components/BenchmarkDiscovery'
+import DataFetcher from './components/DataFetcher'
 import type { Benchmark } from './types'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher'>('status')
 	const [previewBenchmark, setPreviewBenchmark] = useState<Benchmark | undefined>(undefined)
 
 	useEffect(() => {
@@ -51,6 +52,12 @@ function App() {
 						Status
 					</button>
 					<button 
+						className={activeTab === 'fetcher' ? 'active' : ''} 
+						onClick={() => setActiveTab('fetcher')}
+					>
+						Data Fetcher
+					</button>
+					<button 
 						className={activeTab === 'benchmarks' ? 'active' : ''} 
 						onClick={() => setActiveTab('benchmarks')}
 					>
@@ -88,6 +95,14 @@ function App() {
 						Minimalistic Quantitative Analysis Dashboard
 					</p>
 				</>
+			)}
+
+			{activeTab === 'fetcher' && (
+				<section className="fetcher-section">
+					<h2>Market Data Management</h2>
+					<p className="section-desc">Acquire and manage high-quality financial data for analysis.</p>
+					<DataFetcher />
+				</section>
 			)}
 
 			{activeTab === 'benchmarks' && (

@@ -99,6 +99,10 @@ ui-server: ensure-uv
 	@echo "Starting EquiQuant API Server on http://localhost:8000"
 	@uv run uvicorn core.api:app --reload --port 8000
 
+ui-dev:
+	@echo "Starting EquiQuant Frontend on http://localhost:5173"
+	@cd ui && npm install && npm run dev
+
 populate-index:
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
 
