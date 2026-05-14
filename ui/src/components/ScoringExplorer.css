@@ -1,0 +1,73 @@
+.explorer-container {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+	width: 100%;
+	max-width: 1000px;
+	margin: 2rem auto;
+	padding: 1rem;
+	background: #1e1e1e;
+	border-radius: 12px;
+	border: 1px solid #333;
+}
+
+.explorer-controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 1.5rem;
+	padding: 1.5rem;
+	background: #111;
+	border-radius: 8px;
+}
+
+.control-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.control-group label {
+	font-size: 0.85rem;
+	color: #888;
+	font-weight: 500;
+}
+
+.control-group select, 
+.control-group input[type="range"] {
+	width: 100%;
+}
+
+.control-group select {
+	background: #222;
+	color: #fff;
+	border: 1px solid #444;
+	padding: 0.5rem;
+	border-radius: 4px;
+}
+
+.tester {
+	grid-column: 1 / -1;
+	border-top: 1px solid #333;
+	padding-top: 1rem;
+}
+
+.result-badge {
+	margin-top: 0.5rem;
+	font-size: 1.5rem;
+	font-weight: bold;
+	color: #646cff;
+	text-shadow: 0 0 10px rgba(100, 108, 255, 0.3);
+}
+
+.explorer-chart {
+	background: #111;
+	padding: 1rem;
+	border-radius: 8px;
+	min-height: 400px;
+}
+
+@media (max-width: 768px) {
+	.explorer-container {
+		margin: 1rem;
+	}
+}

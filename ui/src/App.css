@@ -33,11 +33,51 @@ h1 {
 	max-width: 1280px;
 	width: 100%;
 	margin: 0 auto;
-	padding: 2rem;
+	padding: 1rem 2rem 2rem 2rem;
 	text-align: center;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+}
+
+.app-nav {
+	display: flex;
+	gap: 1rem;
+	margin-bottom: 2rem;
+	padding: 0.5rem;
+	background: #111;
+	border-radius: 12px;
+	border: 1px solid #333;
+}
+
+.app-nav button {
+	background: transparent;
+	border: none;
+	padding: 0.5rem 1.5rem;
+	color: #888;
+	font-weight: 500;
+	transition: all 0.2s;
+}
+
+.app-nav button.active {
+	background: #646cff;
+	color: white;
+	box-shadow: 0 0 10px rgba(100, 108, 255, 0.3);
+}
+
+.math-section {
+	width: 100%;
+	text-align: left;
+}
+
+.math-section h2 {
+	margin-bottom: 0.5rem;
+	color: #646cff;
+}
+
+.section-desc {
+	color: #888;
+	margin-bottom: 2rem;
 }
 
 .logo-container {
