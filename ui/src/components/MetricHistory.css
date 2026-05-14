@@ -1,0 +1,35 @@
+.metric-history-container {
+	margin-top: 1.5rem;
+	padding: 1.5rem;
+	background: #111;
+	border: 1px solid #333;
+	border-radius: 8px;
+}
+
+.metric-history-container h3 {
+	margin-top: 0;
+	margin-bottom: 1.5rem;
+	color: #ccc;
+	font-size: 1rem;
+	font-weight: 500;
+}
+
+.chart-wrapper {
+	width: 100%;
+	height: 250px;
+}
+
+.loading-small, .no-data {
+	padding: 2rem;
+	text-align: center;
+	color: #666;
+	font-style: italic;
+	font-size: 0.9rem;
+}
+
+.chart-note {
+	margin-top: 1rem;
+	font-size: 0.75rem;
+	color: #555;
+	text-align: right;
+}

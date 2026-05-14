@@ -4,12 +4,17 @@
 
 export const sigmoidScore = (val: number, best: number, worst: number): number => {
 	const midpoint = (best + worst) / 2;
-	if (Math.abs(best - midpoint) < 1e-9) return val === best ? 1 : 0;
+	if (Math.abs(best - worst) < 1e-9) return val >= best ? 1 : 0;
 	try {
 		const k = Math.log(1 / 19) / (best - midpoint);
 		return 1 / (1 + Math.exp(k * (val - midpoint)));
 	} catch {
-		return val === best ? 1 : 0;
+		try {
+			const k_dir = Math.log(1 / 19) / (best - midpoint);
+			return (k_dir * (val - midpoint)) < 0 ? 1 : 0;
+		} catch {
+			return val === best ? 1 : 0;
+		}
 	}
 };
 
@@ -28,6 +33,17 @@ export const bellScore = (val: number, target: number, width: number): number =>
 	if (width === 0) return 0;
 	try {
 		return Math.exp(-0.5 * Math.pow((val - target) / width, 2));
+	} catch {
+		return 0;
+	}
+};
+
+export const plateauScore = (val: number, targetMin: number, targetMax: number, width: number): number => {
+	if (val >= targetMin && val <= targetMax) return 1;
+	const edge = val < targetMin ? targetMin : targetMax;
+	if (width === 0) return 0;
+	try {
+		return Math.exp(-0.5 * Math.pow((val - edge) / width, 2));
 	} catch {
 		return 0;
 	}

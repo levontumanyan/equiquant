@@ -212,6 +212,72 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
+	def get_effective_benchmarks(
+		self,
+		asset_type: str = "equity",
+		sector: Optional[str] = None,
+		version: str = "1.0.0",
+	) -> List[dict]:
+		"""
+		Get benchmarks for an asset type, with optional sector-specific overrides.
+		"""
+		# Start with global benchmarks
+		benchmarks = {
+			b["metric"]: b for b in self.get_global_benchmarks(asset_type, version)
+		}
+
+		if sector:
+			# Get sector overrides
+			overrides = self.get_sector_benchmarks(sector, version)
+			for ov in overrides:
+				metric = ov["metric_key"]
+				if metric in benchmarks:
+					# Override specific values
+					b = benchmarks[metric]
+					if ov["benchmark_type"] == "best_worst":
+						b["best"] = ov["value_a"]
+						b["worst"] = ov["value_b"]
+						b["type"] = "sigmoid"  # best_worst maps to sigmoid
+					elif ov["benchmark_type"] == "target_width":
+						b["target"] = ov["value_a"]
+						b["width"] = ov["value_b"]
+						b["type"] = "bell_curve"
+					elif ov["benchmark_type"] == "threshold":
+						b["threshold"] = ov["value_a"]
+						b["type"] = "threshold"
+				else:
+					# New metric for this sector (less common but possible)
+					# We might lack some metadata like 'name', so we use metric as name
+					new_b = {
+						"metric": metric,
+						"name": metric.replace("_", " ").title(),
+						"asset_type": asset_type,
+						"weight": 1.0,
+						"version": version,
+					}
+					if ov["benchmark_type"] == "best_worst":
+						new_b.update(
+							{
+								"type": "sigmoid",
+								"best": ov["value_a"],
+								"worst": ov["value_b"],
+							}
+						)
+					elif ov["benchmark_type"] == "target_width":
+						new_b.update(
+							{
+								"type": "bell_curve",
+								"target": ov["value_a"],
+								"width": ov["value_b"],
+							}
+						)
+					elif ov["benchmark_type"] == "threshold":
+						new_b.update({"type": "threshold", "threshold": ov["value_a"]})
+
+					benchmarks[metric] = new_b
+
+		return list(benchmarks.values())
+
 	def insert_metric_history(self, symbol: str, metric_key: str, value: float):
 		"""Insert a new metric record."""
 		with self._lock:
@@ -346,6 +412,35 @@ class DatabaseRepository:
 				benchmarks.append(b)
 
 			return benchmarks
+
+	def get_metric_history(
+		self, metric_key: str, symbol: Optional[str] = None, limit: int = 100
+	) -> List[dict]:
+		"""Get historical data for a specific metric."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			if symbol:
+				cursor.execute(
+					"""
+					SELECT timestamp, value FROM metrics_history 
+					WHERE metric_key = ? AND symbol = ?
+					ORDER BY timestamp DESC LIMIT ?
+				""",
+					(metric_key, symbol, limit),
+				)
+			else:
+				# If no symbol, maybe return an average or some distribution?
+				# For now, let's just return sample data from various symbols
+				cursor.execute(
+					"""
+					SELECT timestamp, value, symbol FROM metrics_history 
+					WHERE metric_key = ?
+					ORDER BY timestamp DESC LIMIT ?
+				""",
+					(metric_key, limit),
+				)
+			return [dict(row) for row in cursor.fetchall()]
 
 	def save_telemetry(self, duration_s: float, metrics: dict):
 		"""Save session telemetry to the database."""
