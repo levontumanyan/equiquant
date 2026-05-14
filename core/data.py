@@ -67,3 +67,12 @@ def get_stock_data(ticker_symbol: str) -> Optional[AssetData]:
 	"""
 	provider = OpenBBProvider()
 	return provider.get_data(ticker_symbol.upper())
+
+
+@lru_cache(maxsize=100)
+def get_cached_stock_data(ticker_symbol: str) -> Optional[AssetData]:
+	"""
+	Strict offline loading. Does not fallback to network.
+	"""
+	provider = OpenBBProvider()
+	return provider.get_cached_data(ticker_symbol.upper())

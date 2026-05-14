@@ -31,7 +31,7 @@ def test_load_benchmarks_no_repo():
 def test_run_bulk_analysis(mocker, repo):
 	# Mock data retrieval and analysis
 	mocker.patch(
-		"core.orchestrator.get_stock_data", return_value=AssetData(symbol="AAPL")
+		"core.orchestrator.get_cached_stock_data", return_value=AssetData(symbol="AAPL")
 	)
 	mock_res = {"symbol": "AAPL", "score": 80.0}
 	mocker.patch("core.orchestrator.analyze_asset", return_value=mock_res)

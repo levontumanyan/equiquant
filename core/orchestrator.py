@@ -4,7 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.data import get_stock_data, load_benchmarks
+from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
@@ -254,7 +254,7 @@ def run_bulk_analysis(
 
 		for ticker in tickers:
 			ticker = ticker.upper().strip()
-			asset = get_stock_data(ticker)
+			asset = get_cached_stock_data(ticker)
 			if asset:
 				stats.record_pool_submission()
 				futures.append(

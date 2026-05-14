@@ -294,6 +294,23 @@ def _merge_single_res(res: Any, combined_data: Dict[str, Any]) -> None:
 				combined_data[k] = v
 
 
+def load_cached_data(ticker_symbol: str) -> Optional[Dict[str, Any]]:
+	"""
+	Strict offline loading. Does not fallback to network.
+	"""
+	ticker_symbol = ticker_symbol.upper()
+	cache_file = CACHE_DIR / f"{ticker_symbol}.json"
+
+	if cache_file.exists():
+		try:
+			logger.info(f"Loaded strict offline data for {ticker_symbol}")
+			stats.cache_hits += 1
+			return json.loads(cache_file.read_text())
+		except Exception as e:
+			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
+	return None
+
+
 def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 	"""
 	Fetch standardized data via OpenBB Platform using multiple endpoints.
