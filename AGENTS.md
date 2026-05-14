@@ -35,6 +35,7 @@
 	- **Requirement**: Every suppression MUST include a brief comment justifying why it is safe.
 - When you try to test use always: `uv run python -m pytest ...`
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
+- When you add any new `uv` package make sure to distinguish between dev level packages or user level. Most things should be in dev to keep the user install as small as possible.
 
 ## Subagent & Data Access
 - **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.
