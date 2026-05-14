@@ -250,7 +250,8 @@ def run_bulk_analysis(
 					)
 
 			if success:
-				time.sleep(random.uniform(3.0, 5.0))
+				# Coordinated burst mitigation via jitter; B311 safe.
+				time.sleep(random.uniform(3.0, 5.0))  # nosec B311  # nosec B311
 
 		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):

@@ -108,8 +108,8 @@ def _fetch_with_retry(
 			# If results are empty, it might be a rate limit or missing data
 			if attempt < max_retries:
 				stats.record_error("empty_results")
-				# Exponentially increasing wait time for empty results
-				wait_time = (attempt + 1) * 3.5 + random.uniform(1.0, 3.0)
+				# Exponentially increasing wait time for empty results; B311 safe for non-cryptographic jitter.
+				wait_time = (attempt + 1) * 3.5 + random.uniform(1.0, 3.0)  # nosec B311
 				logger.debug(
 					f"Empty results for {symbol} on {func_name}. Retrying in {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
 				)
@@ -136,7 +136,8 @@ def _fetch_with_retry(
 			stats.record_request(endpoint_name, duration, success=False)
 
 			if attempt < max_retries:
-				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)
+				# Adding jitter for retry backoff; B311 safe for this purpose.
+				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)  # nosec B311
 				logger.debug(
 					f"Fetch error for {symbol} on {func_name}: {e}. Retrying in {wait_time:.1f}s..."
 				)
@@ -178,8 +179,8 @@ def _fetch_etf_info_bulk(
 		except RateLimitError:
 			raise
 		except Exception:
-			# Non-critical: some might not be ETFs
-			pass
+			# Non-critical: some might not be ETFs; B110 safe for this optional check.
+			pass  # nosec B110
 
 
 def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
@@ -211,7 +212,7 @@ def _fetch_bulk_endpoints(
 		try:
 			res = _fetch_with_retry(func, symbol_str, provider)
 			_merge_bulk_results(res, bulk_combined)
-			time.sleep(random.uniform(1.0, 2.0))
+			time.sleep(random.uniform(1.0, 2.0))  # nosec B311
 		except RateLimitError:
 			raise
 		except Exception as e:

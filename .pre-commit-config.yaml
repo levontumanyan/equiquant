@@ -9,14 +9,13 @@ repos:
       # Run the formatter.
       - id: ruff-format
         args: [ --verbose ]
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.10
-    hooks:
-      - id: bandit
-        args: ["-c", "pyproject.toml"]
-        additional_dependencies: ["bandit[toml]"]
   - repo: local
     hooks:
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -c pyproject.toml -r core analyze.py
+        language: system
+        types: [python]
       - id: semgrep
         name: semgrep
         entry: uv run semgrep --config auto --error

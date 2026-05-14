@@ -45,6 +45,7 @@ dev = [
 	"ruff>=0.15.11",
 	"pre-commit>=4.0.0",
 	"semgrep>=1.162.0",
+	"bandit[toml]>=1.9.4",
 ]
 
 [tool.pytest.ini_options]
@@ -53,4 +54,4 @@ python_files = "test_*.py"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101"] # Skip B101 (assert) as it is common in this project style
+skips = ["B101"] # Skip B101 (assert) as it is common in this project style for validation logic.

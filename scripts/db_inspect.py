@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 
@@ -9,7 +9,8 @@ def main():
 		sys.exit(1)
 
 	view = sys.argv[1]
-	subprocess.run([sys.executable, "analyze.py", "--db", view])
+	# B603/B607 safe for local dev script using explicit analyze.py path.
+	subprocess.run([sys.executable, "analyze.py", "--db", view])  # nosec B603 B607
 
 
 if __name__ == "__main__":
