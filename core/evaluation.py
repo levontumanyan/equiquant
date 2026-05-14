@@ -59,6 +59,13 @@ def evaluate_metric(
 		pct = scorer(val, benchmark.get("best", 0), benchmark.get("worst", 100))
 	elif formula_type == "bell_curve":
 		pct = scorer(val, benchmark.get("target", 0), benchmark.get("width", 1))
+	elif formula_type == "plateau":
+		pct = scorer(
+			val,
+			benchmark.get("target_min", 0),
+			benchmark.get("target_max", 0),
+			benchmark.get("width", 1),
+		)
 	elif formula_type == "threshold":
 		pct = scorer(val, benchmark.get("threshold", 0))
 	else:
