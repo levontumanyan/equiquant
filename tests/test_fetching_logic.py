@@ -9,7 +9,7 @@ from core.orchestrator import fetch_data
 @pytest.fixture
 def mock_fetch_bulk():
 	with patch("core.openbb_client.fetch_openbb_data_bulk") as mock:
-		mock.return_value = True
+		mock.return_value = (True, {})
 		yield mock
 
 
@@ -48,7 +48,7 @@ def test_fetch_threading_concurrency():
 
 	with patch("core.openbb_client.fetch_batch_with_backoff") as mock_batch:
 		# Return success and a dummy cooldown
-		mock_batch.return_value = (True, 5.0)
+		mock_batch.return_value = (True, 5.0, {})
 
 		# Set small batch size to force multiple iterations
 		async def run_fetch():
@@ -71,7 +71,7 @@ def test_fetch_threading_concurrency():
 )
 def test_batching_logic(tickers, batch_size, expected_calls):
 	with patch("core.openbb_client.fetch_batch_with_backoff") as mock_batch:
-		mock_batch.return_value = (True, 5.0)
+		mock_batch.return_value = (True, 5.0, {})
 
 		async def run_fetch():
 			async for _ in fetch_data(

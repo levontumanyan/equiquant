@@ -80,7 +80,7 @@ class DatabaseManager:
 			)
 		""")
 
-		# Analysis Snapshots table
+		# Analysis Snapshots table — score history only; results_json is deprecated (use raw_provider_data)
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS analysis_snapshots (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,6 +90,18 @@ class DatabaseManager:
 				total_score REAL,
 				results_json TEXT,
 				benchmark_version TEXT DEFAULT '1.0.0',
+				FOREIGN KEY (symbol) REFERENCES assets(symbol)
+			)
+		""")
+
+		# Raw Provider Data table — source-of-truth JSON payloads per symbol/provider
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS raw_provider_data (
+				symbol TEXT NOT NULL,
+				provider TEXT NOT NULL,
+				timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+				data_json TEXT NOT NULL,
+				PRIMARY KEY (symbol, provider),
 				FOREIGN KEY (symbol) REFERENCES assets(symbol)
 			)
 		""")
@@ -142,12 +154,15 @@ class DatabaseManager:
 			)
 		""")
 
-		# Profile Weights table
+		# Profile Metric Settings table
 		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS profile_weights (
+			CREATE TABLE IF NOT EXISTS profile_metric_settings (
 				profile_name TEXT,
 				metric_key TEXT,
-				weight REAL,
+				weight REAL DEFAULT 1.0,
+				range_min REAL DEFAULT 0.0,
+				range_max REAL DEFAULT 100.0,
+				formula TEXT DEFAULT 'sigmoid',
 				PRIMARY KEY (profile_name, metric_key),
 				FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
 			)

@@ -12,21 +12,6 @@ def repo(tmp_path):
 	db_file = tmp_path / "test_market_integration.db"
 	manager = DatabaseManager(str(db_file))
 
-	# Manually create table for integration test environment
-	conn = manager.get_connection()
-	conn.execute("""
-		CREATE TABLE profile_metric_settings (
-			profile_name TEXT,
-			metric_key TEXT,
-			weight REAL DEFAULT 1.0,
-			range_min REAL DEFAULT 0.0,
-			range_max REAL DEFAULT 100.0,
-			formula TEXT DEFAULT 'sigmoid',
-			PRIMARY KEY (profile_name, metric_key),
-			FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
-		);
-	""")
-
 	repo = DatabaseRepository(manager)
 
 	# Seed the DB with some basic profiles for tests
