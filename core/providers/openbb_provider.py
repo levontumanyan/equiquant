@@ -1,6 +1,6 @@
 from typing import Optional
 
-from core.openbb_client import get_openbb_data, load_cached_data
+from core.openbb_client import get_openbb_data
 from core.schema import AssetData, AssetType
 
 from .base import BaseProvider
@@ -26,12 +26,6 @@ class OpenBBProvider(BaseProvider):
 
 	def get_data(self, symbol: str) -> Optional[AssetData]:
 		raw_data = get_openbb_data(symbol)
-		if not raw_data or "symbol" not in raw_data:
-			return None
-		return self._normalize(symbol, raw_data)
-
-	def get_cached_data(self, symbol: str) -> Optional[AssetData]:
-		raw_data = load_cached_data(symbol)
 		if not raw_data or "symbol" not in raw_data:
 			return None
 		return self._normalize(symbol, raw_data)

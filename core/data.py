@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 from core.database.repository import DatabaseRepository
@@ -84,14 +83,20 @@ def get_asset_from_db(repo: DatabaseRepository, symbol: str) -> Optional[AssetDa
 	)
 
 
-@lru_cache(maxsize=100)
 def get_stock_data(
 	ticker_symbol: str, repo: Optional[DatabaseRepository] = None
 ) -> Optional[AssetData]:
 	"""
 	Master function:
 	1. Checks DB for latest metrics if repo is provided.
-	2. Falls back to OpenBB fetch (with file cache) if DB is empty or stale.
+	2. Falls back to OpenBB live fetch if DB is empty or stale, then persists to DB.
+
+	Args:
+		ticker_symbol: The ticker symbol to fetch.
+		repo: Optional database repository for cache lookup and persistence.
+
+	Returns:
+		AssetData if successful, None otherwise.
 	"""
 	symbol = ticker_symbol.upper()
 
@@ -101,13 +106,33 @@ def get_stock_data(
 			return asset
 
 	provider = OpenBBProvider()
-	return provider.get_data(ticker_symbol.upper())
+	asset = provider.get_data(symbol)
+	if asset and repo:
+		try:
+			repo.upsert_raw_provider_data(symbol, "yfinance", asset.raw_data)
+		except Exception:
+			pass
+	return asset
 
 
-@lru_cache(maxsize=100)
-def get_cached_stock_data(ticker_symbol: str) -> Optional[AssetData]:
+def get_cached_stock_data(
+	ticker_symbol: str, repo: Optional[DatabaseRepository] = None
+) -> Optional[AssetData]:
 	"""
-	Strict offline loading. Does not fallback to network.
+	Load asset data strictly from the DB cache (raw_provider_data). No network call.
+
+	Args:
+		ticker_symbol: The ticker symbol to load.
+		repo: Database repository for cache lookup.
+
+	Returns:
+		AssetData if found in cache, None otherwise.
 	"""
+	if not repo:
+		return None
+	symbol = ticker_symbol.upper()
+	cached = repo.get_raw_provider_data(symbol)
+	if not cached:
+		return None
 	provider = OpenBBProvider()
-	return provider.get_cached_data(ticker_symbol.upper())
+	return provider._normalize(symbol, cached["data"])

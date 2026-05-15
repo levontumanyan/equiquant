@@ -14,7 +14,9 @@ def mock_orchestrator():
 	with (
 		patch("core.api.orchestrator_fetch_data") as mock_fetch,
 		patch("core.api.run_bulk_analysis") as mock_analyze,
-		patch("core.api.should_use_cache") as mock_cache,
+		patch(
+			"core.database.repository.DatabaseRepository.should_use_db_cache"
+		) as mock_cache,
 	):
 		# Setup mock_fetch as an async generator
 		async def mock_fetch_gen(tickers, repo=None):

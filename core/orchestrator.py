@@ -8,7 +8,6 @@ from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
-from core.openbb_client import load_cached_data
 from core.profiles import get_profile_weights
 from core.schema import AssetData, AssetType
 from core.stats import stats
@@ -92,7 +91,7 @@ def _tracked_analyze_asset(
 	stats.record_task_start(queued_latency)
 	start_time = time.perf_counter()
 	try:
-		asset = get_cached_stock_data(ticker)
+		asset = get_cached_stock_data(ticker, repo=repo)
 		if not asset:
 			logger.warning(f"Skipping analysis for {ticker}: No data cached.")
 			return None
@@ -104,29 +103,11 @@ def _tracked_analyze_asset(
 
 def _fetch_batch_process_worker(
 	batch_tickers: List[str], current_cooldown: float = 5.0
-) -> Tuple[bool, float]:
+) -> Tuple[bool, float, Dict[str, Any]]:
 	"""Worker function for ProcessPoolExecutor to fetch data."""
-	# Re-import inside process to avoid issues
 	from core.openbb_client import fetch_batch_with_backoff
 
 	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
-
-
-def _persist_batch_to_db(tickers: List[str], repo: DatabaseRepository) -> None:
-	"""
-	Load each ticker's file cache and write the payload to raw_provider_data.
-
-	Args:
-		tickers: List of ticker symbols whose file cache was just populated.
-		repo: Database repository for persistence.
-	"""
-	for ticker in tickers:
-		data = load_cached_data(ticker)
-		if data:
-			try:
-				repo.upsert_raw_provider_data(ticker, "yfinance", data)
-			except Exception as e:
-				logger.warning(f"Failed to persist raw data for {ticker}: {e}")
 
 
 async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inherent to error-handling branches
@@ -166,13 +147,19 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 		current_cooldown = 5.0
 		for batch in batches:
 			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
-			success, current_cooldown = _fetch_batch_process_worker(
+			success, current_cooldown, data = _fetch_batch_process_worker(
 				batch, current_cooldown
 			)
 			if success:
 				yield batch
 				if repo:
-					_persist_batch_to_db(batch, repo)
+					for symbol, payload in data.items():
+						try:
+							repo.upsert_raw_provider_data(symbol, "yfinance", payload)
+						except Exception as e:
+							logger.warning(
+								f"Failed to persist raw data for {symbol}: {e}"
+							)
 		return
 
 	# PR Feedback: Use get_running_loop() (modern asyncio)
@@ -191,7 +178,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 		# Yield batches as they complete to enable pipelining
 		for completed_task in asyncio.as_completed(list(tasks_map.keys())):
 			try:
-				success, _ = await completed_task
+				success, _, data = await completed_task
 				# Find the original task future to get the batch from tasks_map
 				# We need to find which future in tasks_map was completed
 				for task_future, batch in tasks_map.items():
@@ -200,7 +187,15 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 						if success:
 							yield batch
 							if repo:
-								_persist_batch_to_db(batch, repo)
+								for symbol, payload in data.items():
+									try:
+										repo.upsert_raw_provider_data(
+											symbol, "yfinance", payload
+										)
+									except Exception as e:
+										logger.warning(
+											f"Failed to persist raw data for {symbol}: {e}"
+										)
 						break
 			except Exception as e:
 				logger.error(f"Batch fetch task failed: {e}")

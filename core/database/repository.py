@@ -147,6 +147,45 @@ class DatabaseRepository:
 			)
 			conn.commit()
 
+	def should_use_db_cache(self, symbol: str, provider: str = "yfinance") -> bool:
+		"""
+		Check if raw_provider_data has a fresh enough payload for this symbol.
+		TTL: 15 min when market open, 12 h when closed — mirrors the old file-cache TTL.
+
+		Args:
+			symbol: The asset ticker symbol.
+			provider: The data provider name.
+
+		Returns:
+			True if the cached payload is within TTL, False otherwise.
+		"""
+		import time
+		from datetime import datetime
+
+		from core.utils.market import is_market_open
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT timestamp FROM raw_provider_data WHERE symbol = ? AND provider = ?",
+				(symbol.upper(), provider),
+			)
+			row = cursor.fetchone()
+
+		if not row:
+			return False
+
+		try:
+			ts = datetime.fromisoformat(row["timestamp"])
+		except (ValueError, TypeError):
+			return False
+
+		elapsed = time.time() - ts.timestamp()
+		if is_market_open():
+			return elapsed < 900  # 15 min
+		return elapsed < 43200  # 12 h
+
 	def upsert_raw_provider_data(self, symbol: str, provider: str, data: dict) -> None:
 		"""
 		Insert or update the raw JSON payload for a symbol/provider pair.

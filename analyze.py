@@ -253,12 +253,11 @@ def main():  # noqa: C901 — CLI orchestrator, complexity is inherent to arg di
 	if args.history:
 		_handle_history_request(repo, tickers, args.profile)
 
-	from core.openbb_client import should_use_cache
-	from core.orchestrator import _persist_batch_to_db, fetch_data
+	from core.orchestrator import fetch_data
 
 	all_analysis_results = []
-	cached_tickers = [t for t in tickers if should_use_cache(t)]
-	missing_tickers = [t for t in tickers if not should_use_cache(t)]
+	cached_tickers = [t for t in tickers if repo.should_use_db_cache(t)]
+	missing_tickers = [t for t in tickers if not repo.should_use_db_cache(t)]
 
 	def progress_cb(res):
 		if len(tickers) == 1:
@@ -272,12 +271,11 @@ def main():  # noqa: C901 — CLI orchestrator, complexity is inherent to arg di
 			)
 
 	async def pipeline():
-		# Phase 1: Analyze already cached data immediately; persist file cache to DB
+		# Phase 1: Analyze already cached data immediately (already in DB)
 		if cached_tickers:
 			console.print(
 				f"[bold green]Analyzing {len(cached_tickers)} already cached asset(s)...[/bold green]"
 			)
-			_persist_batch_to_db(cached_tickers, repo)
 			results = _execute_analysis(args, repo, cached_tickers, progress_cb)
 			all_analysis_results.extend(results)
 

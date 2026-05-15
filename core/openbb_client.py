@@ -1,14 +1,12 @@
-import json
 import os
 import random
 import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from config import CACHE_DIR, PROXIES
+from config import PROXIES
 from core.logger import get_logger
 from core.stats import stats
-from core.utils.market import is_market_open
 
 logger = get_logger(__name__)
 
@@ -54,25 +52,6 @@ class ProxyManager:
 
 
 proxy_manager = ProxyManager(PROXIES)
-
-
-def should_use_cache(ticker_symbol: str) -> bool:
-	"""
-	Determine if the local cache should be used for a given ticker.
-	Uses market hours logic to decide on TTL.
-	"""
-	cache_file = CACHE_DIR / f"{ticker_symbol.upper()}.json"
-	if not cache_file.exists():
-		return False
-
-	# If market is open, use a short TTL (15 mins)
-	# If market is closed, use a long TTL (12 hours)
-	mtime = cache_file.stat().st_mtime
-	elapsed_seconds = time.time() - mtime
-
-	if is_market_open():
-		return elapsed_seconds < 900  # 15 mins
-	return elapsed_seconds < 43200  # 12 hours
 
 
 def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) -> Any:
@@ -197,28 +176,24 @@ def _fetch_etf_info_bulk(
 				pass  # nosec B110
 
 
-def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
-	"""Save combined data results to individual cache files."""
-	CACHE_DIR.mkdir(parents=True, exist_ok=True)
-	success_count = 0
-	for s, data in bulk_combined.items():
-		if len(data) > 1:  # More than just the 'symbol' key
-			cache_file = CACHE_DIR / f"{s}.json"
-			cache_file.write_text(json.dumps(data, default=str, indent="\t"))
-			success_count += 1
-	return success_count
-
-
-def fetch_openbb_data_bulk(tickers: List[str]) -> bool:
+def fetch_openbb_data_bulk(
+	tickers: List[str],
+) -> Tuple[bool, Dict[str, Dict[str, Any]]]:
 	"""
 	Bulk fetch data for multiple tickers to minimize API round-trips.
 	This is significantly more efficient than fetching individually.
+	All tickers are pre-filtered by the main process; no file-cache checks here.
+
+	Args:
+		tickers: List of ticker symbols to fetch.
+
+	Returns:
+		Tuple of (critical_success, data_dict) where data_dict maps symbol to raw payload.
 	"""
-	to_fetch = [t.upper() for t in tickers if not should_use_cache(t)]
+	to_fetch = [t.upper() for t in tickers]
 
 	if not to_fetch:
-		logger.info("All symbols in bulk request already cached.")
-		return True
+		return True, {}
 
 	proxy_manager.rotate()
 	from openbb import obb
@@ -237,21 +212,21 @@ def fetch_openbb_data_bulk(tickers: List[str]) -> bool:
 			)
 		except RateLimitError as e:
 			logger.error(f"Bulk fetch RATE LIMITED: {e}")
-			return False
+			return False, {}
 
 		_fetch_etf_info_bulk(obb, bulk_combined, provider)
-		success_count = _save_bulk_results_to_cache(bulk_combined)
 
+		result = {s: d for s, d in bulk_combined.items() if len(d) > 1}
 		logger.info(
-			f"Bulk fetch phase complete. Cached {len(bulk_combined)} files ({success_count} with data)."
+			f"Bulk fetch phase complete. {len(result)}/{len(bulk_combined)} symbols with data."
 		)
 		stats.api_successes += 1
-		return critical_success
+		return critical_success, result
 
 	except Exception as e:
 		logger.error(f"OpenBB bulk fetch critical failure: {e}")
 		stats.errors += 1
-		return False
+		return False, {}
 
 
 def _merge_single_res(res: Any, combined_data: Dict[str, Any]) -> None:
@@ -265,39 +240,12 @@ def _merge_single_res(res: Any, combined_data: Dict[str, Any]) -> None:
 				combined_data[k] = v
 
 
-def load_cached_data(ticker_symbol: str) -> Optional[Dict[str, Any]]:
-	"""
-	Strict offline loading. Does not fallback to network.
-	"""
-	ticker_symbol = ticker_symbol.upper()
-	cache_file = CACHE_DIR / f"{ticker_symbol}.json"
-
-	if cache_file.exists():
-		try:
-			logger.info(f"Loaded strict offline data for {ticker_symbol}")
-			stats.cache_hits += 1
-			return json.loads(cache_file.read_text())
-		except Exception as e:
-			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
-	return None
-
-
 def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 	"""
 	Fetch standardized data via OpenBB Platform using multiple endpoints.
-	Handles intelligent caching based on market hours and robust rate limiting.
+	Single-ticker live fetch fallback — no file-cache reads or writes.
 	"""
 	ticker_symbol = ticker_symbol.upper()
-	cache_file = CACHE_DIR / f"{ticker_symbol}.json"
-
-	if should_use_cache(ticker_symbol):
-		try:
-			if not stats.is_fetched(ticker_symbol):
-				logger.info(f"Cache hit for {ticker_symbol}")
-				stats.cache_hits += 1
-			return json.loads(cache_file.read_text())
-		except Exception as e:
-			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
 
 	proxy_manager.rotate()
 	from openbb import obb
@@ -339,8 +287,6 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 			time.sleep(random.uniform(2.0, 4.0))  # nosec B311 - jitter
 			return {}
 
-		CACHE_DIR.mkdir(parents=True, exist_ok=True)
-		cache_file.write_text(json.dumps(combined_data, default=str, indent="\t"))
 		stats.api_successes += 1
 		time.sleep(random.uniform(0.6, 1.2))  # nosec B311 - jitter
 		return combined_data
@@ -368,7 +314,7 @@ def probe_api(ticker: str) -> bool:
 	ticker = ticker.upper().strip()
 	proxy_manager.rotate()
 	try:
-		# Directly call the SDK to bypass our local CACHE_DIR logic
+		# Directly call the SDK to ensure a real network request
 		obb.equity.profile(symbol=ticker, provider="yfinance")
 		return True
 	except Exception as e:
@@ -386,8 +332,17 @@ def probe_api(ticker: str) -> bool:
 
 def fetch_batch_with_backoff(
 	batch_tickers: List[str], current_cooldown: float
-) -> Tuple[bool, float]:
-	"""Attempt to fetch a batch of tickers with retry and backoff using adaptive probing."""
+) -> Tuple[bool, float, Dict[str, Dict[str, Any]]]:
+	"""
+	Attempt to fetch a batch of tickers with retry and backoff using adaptive probing.
+
+	Args:
+		batch_tickers: List of ticker symbols to fetch.
+		current_cooldown: Current cooldown duration in seconds.
+
+	Returns:
+		Tuple of (success, new_cooldown, data_dict) where data_dict maps symbol to raw payload.
+	"""
 	import time
 
 	base_cooldown = 5.0
@@ -395,8 +350,9 @@ def fetch_batch_with_backoff(
 
 	for attempt in range(2):
 		try:
-			if fetch_openbb_data_bulk(batch_tickers):
-				return True, base_cooldown
+			success, data = fetch_openbb_data_bulk(batch_tickers)
+			if success:
+				return True, base_cooldown, data
 
 			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
 
@@ -415,7 +371,7 @@ def fetch_batch_with_backoff(
 					logger.error(
 						f"Max probe attempts ({max_probe_attempts}) reached for {probe_ticker}. Aborting batch."
 					)
-					return False, current_cooldown
+					return False, current_cooldown, {}
 
 				current_cooldown = min(current_cooldown * 2, max_cooldown)
 				logger.warning(
@@ -433,4 +389,4 @@ def fetch_batch_with_backoff(
 			time.sleep(current_cooldown)
 			current_cooldown = min(current_cooldown * 2, max_cooldown)
 			break
-	return False, current_cooldown
+	return False, current_cooldown, {}
