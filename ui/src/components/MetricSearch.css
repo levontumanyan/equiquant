@@ -1,0 +1,10 @@
+.metric-search { position: relative; width: 100%; }
+.search-bar { display: flex; align-items: center; background-color: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 0.5rem 0.8rem; }
+.search-icon { color: #888; }
+.metric-input { border: none; outline: none; padding: 0.5rem 0.5rem 0.5rem 0.8rem; flex-grow: 1; background: transparent; color: white; }
+.add-manual-btn { background: #646cff; border: none; cursor: pointer; padding: 0.4rem; border-radius: 6px; color: white; transition: opacity 0.2s; }
+.metric-dropdown { position: absolute; top: 110%; left: 0; right: 0; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; z-index: 100; max-height: 200px; overflow-y: auto; }
+.dropdown-item { display: flex; justify-content: space-between; width: 100%; padding: 0.8rem; text-align: left; background: none; border: none; cursor: pointer; color: white; }
+.dropdown-item:hover { background: none; }
+.item-key { font-weight: 600; font-size: 0.9rem; }
+.item-name { color: #888; font-size: 0.85rem; }
