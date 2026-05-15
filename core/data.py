@@ -1,9 +1,12 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from core.database.repository import DatabaseRepository
 
 from .providers.openbb_provider import OpenBBProvider
 from .schema import AssetData, AssetType
+
+logger = logging.getLogger(__name__)
 
 
 def load_benchmarks(
@@ -110,8 +113,8 @@ def get_stock_data(
 	if asset and repo:
 		try:
 			repo.upsert_raw_provider_data(symbol, "yfinance", asset.raw_data)
-		except Exception:
-			pass
+		except Exception as e:
+			logger.warning(f"Failed to cache raw data for {symbol}: {e}")
 	return asset
 
 
