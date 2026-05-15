@@ -36,7 +36,6 @@
 - When you try to test use always: `uv run python -m pytest ...`
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
 - When you add any new `uv` package make sure to distinguish between dev level packages or user level. Most things should be in dev to keep the user install as small as possible.
-- **UI Testing**: Use **Playwright** for all UI layout and regression testing to verify that components render correctly within their expected container boundaries. Ensure layout tests are included for new UI features.
 
 ## Subagent & Data Access
 - **Debug Tools**: Use `tests/debug_raw_data.py <ticker>` to inspect raw OpenBB responses across multiple endpoints for troubleshooting.
