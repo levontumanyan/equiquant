@@ -65,3 +65,37 @@ Reserve `make check` only for a final sanity check before opening a PR, if at al
 - **Debug Tools**: Use `tests/debug_raw_data.py <ticker>` to inspect raw OpenBB responses across multiple endpoints for troubleshooting.
 - **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.
 - **Fallbacks**: If a high-level tool (like `read_file`) fails due to ignore patterns, use `run_shell_command` with `cat` to ingest the data.
+
+# Caching & DB Architecture (as of #118)
+
+There is **no file cache** for provider data. Everything flows through SQLite.
+
+## Two-tier DB cache
+```
+raw_provider_data(symbol, provider, timestamp, data_json)   ← source of truth
+  PK: (symbol, provider) — always latest payload only
+  Written by: fetch_openbb_data_bulk returns Dict via IPC → orchestrator writes BEFORE yield
+  Read by: get_cached_stock_data(ticker, repo)
+
+analysis_snapshots(symbol, profile, total_score, benchmark_version, timestamp)
+  results_json is intentionally NULL — re-score from raw_provider_data instead
+```
+
+## TTL / freshness check
+`repo.should_use_db_cache(symbol)` queries `raw_provider_data.timestamp`:
+- Market open → 15 min TTL
+- Market closed → 12 h TTL
+
+## Fetch flow
+1. `analyze.py` / `api.py` splits tickers via `repo.should_use_db_cache()`
+2. Missing tickers → `fetch_data(tickers, repo=repo)` → subprocess fetches from OpenBB
+3. Subprocess returns `Tuple[bool, float, Dict[str, Dict]]` via pickle IPC (no disk write)
+4. Orchestrator writes dict to `raw_provider_data` **before** yielding the batch
+5. `_tracked_analyze_asset` reads from DB via `get_cached_stock_data(ticker, repo)`
+
+## DB schema — static config tables (must be seeded, see issue #64)
+`global_benchmarks`, `sector_benchmarks`, `investor_profiles`, `profile_metric_settings`
+
+## Known gaps
+- `profile_metric_settings` exists in schema but has no data seeded → profile weights always fall back to benchmark defaults. Scoring still works but profiles have no effect. Fix tracked in #64.
+- `market_analysis.db` is gitignored but still in git history. BFG cleanup tracked in #64.
