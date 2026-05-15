@@ -1,8 +1,8 @@
 import asyncio
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -101,37 +101,88 @@ def _tracked_analyze_asset(
 		stats.record_task_complete(worker_time)
 
 
+def _fetch_batch_process_worker(
+	batch_tickers: List[str], current_cooldown: float = 5.0
+) -> Tuple[bool, float]:
+	"""Worker function for ProcessPoolExecutor to fetch data."""
+	# Re-import inside process to avoid issues
+	from core.openbb_client import fetch_batch_with_backoff
+
+	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
+
+
 async def fetch_data(
 	tickers: List[str],
 	batch_size: int = 20,
-) -> bool:
+	use_processes: bool = True,
+) -> AsyncIterator[List[str]]:
 	"""
-	Fetch data for multiple tickers in batches with backoff and retry.
+	Fetch data for multiple tickers in parallel batches and yield successful batches.
+	Enables pipelining where analysis can start before all fetching is done.
 	"""
-	logger.info(f"Starting data fetch for {len(tickers)} tickers")
-	current_cooldown = 5.0
-	overall_success = True
+	# PR Feedback: Normalize symbols early and consistently
+	tickers = [t.upper().strip() for t in tickers if t.strip()]
+	logger.info(
+		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes}, batch_size={batch_size})"
+	)
 
-	for i in range(0, len(tickers), batch_size):
-		batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-		logger.info(f"Fetching batch: {batch_tickers}")
+	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
 
-		from core.openbb_client import fetch_batch_with_backoff
+	if not batches:
+		return
 
-		success, current_cooldown = await asyncio.to_thread(
-			fetch_batch_with_backoff, batch_tickers, current_cooldown
-		)
+	if use_processes:
+		# Pre-initialize OpenBB in main process to avoid concurrent build locks in workers.
+		# This ensures extensions are built and locked once before spawning parallel processes.
+		try:
+			from openbb import obb
 
-		if not success:
-			overall_success = False
-			logger.warning(f"Batch {i // batch_size + 1} failed partially or fully.")
+			logger.info("Initializing OpenBB Platform...")
+			# Accessing a core extension triggers the build process if needed
+			_ = obb.equity
+		except Exception as e:
+			logger.debug(f"OpenBB pre-initialization skipped or failed: {e}")
 
-		if i + batch_size < len(tickers):
-			# Jittered wait between batches; B311 safe.
-			await asyncio.sleep(random.uniform(2.0, 4.0))  # nosec B311
+	if not use_processes:
+		current_cooldown = 5.0
+		for batch in batches:
+			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
+			success, current_cooldown = _fetch_batch_process_worker(
+				batch, current_cooldown
+			)
+			if success:
+				yield batch
+		return
 
-	logger.info(f"Data fetch complete. Success: {overall_success}")
-	return overall_success
+	# PR Feedback: Use get_running_loop() (modern asyncio)
+	loop = asyncio.get_running_loop()
+	# Always use ProcessPoolExecutor to avoid signal issues in threads
+	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
+	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
+		tasks_map = {}
+		for batch in batches:
+			# Use loop.run_in_executor to spawn the worker
+			task = loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
+			tasks_map[task] = batch
+			# Stagger the task submission slightly for better responsiveness
+			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
+
+		# Yield batches as they complete to enable pipelining
+		for completed_task in asyncio.as_completed(list(tasks_map.keys())):
+			try:
+				success, _ = await completed_task
+				# Find the original task future to get the batch from tasks_map
+				# We need to find which future in tasks_map was completed
+				for task_future, batch in tasks_map.items():
+					if task_future.done() and not hasattr(task_future, "_yielded"):
+						task_future._yielded = True
+						if success:
+							yield batch
+						break
+			except Exception as e:
+				logger.error(f"Batch fetch task failed: {e}")
+
+	logger.info("Data fetch complete.")
 
 
 def run_bulk_analysis(

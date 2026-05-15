@@ -216,6 +216,18 @@ def _handle_special_flags(args):
 		sys.exit(0)
 
 
+def _execute_analysis(args, repo, tickers, progress_cb=None) -> List[Dict[str, Any]]:
+	"""Execute analysis for a given set of tickers and return results."""
+	return run_bulk_analysis(
+		tickers,
+		args.profile,
+		progress_cb,
+		repo=repo,
+		benchmark_version=args.benchmark_version,
+		max_workers=args.workers,
+	)
+
+
 def main():
 	args, parser = _parse_args()
 	setup_logging(verbose=args.verbose)
@@ -241,14 +253,15 @@ def main():
 	if args.history:
 		_handle_history_request(repo, tickers, args.profile)
 
-	stats.start_stage("Analysis & Scoring")
-	is_bulk = len(tickers) > 1
-	console.print(
-		f"[bold green]Analyzing {len(tickers)} asset(s) with [cyan]{args.profile.upper()}[/cyan] profile[/bold green]"
-	)
+	from core.openbb_client import should_use_cache
+	from core.orchestrator import fetch_data
+
+	all_analysis_results = []
+	cached_tickers = [t for t in tickers if should_use_cache(t)]
+	missing_tickers = [t for t in tickers if not should_use_cache(t)]
 
 	def progress_cb(res):
-		if not is_bulk:
+		if len(tickers) == 1:
 			display_individual_results(
 				res["symbol"],
 				res["name"],
@@ -258,20 +271,39 @@ def main():
 				res.get("industry"),
 			)
 
-	all_analysis_results = run_bulk_analysis(
-		tickers,
-		args.profile,
-		progress_cb,
-		repo=repo,
-		benchmark_version=args.benchmark_version,
-		max_workers=args.workers,
-	)
+	async def pipeline():
+		# Phase 1: Analyze already cached data immediately
+		if cached_tickers:
+			console.print(
+				f"[bold green]Analyzing {len(cached_tickers)} already cached asset(s)...[/bold green]"
+			)
+			results = _execute_analysis(args, repo, cached_tickers, progress_cb)
+			all_analysis_results.extend(results)
+
+		# Phase 2: Fetch and analyze missing data in parallel
+		if missing_tickers:
+			stats.start_stage("Data Acquisition")
+			console.print(
+				f"[bold yellow]Fetching and analyzing {len(missing_tickers)} missing asset(s)...[/bold yellow]"
+			)
+			async for batch in fetch_data(missing_tickers):
+				# Analyze this batch immediately as it arrives
+				results = _execute_analysis(args, repo, batch, progress_cb)
+				all_analysis_results.extend(results)
+			stats.end_stage("Data Acquisition")
+
+	import asyncio
+
+	stats.start_stage("Analysis & Scoring")
+	asyncio.run(pipeline())
 	stats.analyzed_tickers = len(all_analysis_results)
 	stats.end_stage("Analysis & Scoring")
 
+	# Phase 3: Final Reporting
 	stats.start_stage("Reporting")
-	if is_bulk and all_analysis_results:
+	if len(tickers) > 1 and all_analysis_results:
 		display_summary_table(all_analysis_results)
+
 	if args.export and all_analysis_results:
 		export_path = generate_report(
 			all_analysis_results,

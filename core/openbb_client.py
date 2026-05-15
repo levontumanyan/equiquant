@@ -96,7 +96,7 @@ def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) ->
 
 		except Exception as e:
 			err_str = str(e).lower()
-			if "429" in err_str or "rate limit" in err_str:
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 				# Test expects FAIL FAST (no retries) for 429 in individual fetches
 				raise RateLimitError(f"Rate limited for {symbol}")
 
@@ -104,6 +104,7 @@ def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) ->
 			if attempt == max_retries:
 				raise e
 	return None
+
 
 def _fetch_bulk_endpoints(
 	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict[str, Dict[str, Any]]
@@ -125,7 +126,11 @@ def _fetch_bulk_endpoints(
 				for r in res.results:
 					s = r.symbol.upper()
 					if s in bulk_combined:
-						bulk_combined[s].update(r.model_dump())
+						# Safe merge: only overwrite if value is not None
+						data = r.model_dump()
+						for k, v in data.items():
+							if v is not None or k not in bulk_combined[s]:
+								bulk_combined[s][k] = v
 			else:
 				logger.warning(f"No results returned for bulk {label}")
 				# If even basic profile fails, we mark partial failure
@@ -149,7 +154,7 @@ def _fetch_with_retry_bulk(
 			return func(symbol=symbol_str, provider=provider)
 		except Exception as e:
 			err_str = str(e).lower()
-			if "429" in err_str or "rate limit" in err_str:
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)  # nosec B311
 				logger.warning(
 					f"Rate limited during bulk fetch. Waiting {wait_time:.1f}s..."
@@ -178,7 +183,10 @@ def _fetch_etf_info_bulk(
 			try:
 				res = _fetch_with_retry(obb.etf.info, s, provider)
 				if res and hasattr(res, "results") and res.results:
-					bulk_combined[s].update(res.results[0].model_dump())
+					data = res.results[0].model_dump()
+					for k, v in data.items():
+						if v is not None or k not in bulk_combined[s]:
+							bulk_combined[s][k] = v
 			except Exception:
 				pass  # nosec B110
 
@@ -359,7 +367,7 @@ def probe_api(ticker: str) -> bool:
 		return True
 	except Exception as e:
 		err_str = str(e).lower()
-		if "429" in err_str or "rate limit" in err_str:
+		if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 			logger.warning(f"Rate-limit probe failed for {ticker}.")
 			return False
 		# For other errors, assume the API is at least reachable or it's a transient data error
