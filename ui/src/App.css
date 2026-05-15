@@ -23,7 +23,7 @@ body {
 	max-width: 1200px;
 	width: 100%;
 	margin: 0 auto;
-	padding: 0 2rem 5rem 2rem;
+	padding: 1.5rem 2rem 5rem 2rem;
 	display: flex;
 	flex-direction: column;
 }
@@ -33,9 +33,8 @@ body {
 	justify-content: space-between;
 	align-items: center;
 	width: 100%;
-	padding: 0.5rem 0;
+	padding: 0.5rem 2rem;
 	border-bottom: 1px solid #333;
-	margin-bottom: 1.5rem;
 	position: sticky;
 	top: 0;
 	background-color: #1a1a1a;
@@ -43,6 +42,7 @@ body {
 	min-height: 4rem;
 	transition: all 0.4s ease;
 	gap: 1rem;
+	box-sizing: border-box;
 }
 
 .header-left-slot {
@@ -74,13 +74,20 @@ body {
 	width: 100%;
 }
 
-.logo-title-large {
-	font-size: 4rem;
+.logo-title {
+	font-size: 1.3rem;
 	font-weight: 800;
 	color: white;
-	margin: 0 0 0 -1.5rem;
-	letter-spacing: -0.04em;
+	-webkit-text-fill-color: white;
+	margin: 0;
+	letter-spacing: -0.03em;
 	transition: all 0.4s ease;
+}
+
+.logo-title.logo-title-large {
+	font-size: 4rem;
+	margin-left: -1.5rem;
+	letter-spacing: -0.04em;
 }
 
 .logo-link {
@@ -90,6 +97,7 @@ body {
 	cursor: pointer;
 	display: flex;
 	align-items: center;
+	gap: 0.6rem;
 }
 
 .logo-link:hover {
@@ -112,23 +120,47 @@ body {
 	width: 8em;
 }
 
-.logo:hover {
+.logo-link:hover .logo {
 	animation: logo-pulse 1.5s ease-in-out infinite;
 }
 
+.logo-link:hover .logo-title {
+	background-image: linear-gradient(
+		90deg,
+		#fff       0%,
+		#fff       5%,
+		#0ea5e9    8%,
+		#bae6fd   10%,
+		#ffffff   11%,
+		#bae6fd   12%,
+		#0ea5e9   14%,
+		#fff      17%,
+		#fff      42%,
+		#38bdf8   45%,
+		#e0f2fe  46.5%,
+		#ffffff   47%,
+		#e0f2fe  47.5%,
+		#38bdf8   49%,
+		#fff      52%,
+		#fff     100%
+	);
+	background-size: 400% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	animation: lightning-sweep 1.6s ease-in-out infinite;
+	text-shadow: none;
+}
+
 @keyframes logo-pulse {
-	0% {
-		filter: invert(1) brightness(1);
-		opacity: 0.8;
-	}
-	50% {
-		filter: invert(1) brightness(1.6);
-		opacity: 1;
-	}
-	100% {
-		filter: invert(1) brightness(1);
-		opacity: 0.8;
-	}
+	0%   { filter: invert(1) brightness(1);   opacity: 0.8; }
+	50%  { filter: invert(1) brightness(1.6); opacity: 1;   }
+	100% { filter: invert(1) brightness(1);   opacity: 0.8; }
+}
+
+@keyframes lightning-sweep {
+	0%   { background-position: 110% center; }
+	100% { background-position: -200% center; }
 }
 
 .app-nav {
