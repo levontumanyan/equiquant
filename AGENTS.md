@@ -42,8 +42,9 @@ NEVER run the full test suite speculatively. Follow this strict sequence:
 5. Push → pre-push runs integration + acceptance + security scans automatically
 ```
 
-NEVER run `make check` or the integration suite during development iteration.
-Reserve `make check` only for a final sanity check before opening a PR, if at all.
+- NEVER run `make check` or the integration suite during development iteration.
+- Reserve `make check` only for a final sanity check before opening a PR, if at all.
+- If you are making changes to a test, don't then run the whole suite to check if that test passes. Only check that particular test.
 
 # Test authoring rules
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
