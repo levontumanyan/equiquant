@@ -168,6 +168,82 @@ class DatabaseRepository:
 			)
 			conn.commit()
 
+	def bulk_save_analyses(
+		self, analyses: List[dict], profile: str, benchmark_version: str = "1.0.0"
+	):
+		"""Perform a single bulk transaction to save multiple analysis results."""
+		import json
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			try:
+				for res in analyses:
+					# Upsert asset
+					cursor.execute(
+						"""
+						INSERT INTO assets (symbol, name, asset_type, sector, industry, last_updated)
+						VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+						ON CONFLICT(symbol) DO UPDATE SET
+							name = COALESCE(excluded.name, assets.name),
+							asset_type = COALESCE(excluded.asset_type, assets.asset_type),
+							sector = COALESCE(excluded.sector, assets.sector),
+							industry = COALESCE(excluded.industry, assets.industry),
+							last_updated = CURRENT_TIMESTAMP
+					""",
+						(
+							res["symbol"],
+							res.get("name"),
+							res["asset_type"].value,
+							res.get("sector"),
+							res.get("industry"),
+						),
+					)
+
+					# Insert metric history
+					for r in res["results"]:
+						metric_key = r.get("metric")
+						val = r.get("raw_value")
+						if metric_key and val is not None:
+							try:
+								cursor.execute(
+									"""
+									INSERT INTO metrics_history (symbol, metric_key, value)
+									VALUES (?, ?, ?)
+								""",
+									(res["symbol"], metric_key, float(val)),
+								)
+							except (ValueError, TypeError):
+								pass
+
+					# Insert snapshot
+					results_summary = [
+						{
+							"metric": r["metric"],
+							"value": r["value"],
+							"score": r["score"],
+							"weight": r["weight"],
+						}
+						for r in res["results"]
+					]
+					cursor.execute(
+						"""
+						INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
+						VALUES (?, ?, ?, ?, ?)
+					""",
+						(
+							res["symbol"],
+							profile,
+							res["score"],
+							json.dumps(results_summary),
+							benchmark_version,
+						),
+					)
+				conn.commit()
+			except Exception as e:
+				conn.rollback()
+				raise e
+
 	def get_historical_scores(self, symbol: str, profile: str) -> List[dict]:
 		"""Get historical analysis snapshots for a specific symbol and profile."""
 		with self._lock:

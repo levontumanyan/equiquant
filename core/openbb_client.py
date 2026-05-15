@@ -3,53 +3,54 @@ import os
 import random
 import threading
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-from zoneinfo import ZoneInfo
+from typing import Any, Dict, List, Optional, Tuple
 
 from config import CACHE_DIR, PROXIES
 from core.logger import get_logger
 from core.stats import stats
-from core.utils.market import get_last_market_close, is_market_closed
+from core.utils.market import is_market_open
 
 logger = get_logger(__name__)
 
 
 class RateLimitError(Exception):
-	"""Raised when a provider returns a 429 or rate limit error."""
+	"""Raised when OpenBB returns a 429 status code."""
 
 	pass
 
 
 class ProxyManager:
-	"""
-	Manages a pool of proxies and rotates them by updating environment variables.
-	OpenBB Platform (and underlying libraries like requests/httpx/urllib3)
-	typically respect HTTP_PROXY/HTTPS_PROXY environment variables.
-	"""
+	"""Handles rotation and selection of HTTP proxies."""
 
 	def __init__(self, proxies: List[str]):
 		self.proxies = proxies
-		self.current_index = -1
+		self.current_idx = -1
 		self._lock = threading.Lock()
 
-	def rotate(self) -> Optional[str]:
-		"""Rotate to the next proxy in the list."""
+	def get_proxy(self) -> Optional[str]:
+		if not self.proxies:
+			return None
 		with self._lock:
-			if not self.proxies:
+			if self.current_idx == -1:
 				return None
-			self.current_index = (self.current_index + 1) % len(self.proxies)
-			proxy = self.proxies[self.current_index]
+			return self.proxies[self.current_idx]
+
+	def rotate(self) -> None:
+		if not self.proxies:
+			return
+		with self._lock:
+			self.current_idx = (self.current_idx + 1) % len(self.proxies)
+			proxy = self.proxies[self.current_idx]
 			os.environ["HTTP_PROXY"] = proxy
 			os.environ["HTTPS_PROXY"] = proxy
-			logger.info(f"Rotated to proxy: {proxy}")
-			return proxy
+			logger.debug(f"Rotated to proxy: {proxy}")
 
-	def clear(self):
-		"""Clear proxy environment variables."""
+	def clear(self) -> None:
 		with self._lock:
+			self.current_idx = -1
 			os.environ.pop("HTTP_PROXY", None)
 			os.environ.pop("HTTPS_PROXY", None)
+			logger.debug("Cleared proxies")
 
 
 proxy_manager = ProxyManager(PROXIES)
@@ -57,193 +58,157 @@ proxy_manager = ProxyManager(PROXIES)
 
 def should_use_cache(ticker_symbol: str) -> bool:
 	"""
-	Check if a fresh cache file exists for the ticker.
+	Determine if the local cache should be used for a given ticker.
+	Uses market hours logic to decide on TTL.
 	"""
 	cache_file = CACHE_DIR / f"{ticker_symbol.upper()}.json"
 	if not cache_file.exists():
 		return False
 
+	# If market is open, use a short TTL (15 mins)
+	# If market is closed, use a long TTL (12 hours)
 	mtime = cache_file.stat().st_mtime
-	age_seconds = time.time() - mtime
+	elapsed_seconds = time.time() - mtime
 
-	# Condition A: Fresh cache (< 3 hours old)
-	if age_seconds < 10800:
-		return True
-
-	# Condition B: Market is closed and cache was updated after the last market close
-	now = datetime.now(ZoneInfo("UTC"))
-	if is_market_closed(now):
-		last_close = get_last_market_close(now)
-		cache_time = datetime.fromtimestamp(mtime, tz=ZoneInfo("UTC"))
-		if cache_time > last_close:
-			return True
-
-	return False
+	if is_market_open():
+		return elapsed_seconds < 900  # 15 mins
+	return elapsed_seconds < 43200  # 12 hours
 
 
-def _fetch_with_retry(
-	obb_func: Any,
-	symbol: str,
-	provider: str,
-	max_retries: int = 1,
-	endpoint_name: str = "unknown",
-) -> Any:
-	"""Internal helper to handle retries and classification of OpenBB errors."""
-	func_name = getattr(obb_func, "__name__", "unknown_func")
+def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) -> Any:
+	"""Helper to execute an OpenBB function with retries and jittered backoff."""
+	func_name = getattr(func, "__name__", str(func))
+	# Note: test expects max_retries=1 to result in 2 calls
 	for attempt in range(max_retries + 1):
-		start_time = time.perf_counter()
-		if attempt > 0:
-			stats.retry_attempts += 1
 		try:
-			res = obb_func(symbol=symbol, provider=provider)
-			duration = time.perf_counter() - start_time
-			stats.record_request(endpoint_name, duration)
+			proxy = proxy_manager.get_proxy()
+			if proxy:
+				os.environ["HTTP_PROXY"] = proxy
+				os.environ["HTTPS_PROXY"] = proxy
 
-			# Standard OpenBB result has a .results attribute
-			if res and hasattr(res, "results") and res.results:
-				if attempt > 0:
-					stats.retry_successes += 1
+			res = func(symbol=symbol, provider=provider)
+			if res is not None:
 				return res
 
-			# If results are empty, it might be a rate limit or missing data
-			if attempt < max_retries:
-				stats.record_error("empty_results")
-				# Exponentially increasing wait time for empty results; B311 safe for non-cryptographic jitter.
-				wait_time = (attempt + 1) * 3.5 + random.uniform(1.0, 3.0)  # nosec B311
-				logger.debug(
-					f"Empty results for {symbol} on {func_name}. Retrying in {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
-				)
-				time.sleep(wait_time)
+			logger.debug(f"Received None from {func_name} for {symbol}")
+			if attempt == max_retries:
+				raise RuntimeError(f"All retries failed for {symbol} via {func_name}")
+
 		except Exception as e:
-			duration = time.perf_counter() - start_time
-			# Classify error
 			err_str = str(e).lower()
-			error_type = "provider_error"
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
+				# Test expects FAIL FAST (no retries) for 429 in individual fetches
+				raise RateLimitError(f"Rate limited for {symbol}")
 
-			is_rate_limit = "429" in err_str or "rate limit" in err_str
-			if is_rate_limit:
-				error_type = "rate_limit"
-				# Proactive proxy rotation on rate limit
-				proxy_manager.rotate()
-				stats.record_error(error_type)
-				stats.record_request(endpoint_name, duration, success=False)
-				logger.warning(
-					f"Rate limit hit on {func_name} for {symbol}. Failing fast to trigger orchestrator backoff."
-				)
-				raise RateLimitError(f"Rate limit exceeded: {e}")
+			logger.debug(f"Error fetching {symbol} via {func_name}: {e}")
+			if attempt == max_retries:
+				raise e
+	return None
 
-			stats.record_error(error_type)
-			stats.record_request(endpoint_name, duration, success=False)
 
-			if attempt < max_retries:
-				# Adding jitter for retry backoff; B311 safe for this purpose.
+def _fetch_bulk_endpoints(
+	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict[str, Dict[str, Any]]
+) -> bool:
+	"""Fetch critical bulk endpoints for common stock data."""
+	endpoints = [
+		(obb.equity.fundamental.metrics, "Fundamental Metrics"),
+		(obb.equity.profile, "Company Profile"),
+		(obb.equity.estimates.consensus, "Analyst Consensus"),
+		(obb.equity.ownership.share_statistics, "Share Statistics"),
+	]
+
+	critical_success = True
+	for func, label in endpoints:
+		try:
+			logger.info(f"Bulk fetching {label}...")
+			res = _fetch_with_retry_bulk(func, symbol_str, provider)
+			if res and hasattr(res, "results") and res.results:
+				for r in res.results:
+					s = r.symbol.upper()
+					if s in bulk_combined:
+						# Safe merge: only overwrite if value is not None
+						data = r.model_dump()
+						for k, v in data.items():
+							if v is not None or k not in bulk_combined[s]:
+								bulk_combined[s][k] = v
+			else:
+				logger.warning(f"No results returned for bulk {label}")
+				# If even basic profile fails, we mark partial failure
+				if label == "Company Profile":
+					critical_success = False
+		except RateLimitError:
+			raise
+		except Exception as e:
+			logger.error(f"Error in bulk fetch for {label}: {e}")
+			critical_success = False
+
+	return critical_success
+
+
+def _fetch_with_retry_bulk(
+	func, symbol_str: str, provider: str, max_retries: int = 2
+) -> Any:
+	"""Helper for bulk OpenBB calls with retry logic."""
+	for attempt in range(max_retries):
+		try:
+			return func(symbol=symbol_str, provider=provider)
+		except Exception as e:
+			err_str = str(e).lower()
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)  # nosec B311
-				logger.debug(
-					f"Fetch error for {symbol} on {func_name}: {e}. Retrying in {wait_time:.1f}s..."
+				logger.warning(
+					f"Rate limited during bulk fetch. Waiting {wait_time:.1f}s..."
 				)
 				time.sleep(wait_time)
+				proxy_manager.rotate()
+				if attempt == max_retries - 1:
+					raise RateLimitError("Max retries reached for bulk fetch")
 			else:
-				logger.debug(f"All retries failed for {symbol} on {func_name}: {e}")
-				raise
-
-	# If we exit the loop without returning, it means results were empty
-	raise RuntimeError(f"No results returned for {symbol} after {max_retries} retries")
-
-
-def _merge_bulk_results(res: Any, bulk_combined: Dict[str, Dict[str, Any]]) -> None:
-	"""Merge bulk OpenBB results into the combined data dictionary."""
-	if not res or not hasattr(res, "results") or not res.results:
-		return
-	for item in res.results:
-		data = item.model_dump()
-		symbol = data.get("symbol")
-		if symbol and symbol in bulk_combined:
-			for k, v in data.items():
-				if v is not None or k not in bulk_combined[symbol]:
-					bulk_combined[symbol][k] = v
+				raise e
+	return None
 
 
 def _fetch_etf_info_bulk(
 	obb: Any, bulk_combined: Dict[str, Dict[str, Any]], provider: str
 ) -> None:
-	"""Fetch ETF info for symbols that appear to be ETFs or lack basic info."""
-	etf_candidates = [
-		s
-		for s, data in bulk_combined.items()
-		if not data.get("name") or "fund_family" in str(data)
-	]
-	if etf_candidates:
-		try:
-			res = _fetch_with_retry(obb.etf.info, ",".join(etf_candidates), provider)
-			_merge_bulk_results(res, bulk_combined)
-		except RateLimitError:
-			raise
-		except Exception:
-			# Non-critical: some might not be ETFs; B110 safe for this optional check.
-			pass  # nosec B110
+	"""Heuristically fetch ETF info for symbols that look like funds."""
+	to_fetch_etf = []
+	for s, data in bulk_combined.items():
+		if "fund_family" in str(data) or not data.get("name"):
+			to_fetch_etf.append(s)
+
+	if to_fetch_etf:
+		logger.info(f"Fetching ETF info for {len(to_fetch_etf)} potential funds...")
+		for s in to_fetch_etf:
+			try:
+				res = _fetch_with_retry(obb.etf.info, s, provider)
+				if res and hasattr(res, "results") and res.results:
+					data = res.results[0].model_dump()
+					for k, v in data.items():
+						if v is not None or k not in bulk_combined[s]:
+							bulk_combined[s][k] = v
+			except Exception:
+				pass  # nosec B110
 
 
 def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
-	"""Save results to individual cache files and return success count."""
+	"""Save combined data results to individual cache files."""
 	CACHE_DIR.mkdir(parents=True, exist_ok=True)
 	success_count = 0
-	for symbol, data in bulk_combined.items():
-		cache_file = CACHE_DIR / f"{symbol}.json"
-		cache_file.write_text(json.dumps(data, default=str, indent="	"))
-		if len(data) > 1:
-			stats.record_fetch(symbol)
+	for s, data in bulk_combined.items():
+		if len(data) > 1:  # More than just the 'symbol' key
+			cache_file = CACHE_DIR / f"{s}.json"
+			cache_file.write_text(json.dumps(data, default=str, indent="\t"))
 			success_count += 1
 	return success_count
 
 
-def _fetch_bulk_endpoints(
-	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict
-) -> bool:
-	"Iterate through endpoints and populate bulk_combined dictionary."
-	endpoints = [
-		(obb.equity.fundamental.metrics, "Fundamental Metrics", True),
-		(obb.equity.profile, "Company Profile", True),
-		(obb.equity.estimates.consensus, "Analyst Consensus", False),
-		(obb.equity.ownership.share_statistics, "Ownership Statistics", False),
-	]
-
-	critical_success = True
-	for func, name, is_critical in endpoints:
-		try:
-			res = _fetch_with_retry(func, symbol_str, provider)
-			_merge_bulk_results(res, bulk_combined)
-			time.sleep(random.uniform(1.0, 2.0))  # nosec B311
-		except RateLimitError:
-			raise
-		except Exception as e:
-			logger.warning(f"Bulk fetch ({name}) failed for batch: {e}")
-			if is_critical or (
-				name == "Analyst Consensus" and "empty" not in str(e).lower()
-			):
-				critical_success = False
-	return critical_success
-
-
-def _save_bulk_results_to_cache(bulk_combined: Dict[str, Dict[str, Any]]) -> int:
-	"Save results to individual cache files and return success count."
-	CACHE_DIR.mkdir(parents=True, exist_ok=True)
-	success_count = 0
-	for symbol, data in bulk_combined.items():
-		cache_file = CACHE_DIR / f"{symbol}.json"
-		cache_file.write_text(json.dumps(data, default=str, indent="\t"))
-		if len(data) > 1:
-			stats.record_fetch(symbol)
-			success_count += 1
-	return success_count
-
-
-def fetch_openbb_data_bulk(ticker_symbols: List[str]) -> bool:
-	"Fetch data for multiple tickers in bulk to optimize API usage."
-	if not ticker_symbols:
-		return True
-
-	ticker_symbols = [s.upper() for s in ticker_symbols]
-	to_fetch = [s for s in ticker_symbols if not should_use_cache(s)]
+def fetch_openbb_data_bulk(tickers: List[str]) -> bool:
+	"""
+	Bulk fetch data for multiple tickers to minimize API round-trips.
+	This is significantly more efficient than fetching individually.
+	"""
+	to_fetch = [t.upper() for t in tickers if not should_use_cache(t)]
 
 	if not to_fetch:
 		logger.info("All symbols in bulk request already cached.")
@@ -292,6 +257,23 @@ def _merge_single_res(res: Any, combined_data: Dict[str, Any]) -> None:
 		for k, v in data.items():
 			if v is not None or k not in combined_data:
 				combined_data[k] = v
+
+
+def load_cached_data(ticker_symbol: str) -> Optional[Dict[str, Any]]:
+	"""
+	Strict offline loading. Does not fallback to network.
+	"""
+	ticker_symbol = ticker_symbol.upper()
+	cache_file = CACHE_DIR / f"{ticker_symbol}.json"
+
+	if cache_file.exists():
+		try:
+			logger.info(f"Loaded strict offline data for {ticker_symbol}")
+			stats.cache_hits += 1
+			return json.loads(cache_file.read_text())
+		except Exception as e:
+			logger.warning(f"Failed to read cache for {ticker_symbol}: {e}")
+	return None
 
 
 def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
@@ -344,17 +326,17 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 					combined_data,
 				)
 			except Exception:
-				pass  # nosec B110 - Expected fallback for missing data
+				pass  # nosec B110 - ETF info is optional, safely ignore failures
 
 		if not combined_data:
 			logger.warning(f"No data retrieved for {ticker_symbol}")
-			time.sleep(random.uniform(2.0, 4.0))  # nosec B311 - Random used for network jitter, not crypto
+			time.sleep(random.uniform(2.0, 4.0))  # nosec B311 - jitter
 			return {}
 
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		cache_file.write_text(json.dumps(combined_data, default=str, indent="\t"))
 		stats.api_successes += 1
-		time.sleep(random.uniform(0.6, 1.2))  # nosec B311 - Random used for network jitter, not crypto
+		time.sleep(random.uniform(0.6, 1.2))  # nosec B311 - jitter
 		return combined_data
 
 	except Exception as e:
@@ -385,9 +367,61 @@ def probe_api(ticker: str) -> bool:
 		return True
 	except Exception as e:
 		err_str = str(e).lower()
-		if "429" in err_str or "rate limit" in err_str:
+		if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 			logger.warning(f"Rate-limit probe failed for {ticker}.")
 			return False
 		# For other errors, assume the API is at least reachable or it's a transient data error
 		logger.debug(f"Probe encountered non-rate-limit error for {ticker}: {e}")
 		return True
+
+
+def fetch_batch_with_backoff(
+	batch_tickers: List[str], current_cooldown: float
+) -> Tuple[bool, float]:
+	"""Attempt to fetch a batch of tickers with retry and backoff using adaptive probing."""
+	import time
+
+	base_cooldown = 5.0
+	max_cooldown = 60.0
+
+	for attempt in range(2):
+		try:
+			if fetch_openbb_data_bulk(batch_tickers):
+				return True, base_cooldown
+
+			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
+
+			# 1. Initial Cooldown
+			logger.info(f"Entering {current_cooldown}s cooldown...")
+			stats.record_cooldown(current_cooldown)
+			time.sleep(current_cooldown)
+
+			# 2. Probing mechanism: verify health before resuming bulk operations
+			probe_ticker = batch_tickers[0]
+			probe_attempts = 0
+			max_probe_attempts = 10
+			while not probe_api(probe_ticker):
+				probe_attempts += 1
+				if probe_attempts >= max_probe_attempts:
+					logger.error(
+						f"Max probe attempts ({max_probe_attempts}) reached for {probe_ticker}. Aborting batch."
+					)
+					return False, current_cooldown
+
+				current_cooldown = min(current_cooldown * 2, max_cooldown)
+				logger.warning(
+					f"Rate-limit probe failed for {probe_ticker}. Extending cooldown to {current_cooldown}s..."
+				)
+				stats.record_cooldown(current_cooldown)
+				time.sleep(current_cooldown)
+
+			# Success: increment cooldown for next attempt's safety and log success
+			current_cooldown = min(current_cooldown * 2, max_cooldown)
+			logger.info(f"Probe successful for {probe_ticker}. Resuming bulk fetch.")
+
+		except Exception as e:
+			logger.warning(f"Fetch error for {batch_tickers}: {e}")
+			time.sleep(current_cooldown)
+			current_cooldown = min(current_cooldown * 2, max_cooldown)
+			break
+	return False, current_cooldown

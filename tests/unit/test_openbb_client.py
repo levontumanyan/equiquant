@@ -160,6 +160,7 @@ def test_fetch_openbb_data_bulk(mocker, tmp_path):
 		for d in data_list:
 			item = mocker.Mock()
 			item.model_dump.return_value = d
+			item.symbol = d.get("symbol")
 			items.append(item)
 		m.results = items
 		return m

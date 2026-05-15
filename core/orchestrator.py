@@ -1,10 +1,10 @@
-import json
+import asyncio
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
-from core.data import get_stock_data, load_benchmarks
+from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
@@ -67,11 +67,6 @@ def analyze_asset(
 	max_score = sum(res["weight"] for res in results)
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
 
-	if repo:
-		_save_analysis_to_db(
-			repo, asset, profile, final_pct, results, benchmark_version
-		)
-
 	logger.info(f"Analysis complete for {symbol}: {final_pct:.2f}%")
 	return {
 		"symbol": asset.symbol,
@@ -85,106 +80,8 @@ def analyze_asset(
 	}
 
 
-def _save_analysis_to_db(
-	repo: DatabaseRepository,
-	asset: AssetData,
-	profile: str,
-	final_pct: float,
-	results: List[Dict[str, Any]],
-	benchmark_version: str,
-) -> None:
-	"""Save analysis results to the database in a thread-safe manner."""
-	try:
-		repo.upsert_asset(
-			symbol=asset.symbol,
-			name=asset.name,
-			asset_type=asset.asset_type.value,
-			sector=asset.sector,
-			industry=asset.industry,
-		)
-		for res in results:
-			metric_key = res.get("metric")
-			val = res.get("raw_value")
-			if metric_key and val is not None:
-				try:
-					repo.insert_metric_history(asset.symbol, metric_key, float(val))
-				except (ValueError, TypeError):
-					pass
-		results_summary = [
-			{
-				"metric": r["metric"],
-				"value": r["value"],
-				"score": r["score"],
-				"weight": r["weight"],
-			}
-			for r in results
-		]
-		repo.create_analysis_snapshot(
-			symbol=asset.symbol,
-			profile=profile,
-			total_score=final_pct,
-			results_json=json.dumps(results_summary),
-			benchmark_version=benchmark_version,
-		)
-		stats.db_snapshots += 1
-	except Exception as e:
-		logger.error(f"Failed to save to DB for {asset.symbol}: {e}")
-
-
-def _fetch_batch_with_backoff(
-	batch_tickers: List[str], current_cooldown: float
-) -> Tuple[bool, float]:
-	"""Attempt to fetch a batch of tickers with retry and backoff using adaptive probing."""
-	from core.openbb_client import fetch_openbb_data_bulk, probe_api
-
-	base_cooldown = 5.0
-	max_cooldown = 60.0
-
-	for attempt in range(2):
-		try:
-			if fetch_openbb_data_bulk(batch_tickers):
-				return True, base_cooldown
-
-			logger.warning(f"Batch fetch failure. Attempt {attempt + 1}/2")
-
-			# 1. Initial Cooldown
-			logger.info(f"Entering {current_cooldown}s cooldown...")
-			stats.record_cooldown(current_cooldown)
-			time.sleep(current_cooldown)
-
-			# 2. Probing mechanism: verify health before resuming bulk operations
-			probe_ticker = batch_tickers[0]
-			probe_attempts = 0
-			max_probe_attempts = 10
-			while not probe_api(probe_ticker):
-				probe_attempts += 1
-				if probe_attempts >= max_probe_attempts:
-					logger.error(
-						f"Max probe attempts ({max_probe_attempts}) reached for {probe_ticker}. Aborting batch."
-					)
-					return False, current_cooldown
-
-				current_cooldown = min(current_cooldown * 2, max_cooldown)
-				logger.warning(
-					f"Rate-limit probe failed for {probe_ticker}. Extending cooldown to {current_cooldown}s..."
-				)
-				stats.record_cooldown(current_cooldown)
-				time.sleep(current_cooldown)
-
-			# Success: increment cooldown for next attempt's safety and log success
-			current_cooldown = min(current_cooldown * 2, max_cooldown)
-			logger.info(f"Probe successful for {probe_ticker}. Resuming bulk fetch.")
-
-		except Exception as e:
-			logger.warning(f"Fetch error for {batch_tickers}: {e}")
-			time.sleep(current_cooldown)
-			current_cooldown = min(current_cooldown * 2, max_cooldown)
-			break
-	return False, current_cooldown
-
-
 def _tracked_analyze_asset(
-	asset: AssetData,
+	ticker: str,
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
@@ -194,42 +91,98 @@ def _tracked_analyze_asset(
 	stats.record_task_start(queued_latency)
 	start_time = time.perf_counter()
 	try:
+		asset = get_cached_stock_data(ticker)
+		if not asset:
+			logger.warning(f"Skipping analysis for {ticker}: No data cached.")
+			return None
 		return analyze_asset(asset, profile, repo, benchmark_version)
 	finally:
 		worker_time = time.perf_counter() - start_time
 		stats.record_task_complete(worker_time)
 
 
-def run_bulk_fetch(
+def _fetch_batch_process_worker(
+	batch_tickers: List[str], current_cooldown: float = 5.0
+) -> Tuple[bool, float]:
+	"""Worker function for ProcessPoolExecutor to fetch data."""
+	# Re-import inside process to avoid issues
+	from core.openbb_client import fetch_batch_with_backoff
+
+	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
+
+
+async def fetch_data(
 	tickers: List[str],
 	batch_size: int = 20,
-) -> bool:
+	use_processes: bool = True,
+) -> AsyncIterator[List[str]]:
 	"""
-	Fetch data for multiple tickers in batches with backoff and retry.
-	This is the decoupled fetching logic.
+	Fetch data for multiple tickers in parallel batches and yield successful batches.
+	Enables pipelining where analysis can start before all fetching is done.
 	"""
-	logger.info(f"Starting decoupled bulk fetch for {len(tickers)} tickers")
-	current_cooldown = 5.0
-	overall_success = True
+	# PR Feedback: Normalize symbols early and consistently
+	tickers = [t.upper().strip() for t in tickers if t.strip()]
+	logger.info(
+		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes}, batch_size={batch_size})"
+	)
 
-	for i in range(0, len(tickers), batch_size):
-		batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-		logger.info(f"Fetching batch: {batch_tickers}")
+	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
 
-		success, current_cooldown = _fetch_batch_with_backoff(
-			batch_tickers, current_cooldown
-		)
+	if not batches:
+		return
 
-		if not success:
-			overall_success = False
-			logger.warning(f"Batch {i // batch_size + 1} failed partially or fully.")
+	if use_processes:
+		# Pre-initialize OpenBB in main process to avoid concurrent build locks in workers.
+		# This ensures extensions are built and locked once before spawning parallel processes.
+		try:
+			from openbb import obb
 
-		if i + batch_size < len(tickers):
-			# Jittered wait between batches; B311 safe.
-			time.sleep(random.uniform(2.0, 4.0))  # nosec B311
+			logger.info("Initializing OpenBB Platform...")
+			# Accessing a core extension triggers the build process if needed
+			_ = obb.equity
+		except Exception as e:
+			logger.debug(f"OpenBB pre-initialization skipped or failed: {e}")
 
-	logger.info(f"Bulk fetch complete. Success: {overall_success}")
-	return overall_success
+	if not use_processes:
+		current_cooldown = 5.0
+		for batch in batches:
+			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
+			success, current_cooldown = _fetch_batch_process_worker(
+				batch, current_cooldown
+			)
+			if success:
+				yield batch
+		return
+
+	# PR Feedback: Use get_running_loop() (modern asyncio)
+	loop = asyncio.get_running_loop()
+	# Always use ProcessPoolExecutor to avoid signal issues in threads
+	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
+	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
+		tasks_map = {}
+		for batch in batches:
+			# Use loop.run_in_executor to spawn the worker
+			task = loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
+			tasks_map[task] = batch
+			# Stagger the task submission slightly for better responsiveness
+			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
+
+		# Yield batches as they complete to enable pipelining
+		for completed_task in asyncio.as_completed(list(tasks_map.keys())):
+			try:
+				success, _ = await completed_task
+				# Find the original task future to get the batch from tasks_map
+				# We need to find which future in tasks_map was completed
+				for task_future, batch in tasks_map.items():
+					if task_future.done() and not hasattr(task_future, "_yielded"):
+						task_future._yielded = True
+						if success:
+							yield batch
+						break
+			except Exception as e:
+				logger.error(f"Batch fetch task failed: {e}")
+
+	logger.info("Data fetch complete.")
 
 
 def run_bulk_analysis(
@@ -241,49 +194,31 @@ def run_bulk_analysis(
 	max_workers: int = 5,
 ) -> List[Dict[str, Any]]:
 	"""
-	Run analysis for multiple tickers using overlapped fetching and parallel analysis.
+	Run analysis for multiple tickers using parallel processing.
+	Only processes data that is already cached locally.
 	"""
 	logger.info(
 		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers"
 	)
 
 	all_results = []
-	batch_size = 20
-	current_cooldown = 5.0
 
 	with ThreadPoolExecutor(max_workers=max_workers) as executor:
 		futures = []
 
-		for i in range(0, len(tickers), batch_size):
-			batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-			logger.info(f"Fetching batch: {batch_tickers}")
-
-			success, current_cooldown = _fetch_batch_with_backoff(
-				batch_tickers, current_cooldown
+		for ticker in tickers:
+			ticker = ticker.upper().strip()
+			stats.record_pool_submission()
+			futures.append(
+				executor.submit(
+					_tracked_analyze_asset,
+					ticker,
+					profile,
+					repo=repo,
+					benchmark_version=benchmark_version,
+					submitted_at=time.perf_counter(),
+				)
 			)
-
-			for ticker in batch_tickers:
-				asset = get_stock_data(ticker, repo=repo)
-				if asset:
-					stats.record_pool_submission()
-					futures.append(
-						executor.submit(
-							_tracked_analyze_asset,
-							asset,
-							profile,
-							repo=repo,
-							benchmark_version=benchmark_version,
-							submitted_at=time.perf_counter(),
-						)
-					)
-				else:
-					logger.warning(
-						f"Skipping analysis for {ticker}: No data retrieved."
-					)
-
-			if success:
-				# Coordinated burst mitigation via jitter; B311 safe.
-				time.sleep(random.uniform(3.0, 5.0))  # nosec B311  # nosec B311
 
 		total = len(futures)
 		for idx, future in enumerate(as_completed(futures), 1):
@@ -296,6 +231,14 @@ def run_bulk_analysis(
 				logger.info(f"[{idx}/{total}] Completed analysis")
 			except Exception as e:
 				logger.error(f"Analysis error: {e}")
+
+	if repo and all_results:
+		try:
+			logger.info(f"Saving {len(all_results)} analysis results to database...")
+			repo.bulk_save_analyses(all_results, profile, benchmark_version)
+			stats.db_snapshots += len(all_results)
+		except Exception as e:
+			logger.error(f"Failed bulk save to DB: {e}")
 
 	logger.info(
 		f"Bulk analysis complete. {len(all_results)}/{len(tickers)} successful."
