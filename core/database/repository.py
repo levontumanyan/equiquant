@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from core.stats import InstrumentedLock, stats
 
@@ -410,32 +410,66 @@ class DatabaseRepository:
 			)
 			conn.commit()
 
-	def upsert_profile_weight(self, profile_name: str, metric_key: str, weight: float):
-		"""Insert or update a weight for a profile."""
+	def list_profiles(self) -> List[str]:
+		"""Return all investor profile names."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT name FROM investor_profiles ORDER BY name")
+			return [row["name"] for row in cursor.fetchall()]
+
+	def upsert_profile_setting(
+		self,
+		profile_name: str,
+		metric_key: str,
+		weight: float,
+		range_min: float = 0.0,
+		range_max: float = 100.0,
+		formula: str = "sigmoid",
+	):
+		"""Insert or update metric settings for a profile."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO profile_weights (profile_name, metric_key, weight)
-				VALUES (?, ?, ?)
+				INSERT INTO profile_metric_settings (profile_name, metric_key, weight, range_min, range_max, formula)
+				VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT(profile_name, metric_key) DO UPDATE SET
-					weight = excluded.weight
+					weight = excluded.weight,
+					range_min = excluded.range_min,
+					range_max = excluded.range_max,
+					formula = excluded.formula
 			""",
-				(profile_name, metric_key, weight),
+				(profile_name, metric_key, weight, range_min, range_max, formula),
 			)
 			conn.commit()
 
-	def get_profile_weights(self, profile_name: str) -> dict:
-		"""Get all weights for a specific profile as a dictionary."""
+	def get_profile_settings(self, profile_name: str) -> List[dict]:
+		"""Get all metric settings for a specific profile."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 			cursor.execute(
-				"SELECT metric_key, weight FROM profile_weights WHERE profile_name = ?",
+				"SELECT * FROM profile_metric_settings WHERE profile_name = ?",
 				(profile_name,),
 			)
-			return {row["metric_key"]: row["weight"] for row in cursor.fetchall()}
+			return [dict(row) for row in cursor.fetchall()]
+
+	def create_profile(self, profile: Any):
+		"""Create a new profile with weights, ranges, and formulas."""
+		self.upsert_profile(profile.name)
+		for metric_key, weight in profile.weights.items():
+			range_data = profile.ranges.get(metric_key, {"min": 0, "max": 100})
+			formula = profile.formulas.get(metric_key, "sigmoid")
+			self.upsert_profile_setting(
+				profile.name,
+				metric_key,
+				weight,
+				range_data["min"],
+				range_data["max"],
+				formula,
+			)
 
 	def upsert_global_benchmark(
 		self,

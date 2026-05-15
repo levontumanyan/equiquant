@@ -10,6 +10,25 @@ from core.orchestrator import analyze_asset
 def db_manager(tmp_path):
 	db_file = tmp_path / "test_versioning.db"
 	manager = DatabaseManager(str(db_file))
+
+	# Manually create tables
+	conn = manager.get_connection()
+	conn.execute(
+		"CREATE TABLE IF NOT EXISTS investor_profiles (name TEXT PRIMARY KEY, description TEXT);"
+	)
+	conn.execute("""
+		CREATE TABLE IF NOT EXISTS profile_metric_settings (
+			profile_name TEXT,
+			metric_key TEXT,
+			weight REAL DEFAULT 1.0,
+			range_min REAL DEFAULT 0.0,
+			range_max REAL DEFAULT 100.0,
+			formula TEXT DEFAULT 'sigmoid',
+			PRIMARY KEY (profile_name, metric_key),
+			FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
+		);
+	""")
+
 	yield manager
 	manager.close()
 

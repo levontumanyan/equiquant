@@ -1,6 +1,9 @@
 cache/
 logs/
 reports/
+market_analysis.db
+test-results/
+ui/test-results/
 reports-analyst/
 dump*.json
 

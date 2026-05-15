@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 import './ProfileBuilder.css';
 import type { Profile } from '../types/profile';
 import MetricSearch from './MetricSearch';
@@ -45,7 +46,7 @@ const ProfileBuilder: React.FC = () => {
 	const [statusMessage, setStatusMessage] = useState<string>('');
 
 	useEffect(() => {
-		fetch('http://localhost:8000/api/formulas')
+		fetch(`${API_BASE_URL}/api/formulas`)
 			.then(res => res.json())
 			.then(data => setAvailableFormulas(data))
 			.catch(err => console.error('Failed to fetch formulas:', err));
@@ -105,7 +106,7 @@ const ProfileBuilder: React.FC = () => {
 
 	const handleSaveProfile = async () => {
 		try {
-			const response = await fetch('http://localhost:8000/api/profiles', {
+			const response = await fetch(`${API_BASE_URL}/api/profiles`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ const ProfileBuilder: React.FC = () => {
 						onAddMetric={handleAddMetric}
 				/>
 			</div>
-			<button onClick={handleSaveProfile}>Save Profile</button>
+			<button className="save-btn" onClick={handleSaveProfile}>Save Profile</button>
 			{statusMessage && <p className="status-message">{statusMessage}</p>}
 		</div>
 	);

@@ -111,7 +111,7 @@ def _fetch_batch_process_worker(
 	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
 
 
-async def fetch_data(
+async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inherent to error-handling branches
 	tickers: List[str],
 	batch_size: int = 20,
 	use_processes: bool = True,

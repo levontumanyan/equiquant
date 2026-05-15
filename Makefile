@@ -3,6 +3,8 @@
 # Default profile
 PROFILE ?= balanced
 BENCHMARK_VERSION ?= 1.0.0
+API_PORT ?= 8000
+UI_PORT ?= 8888
 
 help:
 	@echo "Market Analysis CLI (Strictly Isolated via uv)"
@@ -96,17 +98,17 @@ db-shell:
 	@sqlite3 market_analysis.db
 
 ui-server: ensure-uv
-	@echo "Starting EquiQuant API Server on http://localhost:8000"
-	@uv run uvicorn core.api:app --reload --port 8000
+	@echo "Starting EquiQuant API Server on http://localhost:$(API_PORT)"
+	@uv run uvicorn core.api:app --reload --port $(API_PORT)
 
 ui-dev:
-	@echo "Starting EquiQuant Frontend on http://localhost:5173"
-	@cd ui && npm install && npm run dev
+	@echo "Starting EquiQuant Frontend on http://localhost:$(UI_PORT)"
+	@cd ui && npm install && VITE_API_BASE_URL=http://localhost:$(API_PORT) npm run dev -- --port $(UI_PORT)
 
 ui-stop:
 	@echo "Stopping EquiQuant servers..."
-	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-	@lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+	@lsof -ti:$(API_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti:$(UI_PORT) | xargs kill -9 2>/dev/null || true
 	@echo "Servers stopped."
 
 ui-restart: ui-stop

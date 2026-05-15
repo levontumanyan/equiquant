@@ -1,3 +1,4 @@
+import os
 from typing import Any, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -10,6 +11,7 @@ from core.logger import get_logger
 from core.openbb_client import should_use_cache
 from core.orchestrator import fetch_data as orchestrator_fetch_data
 from core.orchestrator import run_bulk_analysis
+from core.scorers import SCORERS
 
 logger = get_logger(__name__)
 
@@ -23,10 +25,12 @@ app = FastAPI(
 db_manager = DatabaseManager()
 repo = DatabaseRepository(db_manager)
 
-# CORS configuration - restrict to specific origins in production
+_cors_origins = os.getenv(
+	"CORS_ORIGINS", "http://localhost:8888,http://localhost:5173"
+).split(",")
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["*"],
+	allow_origins=_cors_origins,
 	allow_credentials=True,
 	allow_methods=["*"],
 	allow_headers=["*"],
@@ -64,6 +68,15 @@ class AnalysisRequest(BaseModel):
 	tickers: List[str]
 	profile: str = "balanced"
 	benchmark_version: str = "1.0.0"
+
+
+class ProfileRequest(BaseModel):
+	"""Request model for creating or updating an investor profile."""
+
+	name: str
+	weights: dict
+	ranges: dict
+	formulas: dict
 
 
 class MetricResult(BaseModel):
@@ -212,6 +225,31 @@ async def get_benchmark_versions():
 	try:
 		versions = repo.get_benchmark_versions()
 		return {"versions": versions}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/formulas")
+async def get_formulas():
+	"""Fetch all available scoring formulas."""
+	return list(SCORERS.keys())
+
+
+@app.get("/api/profiles/list")
+async def list_profiles():
+	"""Fetch all saved investor profile names."""
+	try:
+		return repo.list_profiles()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/profiles")
+async def save_profile(profile: ProfileRequest):
+	"""Create or update an investor profile with metric settings."""
+	try:
+		repo.create_profile(profile)
+		return {"status": "ok", "name": profile.name}
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 

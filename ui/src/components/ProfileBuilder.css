@@ -94,6 +94,8 @@
   margin: 0 0.5rem;
   cursor: pointer;
   font-weight: bold;
+  width: auto;
+  flex-shrink: 0;
 }
 
 .info-btn:hover {
@@ -104,12 +106,13 @@
   background: none;
   border: none;
   color: #ff4757;
-  font-size: 1.5rem;
+  font-size: 1rem;
   cursor: pointer;
-  padding: 0 0.5rem;
+  padding: 0 0.25rem;
   transition: opacity 0.2s;
   flex-shrink: 0;
-  margin-left: auto;
+  width: auto;
+  line-height: 1;
 }
 
 .remove-metric:hover {
@@ -131,7 +134,7 @@
   font-weight: 500;
 }
 
-button {
+.save-btn {
   background-color: #646cff;
   border: none;
   padding: 0.8rem 1.5rem;

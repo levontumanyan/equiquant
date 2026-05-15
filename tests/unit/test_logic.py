@@ -14,12 +14,27 @@ from core.ui.formatters import format_display_value
 def repo(tmp_path):
 	db_file = tmp_path / "test_market_logic.db"
 	manager = DatabaseManager(str(db_file))
+
+	# Manually create table for test environment
+	conn = manager.get_connection()
+	conn.execute("""
+		CREATE TABLE profile_metric_settings (
+			profile_name TEXT,
+			metric_key TEXT,
+			weight REAL DEFAULT 1.0,
+			range_min REAL DEFAULT 0.0,
+			range_max REAL DEFAULT 100.0,
+			formula TEXT DEFAULT 'sigmoid',
+			PRIMARY KEY (profile_name, metric_key),
+			FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
+		);
+	""")
+
 	repo = DatabaseRepository(manager)
 
 	# Seed for tests
 	repo.upsert_profile("growth", "Growth")
-	repo.upsert_profile_weight("growth", "revenueGrowth", 2.5)
-
+	repo.upsert_profile_setting("growth", "revenueGrowth", 2.5, 0.0, 100.0, "sigmoid")
 	yield repo
 	manager.close()
 

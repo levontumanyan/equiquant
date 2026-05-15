@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { API_BASE_URL } from '../config'
 import ResultsGrid from './ResultsGrid'
 import type { AssetAnalysis } from '../types'
 import { Play, Loader2, AlertCircle, X, Plus, Search } from 'lucide-react'
@@ -25,8 +26,8 @@ const AnalysisPanel: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				const [assetsRes, statusRes] = await Promise.all([
-					fetch('http://localhost:8000/api/assets'),
-					fetch('http://localhost:8000/api/status')
+					fetch(`${API_BASE_URL}/api/assets`),
+					fetch(`${API_BASE_URL}/api/status`)
 				])
 				
 				if (assetsRes.ok) {
@@ -34,7 +35,11 @@ const AnalysisPanel: React.FC = () => {
 					setAvailableAssets(assets)
 				}
 				
-				setProfiles(['balanced', 'growth', 'dividend'])
+				const profilesRes = await fetch(`${API_BASE_URL}/api/profiles/list`)
+				if (profilesRes.ok) {
+					const profiles = await profilesRes.json()
+					setProfiles(profiles)
+				}
 			} catch (err) {
 				console.error('Failed to fetch initial data', err)
 			}
@@ -85,7 +90,7 @@ const AnalysisPanel: React.FC = () => {
 		setError(null)
 
 		try {
-			const response = await fetch('http://localhost:8000/api/analyze', {
+			const response = await fetch(`${API_BASE_URL}/api/analyze`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

@@ -1,20 +1,28 @@
+import { API_BASE_URL } from './config'
 import { useState, useEffect } from 'react'
 import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
 import BenchmarkDiscovery from './components/BenchmarkDiscovery'
 import DataFetcher from './components/DataFetcher'
 import AnalysisPanel from './components/AnalysisPanel'
+import ProfileBuilder from './components/ProfileBuilder'
 import type { Benchmark } from './types'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher' | 'analysis'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher' | 'analysis' | 'profile'>('status')
 	const [previewBenchmark, setPreviewBenchmark] = useState<Benchmark | undefined>(undefined)
+
+	useEffect(() => {
+		const handleNavigate = (e: any) => setActiveTab(e.detail)
+		window.addEventListener('navigate', handleNavigate)
+		return () => window.removeEventListener('navigate', handleNavigate)
+	}, [])
 
 	useEffect(() => {
 		const checkStatus = async () => {
 			try {
-				const response = await fetch('http://localhost:8000/api/status')
+				const response = await fetch(`${API_BASE_URL}/api/status`)
 				if (response.ok) {
 					setBackendStatus('online')
 				} else {
@@ -80,7 +88,13 @@ function App() {
 						className={activeTab === 'math' ? 'active' : ''} 
 						onClick={() => setActiveTab('math')}
 					>
-						Math Explorer
+						Functions
+					</button>
+					<button 
+						className={activeTab === 'profile' ? 'active' : ''} 
+						onClick={() => setActiveTab('profile')}
+					>
+						Profile Builder
 					</button>
 				</nav>
 
@@ -120,7 +134,7 @@ function App() {
 
 			{activeTab === 'math' && (
 				<section className="math-section">
-					<h2>Scoring Function Explorer</h2>
+					<h2>Scoring Functions</h2>
 					<p className="section-desc">Visualize how raw financial metrics are mapped to percentage scores.</p>
 					<ScoringExplorer initialData={previewBenchmark} />
 				</section>
@@ -132,14 +146,20 @@ function App() {
 				</section>
 			)}
 
+			{activeTab === 'profile' && (
+				<section className="profile-section">
+					<ProfileBuilder />
+				</section>
+			)}
+
 			{activeTab === 'status' && (
 				<footer className="app-footer">
 					<div className="footer-status">
 						<span className={`dot ${backendStatus}`}></span>
 						<span className="status-text">
 							{backendStatus === 'online' 
-								? 'Backend Connected (localhost:8000)' 
-								: 'Backend Offline (localhost:8000)'}
+								? `Backend Connected (${API_BASE_URL})` 
+								: `Backend Offline (${API_BASE_URL})`}
 						</span>
 					</div>
 					<div className="footer-version">v0.1.0-alpha</div>

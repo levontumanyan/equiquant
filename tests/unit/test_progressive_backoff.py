@@ -17,6 +17,7 @@ def test_fetch_data_progressive_backoff(mocker):
 	async def run_fetch():
 		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
 			pass
+
 	asyncio.run(run_fetch())
 
 	# Should have slept 6 times with progressive durations + 2 inter-batch sleeps
@@ -42,6 +43,7 @@ def test_fetch_data_reset_cooldown(mocker):
 	async def run_fetch():
 		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
 			pass
+
 	asyncio.run(run_fetch())
 
 	# Sleep durations should be:
@@ -66,6 +68,7 @@ def test_fetch_data_max_cooldown(mocker):
 	async def run_fetch():
 		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
 			pass
+
 	asyncio.run(run_fetch())
 
 	# 4 batches * 2 attempts = 8 backoff sleeps + 3 inter-batch sleeps

@@ -4,7 +4,7 @@ import json
 import os
 import subprocess  # nosec B404
 import sys
-from typing import List
+from typing import Any, Dict, List
 
 # Early exit for completion flags to avoid heavy imports
 if len(sys.argv) > 1 and sys.argv[1] in [
@@ -228,7 +228,7 @@ def _execute_analysis(args, repo, tickers, progress_cb=None) -> List[Dict[str, A
 	)
 
 
-def main():
+def main():  # noqa: C901 — CLI orchestrator, complexity is inherent to arg dispatch
 	args, parser = _parse_args()
 	setup_logging(verbose=args.verbose)
 	_handle_special_flags(args)
