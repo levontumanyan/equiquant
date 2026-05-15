@@ -14,7 +14,10 @@ def test_fetch_data_progressive_backoff(mocker):
 	# 3 batches of 20 tickers each (to trigger failures)
 	tickers = ["T" + str(i) for i in range(60)]
 
-	asyncio.run(fetch_data(tickers, batch_size=20, use_processes=False))
+	async def run_fetch():
+		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
+			pass
+	asyncio.run(run_fetch())
 
 	# Should have slept 6 times with progressive durations + 2 inter-batch sleeps
 	# Note: asyncio.to_thread runs the blocking part in a thread, so time.sleep is called there.
@@ -36,7 +39,10 @@ def test_fetch_data_reset_cooldown(mocker):
 	# 2 batches of 20 tickers each
 	tickers = ["T" + str(i) for i in range(40)]
 
-	asyncio.run(fetch_data(tickers, batch_size=20, use_processes=False))
+	async def run_fetch():
+		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
+			pass
+	asyncio.run(run_fetch())
 
 	# Sleep durations should be:
 	# 1. 5.0 (Batch 1, Attempt 1 fail)
@@ -57,7 +63,10 @@ def test_fetch_data_max_cooldown(mocker):
 	# 4 batches to reach max cooldown and stabilize
 	tickers = ["T" + str(i) for i in range(80)]  # 4 batches of 20
 
-	asyncio.run(fetch_data(tickers, batch_size=20, use_processes=False))
+	async def run_fetch():
+		async for _ in fetch_data(tickers, batch_size=20, use_processes=False):
+			pass
+	asyncio.run(run_fetch())
 
 	# 4 batches * 2 attempts = 8 backoff sleeps + 3 inter-batch sleeps
 	sleep_durations = [args.args[0] for args in mock_sleep.call_args_list]
