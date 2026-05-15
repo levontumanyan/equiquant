@@ -3,7 +3,8 @@ Regression test: DB-based cache writes must not increment stats.cache_hits.
 
 The old file-cache bug counted a ticker as a cache hit even when it was fetched
 in the same session. With the DB cache, upsert_raw_provider_data must never
-touch stats.cache_hits — only explicit reads (load_cached_data paths) should.
+touch stats.cache_hits — only explicit reads (get_cached_stock_data /
+get_raw_provider_data paths) should.
 """
 
 from core.stats import stats

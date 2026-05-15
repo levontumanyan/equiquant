@@ -91,8 +91,8 @@ def get_stock_data(
 ) -> Optional[AssetData]:
 	"""
 	Master function:
-	1. Checks DB for latest metrics if repo is provided.
-	2. Falls back to OpenBB live fetch if DB is empty or stale, then persists to DB.
+	1. Checks DB (raw_provider_data) for an existing payload if repo is provided.
+	2. Falls back to OpenBB live fetch if absent, then persists payload to DB.
 
 	Args:
 		ticker_symbol: The ticker symbol to fetch.

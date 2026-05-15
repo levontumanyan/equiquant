@@ -162,43 +162,41 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 				yield batch
 		return
 
-	# PR Feedback: Use get_running_loop() (modern asyncio)
 	loop = asyncio.get_running_loop()
 	# Always use ProcessPoolExecutor to avoid signal issues in threads
 	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
 	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
-		tasks_map = {}
+		task_to_batch: Dict[asyncio.Future, List[str]] = {}
 		for batch in batches:
-			# Use loop.run_in_executor to spawn the worker
 			task = loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
-			tasks_map[task] = batch
-			# Stagger the task submission slightly for better responsiveness
+			task_to_batch[task] = batch
+			# Stagger submission slightly for better responsiveness
 			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
 
-		# Yield batches as they complete to enable pipelining
-		for completed_task in asyncio.as_completed(list(tasks_map.keys())):
-			try:
-				success, _, data = await completed_task
-				# Find the original task future to get the batch from tasks_map
-				# We need to find which future in tasks_map was completed
-				for task_future, batch in tasks_map.items():
-					if task_future.done() and not hasattr(task_future, "_yielded"):
-						task_future._yielded = True
-						if success:
-							if repo:
-								for symbol, payload in data.items():
-									try:
-										repo.upsert_raw_provider_data(
-											symbol, "yfinance", payload
-										)
-									except Exception as e:
-										logger.warning(
-											f"Failed to persist raw data for {symbol}: {e}"
-										)
-							yield batch
-						break
-			except Exception as e:
-				logger.error(f"Batch fetch task failed: {e}")
+		# Use asyncio.wait so done futures are the original objects (safe dict lookup)
+		pending = set(task_to_batch.keys())
+		while pending:
+			done, pending = await asyncio.wait(
+				pending, return_when=asyncio.FIRST_COMPLETED
+			)
+			for task in done:
+				batch = task_to_batch[task]
+				try:
+					success, _, data = task.result()
+					if success:
+						if repo:
+							for symbol, payload in data.items():
+								try:
+									repo.upsert_raw_provider_data(
+										symbol, "yfinance", payload
+									)
+								except Exception as e:
+									logger.warning(
+										f"Failed to persist raw data for {symbol}: {e}"
+									)
+						yield batch
+				except Exception as e:
+					logger.error(f"Batch fetch task failed: {e}")
 
 	logger.info("Data fetch complete.")
 

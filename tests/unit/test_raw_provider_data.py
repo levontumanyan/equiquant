@@ -8,7 +8,7 @@ from core.database.repository import DatabaseRepository
 
 @pytest.fixture
 def repo(tmp_path):
-	"""Provide an isolated in-memory DatabaseRepository."""
+	"""Provide an isolated temp-file DatabaseRepository."""
 	db_manager = DatabaseManager(str(tmp_path / "test.db"))
 	return DatabaseRepository(db_manager)
 

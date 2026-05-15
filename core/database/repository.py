@@ -159,7 +159,6 @@ class DatabaseRepository:
 		Returns:
 			True if the cached payload is within TTL, False otherwise.
 		"""
-		import time
 		from datetime import datetime
 
 		from core.utils.market import is_market_open
@@ -181,7 +180,8 @@ class DatabaseRepository:
 		except (ValueError, TypeError):
 			return False
 
-		elapsed = time.time() - ts.timestamp()
+		# SQLite CURRENT_TIMESTAMP is UTC; compare as naive UTC to avoid local-time skew
+		elapsed = (datetime.utcnow() - ts).total_seconds()
 		if is_market_open():
 			return elapsed < 900  # 15 min
 		return elapsed < 43200  # 12 h
@@ -197,6 +197,8 @@ class DatabaseRepository:
 		"""
 		import json
 
+		symbol = symbol.upper().strip()
+		provider = provider.lower().strip()
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
@@ -227,6 +229,9 @@ class DatabaseRepository:
 		"""
 		import json
 
+		symbol = symbol.upper().strip()
+		if provider:
+			provider = provider.lower().strip()
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()

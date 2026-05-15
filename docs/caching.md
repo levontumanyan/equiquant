@@ -46,21 +46,23 @@ The `timestamp` column records exactly when the payload was last written to the 
 ```
 analyze.py / API
       │
-      ├─ should_use_cache(ticker)?  ──Yes──► skip fetch, _persist_batch_to_db (file→DB)
-      │                                                      │
-      │                                                      ▼
-      └─ No ──► fetch_openbb_data_bulk ──► write file cache ──► _persist_batch_to_db
+      ├─ repo.should_use_db_cache(ticker)?  ──Yes──► data already in raw_provider_data
+      │                                                        │
+      │                                                        ▼
+      │                                            run_bulk_analysis (reads from DB)
+      │
+      └─ No ──► fetch_data(missing, repo=repo)
+                    │
+                    └─► subprocess: fetch_openbb_data_bulk ──► returns Dict via IPC
+                                                                        │
+                                                          main process: upsert raw_provider_data
+                                                                        │ (before yield)
+                                                                        ▼
+                                                            run_bulk_analysis (reads from DB)
                                                                         │
                                                                         ▼
-                                                              raw_provider_data (DB)
-                                                                        │
-                                                       ┌────────────────┘
-                                                       ▼
-                                            run_bulk_analysis (re-scoring)
-                                                       │
-                                                       ▼
-                                             analysis_snapshots (score history)
-                                             metrics_history (per-metric series)
+                                                             analysis_snapshots (score history)
+                                                             metrics_history (per-metric series)
 ```
 
 # Timezone & machine agnosticism

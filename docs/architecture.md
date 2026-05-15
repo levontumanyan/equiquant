@@ -41,7 +41,7 @@ All tables are managed by `DatabaseManager._create_tables()`. The schema has two
 │ raw_provider_data        │ Latest raw JSON payload per (symbol, provider).   │
 │                          │ Source of truth for UI live re-scoring.           │
 │                          │ PK: (symbol, provider) — always latest only.      │
-│                          │ Populated by _persist_batch_to_db after fetch.    │
+│                          │ Populated by orchestrator before yielding batch.  │
 │ assets                   │ Asset metadata (name, sector, industry, type)     │
 │ financial_statements     │ Historical financial statement line items         │
 │ metrics_history          │ Time-series index of individual metric values     │
@@ -56,4 +56,4 @@ All tables are managed by `DatabaseManager._create_tables()`. The schema has two
 
 - `raw_provider_data` uses `PRIMARY KEY (symbol, provider)` — upsert semantics, one row per source. The `timestamp` column records last fetch time for UI freshness display.
 - `analysis_snapshots.results_json` is intentionally left NULL for new rows. The full payload is in `raw_provider_data`; scores can be recomputed on demand.
-- See `docs/caching.md` for the two-tier file cache + DB cache architecture.
+- See `docs/caching.md` for the DB-only cache architecture and fetch flow.
