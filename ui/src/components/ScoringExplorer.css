@@ -3,8 +3,7 @@
 	flex-direction: column;
 	gap: 2rem;
 	width: 100%;
-	max-width: 1000px;
-	margin: 2rem auto;
+	margin-bottom: 2rem;
 	padding: 1rem;
 	background: #1e1e1e;
 	border-radius: 12px;

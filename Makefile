@@ -103,6 +103,15 @@ ui-dev:
 	@echo "Starting EquiQuant Frontend on http://localhost:5173"
 	@cd ui && npm install && npm run dev
 
+ui-stop:
+	@echo "Stopping EquiQuant servers..."
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+	@lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+	@echo "Servers stopped."
+
+ui-restart: ui-stop
+	@$(MAKE) ui-server & $(MAKE) ui-dev
+
 populate-index:
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
 

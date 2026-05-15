@@ -3,11 +3,12 @@ import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
 import BenchmarkDiscovery from './components/BenchmarkDiscovery'
 import DataFetcher from './components/DataFetcher'
+import AnalysisPanel from './components/AnalysisPanel'
 import type { Benchmark } from './types'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher' | 'analysis'>('status')
 	const [previewBenchmark, setPreviewBenchmark] = useState<Benchmark | undefined>(undefined)
 
 	useEffect(() => {
@@ -35,13 +36,19 @@ function App() {
 	}
 
 	return (
-		<div className={`equiquant-app ${activeTab !== 'status' ? 'tab-mode' : ''}`}>
+		<div className="equiquant-app">
 			<header className="app-header">
-				<div className="logo-container">
-					<button className="logo-link" onClick={() => setActiveTab('status')}>
-						<img src="/logo.png" className="logo" alt="EquiQuant logo" />
-						<h1 className="logo-title">EquiQuant</h1>
-					</button>
+				<div className="header-left-slot">
+					{activeTab !== 'status' ? (
+						<button className="logo-link" onClick={() => setActiveTab('status')}>
+							<img src="/logo.png" className="logo" alt="EquiQuant logo" />
+						</button>
+					) : (
+						<div className="hero-branding">
+							<img src="/logo.png" className="logo logo-large" alt="EquiQuant logo" />
+							<h1 className="logo-title-large">EquiQuant</h1>
+						</div>
+					)}
 				</div>
 				
 				<nav className="app-nav">
@@ -50,6 +57,12 @@ function App() {
 						onClick={() => setActiveTab('status')}
 					>
 						Status
+					</button>
+					<button 
+						className={activeTab === 'analysis' ? 'active' : ''} 
+						onClick={() => setActiveTab('analysis')}
+					>
+						Analysis
 					</button>
 					<button 
 						className={activeTab === 'fetcher' ? 'active' : ''} 
@@ -70,45 +83,37 @@ function App() {
 						Math Explorer
 					</button>
 				</nav>
+
+				<div className="header-right-slot" />
 			</header>
 
 			{activeTab === 'status' && (
-				<>
+				<div className="status-hero-container">
 					<div className="card">
-						<div className="status-indicator">
-							<span className={`dot ${backendStatus}`}></span>
-							<span>
-								{backendStatus === 'online' 
-									? 'Backend Connected (localhost:8000)' 
-									: 'Backend Offline (localhost:8000)'}
-							</span>
-						</div>
-						
 						{backendStatus === 'offline' && (
-							<p>
+							<p className="connection-help">
 								Run <code>make ui-server</code> to connect your local backend.
 							</p>
 						)}
+						{backendStatus === 'online' && (
+							<div className="welcome-hero">
+								<button className="cta-button" onClick={() => setActiveTab('analysis')}>
+									Get Started
+								</button>
+							</div>
+						)}
 					</div>
-					
-					<p className="read-the-docs">
-						Minimalistic Quantitative Analysis Dashboard
-					</p>
-				</>
+				</div>
 			)}
 
 			{activeTab === 'fetcher' && (
 				<section className="fetcher-section">
-					<h2>Market Data Management</h2>
-					<p className="section-desc">Acquire and manage high-quality financial data for analysis.</p>
 					<DataFetcher />
 				</section>
 			)}
 
 			{activeTab === 'benchmarks' && (
 				<section className="benchmarks-section">
-					<h2>Benchmark Discovery</h2>
-					<p className="section-desc">Browse and explore metrics defined in the system.</p>
 					<BenchmarkDiscovery onPreview={handlePreview} />
 				</section>
 			)}
@@ -119,6 +124,26 @@ function App() {
 					<p className="section-desc">Visualize how raw financial metrics are mapped to percentage scores.</p>
 					<ScoringExplorer initialData={previewBenchmark} />
 				</section>
+			)}
+
+			{activeTab === 'analysis' && (
+				<section className="analysis-section">
+					<AnalysisPanel />
+				</section>
+			)}
+
+			{activeTab === 'status' && (
+				<footer className="app-footer">
+					<div className="footer-status">
+						<span className={`dot ${backendStatus}`}></span>
+						<span className="status-text">
+							{backendStatus === 'online' 
+								? 'Backend Connected (localhost:8000)' 
+								: 'Backend Offline (localhost:8000)'}
+						</span>
+					</div>
+					<div className="footer-version">v0.1.0-alpha</div>
+				</footer>
 			)}
 		</div>
 	)

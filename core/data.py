@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from core.database.repository import DatabaseRepository
 
 from .providers.openbb_provider import OpenBBProvider
-from .schema import AssetData
+from .schema import AssetData, AssetType
 
 
 def load_benchmarks(
@@ -59,12 +59,47 @@ def load_benchmarks(
 		return []
 
 
+def get_asset_from_db(repo: DatabaseRepository, symbol: str) -> Optional[AssetData]:
+	"""
+	Reconstruct AssetData from the latest database records.
+	"""
+	meta = repo.get_asset(symbol)
+	if not meta:
+		return None
+
+	metrics = repo.get_latest_metrics(symbol)
+	if not metrics:
+		return None
+
+	return AssetData(
+		symbol=meta["symbol"],
+		asset_type=AssetType(meta["asset_type"])
+		if meta["asset_type"]
+		else AssetType.UNKNOWN,
+		name=meta["name"],
+		sector=meta["sector"],
+		industry=meta["industry"],
+		metrics=metrics,
+		raw_data=metrics,  # For now, metrics and raw_data share the same source in DB
+	)
+
+
 @lru_cache(maxsize=100)
-def get_stock_data(ticker_symbol: str) -> Optional[AssetData]:
+def get_stock_data(
+	ticker_symbol: str, repo: Optional[DatabaseRepository] = None
+) -> Optional[AssetData]:
 	"""
 	Master function:
-	Fetches data using the configured providers and returns normalized AssetData.
+	1. Checks DB for latest metrics if repo is provided.
+	2. Falls back to OpenBB fetch (with file cache) if DB is empty or stale.
 	"""
+	symbol = ticker_symbol.upper()
+
+	if repo:
+		asset = get_asset_from_db(repo, symbol)
+		if asset:
+			return asset
+
 	provider = OpenBBProvider()
 	return provider.get_data(ticker_symbol.upper())
 
