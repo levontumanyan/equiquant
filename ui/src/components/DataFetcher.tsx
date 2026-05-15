@@ -77,13 +77,16 @@ const DataFetcher: React.FC = () => {
 						</select>
 					</div>
 					
-					<button 
-						className={`fetch-button ${status === 'loading' ? 'loading' : ''}`}
-						onClick={handleFetch}
-						disabled={status === 'loading'}
-					>
-						{status === 'loading' ? 'Fetching...' : 'Fetch Data'}
-					</button>
+					<div className="fetch-button-wrap">
+						<button
+							className={`fetch-button ${status === 'loading' ? 'loading' : ''}`}
+							onClick={handleFetch}
+							disabled={status === 'loading'}
+						>
+							{status === 'loading' && <span className="btn-spinner" />}
+							{status === 'loading' ? 'Fetching…' : 'Fetch Data'}
+						</button>
+					</div>
 				</div>
 
 				{message && (
