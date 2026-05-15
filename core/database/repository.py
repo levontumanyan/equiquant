@@ -20,6 +20,8 @@ class DatabaseRepository:
 		asset_type: Optional[str] = None,
 		sector: Optional[str] = None,
 		industry: Optional[str] = None,
+		exchange: Optional[str] = None,
+		currency: Optional[str] = None,
 	):
 		"""Insert or update an asset."""
 		with self._lock:
@@ -27,16 +29,18 @@ class DatabaseRepository:
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO assets (symbol, name, asset_type, sector, industry, last_updated)
-				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				INSERT INTO assets (symbol, name, asset_type, sector, industry, exchange, currency, last_updated)
+				VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 				ON CONFLICT(symbol) DO UPDATE SET
 					name = COALESCE(excluded.name, assets.name),
 					asset_type = COALESCE(excluded.asset_type, assets.asset_type),
 					sector = COALESCE(excluded.sector, assets.sector),
 					industry = COALESCE(excluded.industry, assets.industry),
+					exchange = COALESCE(excluded.exchange, assets.exchange),
+					currency = COALESCE(excluded.currency, assets.currency),
 					last_updated = CURRENT_TIMESTAMP
 			""",
-				(symbol, name, asset_type, sector, industry),
+				(symbol, name, asset_type, sector, industry, exchange, currency),
 			)
 			conn.commit()
 
@@ -115,22 +119,31 @@ class DatabaseRepository:
 			return dict(row) if row else None
 
 	def upsert_group(
-		self, name: str, description: Optional[str] = None, is_system: bool = False
+		self,
+		name: str,
+		description: Optional[str] = None,
+		is_system: bool = False,
+		_bypass_system_guard: bool = False,
 	):
-		"""Insert or update a group. Raises ValueError if the name belongs to a system group."""
+		"""Insert or update a group. Raises ValueError if targeting an existing system group.
+
+		Pass _bypass_system_guard=True only from DatabaseSeeder to allow re-seeding system groups.
+		"""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute("SELECT is_system FROM groups WHERE name = ?", (name,))
-			row = cursor.fetchone()
-			if row and row["is_system"]:
-				raise ValueError(f"Cannot modify system group '{name}'")
+			if not _bypass_system_guard:
+				cursor.execute("SELECT is_system FROM groups WHERE name = ?", (name,))
+				row = cursor.fetchone()
+				if row and row["is_system"]:
+					raise ValueError(f"Cannot modify system group '{name}'")
 			cursor.execute(
 				"""
 				INSERT INTO groups (name, description, is_system)
 				VALUES (?, ?, ?)
 				ON CONFLICT(name) DO UPDATE SET
-					description = COALESCE(excluded.description, groups.description)
+					description = COALESCE(excluded.description, groups.description),
+					is_system = excluded.is_system
 			""",
 				(name, description, is_system),
 			)

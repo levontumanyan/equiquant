@@ -1,0 +1,242 @@
+[
+	{
+		"profile_name": "balanced",
+		"metric_key": "current_ratio",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "debt_to_equity",
+		"weight": 1.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "dividend_yield",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "forward_pe",
+		"weight": 1.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "insider_ownership",
+		"weight": 0.8,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "institution_ownership",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "pe_ratio",
+		"weight": 2.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "peg_ratio",
+		"weight": 1.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "price_to_book",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "profit_margin",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "linear"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "recommendation_mean",
+		"weight": 1.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "return_on_equity",
+		"weight": 1.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "balanced",
+		"metric_key": "revenue_growth",
+		"weight": 1.2,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "debt_to_equity",
+		"weight": 1.4,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "dividend_yield",
+		"weight": 2.8,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "payout_ratio",
+		"weight": 2.0,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "pe_ratio",
+		"weight": 1.6,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "peg_ratio",
+		"weight": 0.6,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "profit_margin",
+		"weight": 1.3,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "linear"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "return_on_equity",
+		"weight": 1.4,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "dividend",
+		"metric_key": "revenue_growth",
+		"weight": 0.7,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "debt_to_equity",
+		"weight": 0.8,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "dividend_yield",
+		"weight": 0.3,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "forward_pe",
+		"weight": 1.8,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "peg_ratio",
+		"weight": 2.2,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "bell_curve"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "price_to_book",
+		"weight": 0.8,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "profit_margin",
+		"weight": 1.2,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "linear"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "recommendation_mean",
+		"weight": 1.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "return_on_equity",
+		"weight": 1.6,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	},
+	{
+		"profile_name": "growth",
+		"metric_key": "revenue_growth",
+		"weight": 2.5,
+		"range_min": 0.0,
+		"range_max": 100.0,
+		"formula": "sigmoid"
+	}
+]
