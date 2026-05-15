@@ -1,4 +1,4 @@
-.PHONY: help lint format test check install setup clean db-shell install-completions install-zsh-completions install-bash-completions
+.PHONY: help lint format test check install setup clean db-shell install-completions install-zsh-completions install-bash-completions ui-start ui-stop ui-restart ui-server ui-dev
 
 # Default profile
 PROFILE ?= balanced
@@ -28,6 +28,11 @@ help:
 	@echo "  make test        Run all tests"
 	@echo "  make db-shell    Open sqlite3 shell"
 	@echo "  make clean       Cleanup temp files"
+	@echo ""
+	@echo "UI Development:"
+	@echo "  make ui-start    Start API + UI dev servers"
+	@echo "  make ui-stop     Stop API + UI dev servers"
+	@echo "  make ui-restart  Stop then restart both servers"
 
 # Quality Checks
 lint: ensure-uv
@@ -106,14 +111,17 @@ ui-dev:
 	@echo "Starting EquiQuant Frontend on http://localhost:$(UI_PORT)"
 	@cd ui && npm install && VITE_API_BASE_URL=http://localhost:$(API_PORT) npm run dev -- --port $(UI_PORT)
 
+ui-start:
+	@echo "Starting EquiQuant API on :$(API_PORT) and UI on :$(UI_PORT)..."
+	@$(MAKE) ui-server & $(MAKE) ui-dev
+
 ui-stop:
 	@echo "Stopping EquiQuant servers..."
 	@lsof -ti:$(API_PORT) | xargs kill -9 2>/dev/null || true
 	@lsof -ti:$(UI_PORT) | xargs kill -9 2>/dev/null || true
 	@echo "Servers stopped."
 
-ui-restart: ui-stop
-	@$(MAKE) ui-server & $(MAKE) ui-dev
+ui-restart: ui-stop ui-start
 
 populate-index:
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)

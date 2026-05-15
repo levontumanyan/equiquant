@@ -44,19 +44,19 @@ function App() {
 	}
 
 	return (
-		<div className="equiquant-app">
-			<header className="app-header">
+		<>
+		<header className="app-header">
 				<div className="header-left-slot">
-					{activeTab !== 'status' ? (
-						<button className="logo-link" onClick={() => setActiveTab('status')}>
-							<img src="/logo.png" className="logo" alt="EquiQuant logo" />
-						</button>
-					) : (
-						<div className="hero-branding">
-							<img src="/logo.png" className="logo logo-large" alt="EquiQuant logo" />
-							<h1 className="logo-title-large">EquiQuant</h1>
-						</div>
-					)}
+					<button className="logo-link" onClick={() => setActiveTab('status')}>
+						<img
+							src="/logo.png"
+							className={`logo${activeTab === 'status' ? ' logo-large' : ''}`}
+							alt="EquiQuant logo"
+						/>
+						<span className={`logo-title${activeTab === 'status' ? ' logo-title-large' : ''}`}>
+							EquiQuant
+						</span>
+					</button>
 				</div>
 				
 				<nav className="app-nav">
@@ -100,6 +100,7 @@ function App() {
 
 				<div className="header-right-slot" />
 			</header>
+		<div className="equiquant-app">
 
 			{activeTab === 'status' && (
 				<div className="status-hero-container">
@@ -166,6 +167,7 @@ function App() {
 				</footer>
 			)}
 		</div>
+		</>
 	)
 }
 

@@ -25,9 +25,8 @@ const AnalysisPanel: React.FC = () => {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				const [assetsRes, statusRes] = await Promise.all([
+				const [assetsRes] = await Promise.all([
 					fetch(`${API_BASE_URL}/api/assets`),
-					fetch(`${API_BASE_URL}/api/status`)
 				])
 				
 				if (assetsRes.ok) {

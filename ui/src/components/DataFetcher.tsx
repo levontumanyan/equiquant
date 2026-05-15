@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../config';
 import './DataFetcher.css';
 
 const DataFetcher: React.FC = () => {
@@ -20,7 +21,7 @@ const DataFetcher: React.FC = () => {
 		const tickerList = tickers.split(',').map(t => t.trim()).filter(t => t);
 
 		try {
-			const response = await fetch('http://localhost:8000/api/fetch', {
+			const response = await fetch(`${API_BASE_URL}/api/fetch`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -76,13 +77,16 @@ const DataFetcher: React.FC = () => {
 						</select>
 					</div>
 					
-					<button 
-						className={`fetch-button ${status === 'loading' ? 'loading' : ''}`}
-						onClick={handleFetch}
-						disabled={status === 'loading'}
-					>
-						{status === 'loading' ? 'Fetching...' : 'Fetch Data'}
-					</button>
+					<div className="fetch-button-wrap">
+						<button
+							className={`fetch-button ${status === 'loading' ? 'loading' : ''}`}
+							onClick={handleFetch}
+							disabled={status === 'loading'}
+						>
+							{status === 'loading' && <span className="btn-spinner" />}
+							{status === 'loading' ? 'Fetching…' : 'Fetch Data'}
+						</button>
+					</div>
 				</div>
 
 				{message && (

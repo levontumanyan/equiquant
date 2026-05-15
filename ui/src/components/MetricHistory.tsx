@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 import {
 	XAxis,
 	YAxis,
@@ -29,7 +30,7 @@ const MetricHistory: React.FC<Props> = ({ metricKey, metricName }) => {
 		const fetchHistory = async () => {
 			setLoading(true);
 			try {
-				const res = await fetch(`http://localhost:8000/api/metrics/${metricKey}/history?limit=50`);
+				const res = await fetch(`${API_BASE_URL}/api/metrics/${metricKey}/history?limit=50`);
 				if (res.ok) {
 					const history = await res.json();
 					// Recharts likes chronological order
