@@ -27,13 +27,37 @@
 - After the branch is merged and the session is closed, remove the worktree and the branch.
 
 ## Testing & Validation
+
+# Testing discipline (token-efficient workflow)
+
+NEVER run the full test suite speculatively. Follow this strict sequence:
+
+```
+1. Write/modify code
+2. Run ONLY the affected test file:
+   uv run python -m pytest tests/unit/test_<module>.py -v
+3. If that passes, run the unit suite:
+   uv run python -m pytest tests/unit -q --disable-warnings
+4. Commit → pre-commit runs unit suite automatically (no need to re-run it)
+5. Push → pre-push runs integration + acceptance + security scans automatically
+```
+
+NEVER run `make check` or the integration suite during development iteration.
+Reserve `make check` only for a final sanity check before opening a PR, if at all.
+
+# Test authoring rules
 - **Requirement**: Minimum **80% coverage** for the `core/` directory.
-- **Granularity**: Every new function requires a corresponding unit test.
-- **Security Integrity**: ALL findings from security scanners (Bandit, Semgrep, etc.) must be taken seriously. **Blanket ignores in configuration files are strictly prohibited.**
-	- **Priority 1**: Refactor code to eliminate the vulnerability (e.g., add timeouts to requests, avoid `os.system`).
-	- **Priority 2**: Use surgical, line-level suppressions (e.g., `# nosec B311`) ONLY when the finding is a confirmed false positive or the risk is provably non-existent (e.g., using `random` for network jitter).
-	- **Requirement**: Every suppression MUST include a brief comment justifying why it is safe.
-- When you try to test use always: `uv run python -m pytest ...`
+- **Granularity**: Every new function requires a corresponding unit test in `tests/unit/test_<module>.py`.
+- **No flaky tests**: Never use `time.sleep` for thread synchronization — use `threading.Event` or barriers.
+- **No empty tests**: Every test must have at least one `assert`. Tests with no assertions are forbidden.
+- **No redundant tests**: Before writing a test, check if an equivalent one already exists.
+- Always invoke pytest as: `uv run python -m pytest ...`
+
+# Security
+- ALL findings from Bandit/Semgrep must be taken seriously. **Blanket ignores in config files are strictly prohibited.**
+	- **Priority 1**: Refactor to eliminate the vulnerability.
+	- **Priority 2**: Surgical line-level suppression (e.g., `# nosec B311`) ONLY for confirmed false positives. Every suppression MUST include a justification comment.
+
 - **Verification**: Verify scoring changes against curves in `benchmarks.md`.
 - When you add any new `uv` package make sure to distinguish between dev level packages or user level. Most things should be in dev to keep the user install as small as possible.
 
