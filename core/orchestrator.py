@@ -263,7 +263,7 @@ def run_bulk_analysis(
 			)
 
 			for ticker in batch_tickers:
-				asset = get_stock_data(ticker)
+				asset = get_stock_data(ticker, repo=repo)
 				if asset:
 					stats.record_pool_submission()
 					futures.append(

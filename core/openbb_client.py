@@ -344,17 +344,17 @@ def get_openbb_data(ticker_symbol: str) -> Dict[str, Any]:
 					combined_data,
 				)
 			except Exception:
-				pass
+				pass  # nosec B110 - Expected fallback for missing data
 
 		if not combined_data:
 			logger.warning(f"No data retrieved for {ticker_symbol}")
-			time.sleep(random.uniform(2.0, 4.0))
+			time.sleep(random.uniform(2.0, 4.0))  # nosec B311 - Random used for network jitter, not crypto
 			return {}
 
 		CACHE_DIR.mkdir(parents=True, exist_ok=True)
 		cache_file.write_text(json.dumps(combined_data, default=str, indent="\t"))
 		stats.api_successes += 1
-		time.sleep(random.uniform(0.6, 1.2))
+		time.sleep(random.uniform(0.6, 1.2))  # nosec B311 - Random used for network jitter, not crypto
 		return combined_data
 
 	except Exception as e:

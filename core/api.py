@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +6,10 @@ from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
-from core.orchestrator import run_bulk_fetch
+from core.logger import get_logger
+from core.orchestrator import run_bulk_analysis, run_bulk_fetch
+
+logger = get_logger(__name__)
 
 app = FastAPI(
 	title="EquiQuant API",
@@ -21,7 +24,7 @@ repo = DatabaseRepository(db_manager)
 # Configure CORS for local development
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["http://localhost:5173"],
+	allow_origins=["http://localhost:8888"],
 	allow_credentials=True,
 	allow_methods=["*"],
 	allow_headers=["*"],
@@ -47,6 +50,31 @@ class BenchmarkResponse(BaseModel):
 class FetchRequest(BaseModel):
 	tickers: List[str]
 	provider: str = "openbb"
+
+
+class AnalysisRequest(BaseModel):
+	tickers: List[str]
+	profile: str = "balanced"
+	benchmark_version: str = "1.0.0"
+
+
+class MetricResult(BaseModel):
+	metric: str
+	name: str
+	value: Any
+	raw_value: Optional[float] = None
+	score: float
+	weight: float
+	status: str
+
+
+class AssetAnalysis(BaseModel):
+	symbol: str
+	name: str
+	sector: Optional[str] = None
+	industry: Optional[str] = None
+	score: float
+	results: List[MetricResult]
 
 
 @app.get("/health")
@@ -124,6 +152,45 @@ async def get_metric_history(
 	try:
 		return repo.get_metric_history(metric_key, symbol, limit)
 	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/assets")
+async def get_all_assets():
+	"""
+	Fetch all unique symbols currently in the assets table.
+	"""
+	try:
+		conn = db_manager.get_connection()
+		cursor = conn.cursor()
+		cursor.execute("SELECT symbol, name, sector FROM assets ORDER BY symbol")
+		assets = [dict(row) for row in cursor.fetchall()]
+		return assets
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/analyze", response_model=List[AssetAnalysis])
+async def analyze_assets(request: AnalysisRequest):
+	"""
+	Trigger live analysis for a list of tickers.
+	"""
+	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
+	if not tickers:
+		raise HTTPException(status_code=400, detail="No tickers provided")
+
+	try:
+		results = run_bulk_analysis(
+			tickers=tickers,
+			profile=request.profile,
+			repo=repo,
+			benchmark_version=request.benchmark_version,
+		)
+		return results
+	except Exception as e:
+		import traceback
+
+		logger.error(f"Analysis failed: {e}\n{traceback.format_exc()}")
 		raise HTTPException(status_code=500, detail=str(e))
 
 

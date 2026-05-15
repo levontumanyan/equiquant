@@ -114,6 +114,15 @@ class DatabaseRepository:
 			row = cursor.fetchone()
 			return dict(row) if row else None
 
+	def get_asset(self, symbol: str) -> Optional[dict]:
+		"""Get asset metadata."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT * FROM assets WHERE symbol = ?", (symbol,))
+			row = cursor.fetchone()
+			return dict(row) if row else None
+
 	def upsert_financial_statement(
 		self,
 		symbol: str,
@@ -291,6 +300,23 @@ class DatabaseRepository:
 				(symbol, metric_key, value),
 			)
 			conn.commit()
+
+	def get_latest_metrics(self, symbol: str) -> dict:
+		"""Get the most recent value for every metric key for a given symbol."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT metric_key, value FROM metrics_history mh
+				WHERE symbol = ? AND timestamp = (
+					SELECT MAX(timestamp) FROM metrics_history 
+					WHERE symbol = mh.symbol AND metric_key = mh.metric_key
+				)
+			""",
+				(symbol,),
+			)
+			return {row["metric_key"]: row["value"] for row in cursor.fetchall()}
 
 	def upsert_profile(self, name: str, description: Optional[str] = None):
 		"""Insert or update an investor profile."""
