@@ -151,7 +151,6 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 				batch, current_cooldown
 			)
 			if success:
-				yield batch
 				if repo:
 					for symbol, payload in data.items():
 						try:
@@ -160,6 +159,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 							logger.warning(
 								f"Failed to persist raw data for {symbol}: {e}"
 							)
+				yield batch
 		return
 
 	# PR Feedback: Use get_running_loop() (modern asyncio)
@@ -185,7 +185,6 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 					if task_future.done() and not hasattr(task_future, "_yielded"):
 						task_future._yielded = True
 						if success:
-							yield batch
 							if repo:
 								for symbol, payload in data.items():
 									try:
@@ -196,6 +195,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 										logger.warning(
 											f"Failed to persist raw data for {symbol}: {e}"
 										)
+							yield batch
 						break
 			except Exception as e:
 				logger.error(f"Batch fetch task failed: {e}")
