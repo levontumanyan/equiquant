@@ -6,7 +6,9 @@ from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
+from core.openbb_client import should_use_cache
 from core.orchestrator import fetch_data as orchestrator_fetch_data
+from core.orchestrator import run_bulk_analysis
 
 app = FastAPI(
 	title="EquiQuant API",
@@ -30,6 +32,12 @@ app.add_middleware(
 
 class FetchRequest(BaseModel):
 	tickers: List[str]
+
+
+class AnalyzeRequest(BaseModel):
+	tickers: List[str]
+	profile: str
+	benchmark_version: str = "1.0.0"
 
 
 @app.get("/health")
@@ -136,21 +144,50 @@ async def fetch_data(request: FetchRequest, background_tasks: BackgroundTasks):
 	Trigger a data fetch for the given tickers.
 	This is decoupled from analysis.
 	"""
-	# For now, we just trigger the bulk fetch.
-	# In a real app, we might want to track progress.
 	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
 
 	if not tickers:
 		return {"status": "error", "message": "No tickers provided"}
 
-	# We run it in the background if it's a large request,
-	# but for simplicity let's just run it and return results for now
-	# or just confirm it started.
-
-	success = await orchestrator_fetch_data(tickers)
+	fetched_count = 0
+	async for batch in orchestrator_fetch_data(tickers):
+		fetched_count += len(batch)
 
 	return {
-		"status": "success" if success else "partial_success",
-		"message": f"Fetched data for {len(tickers)} tickers",
+		"status": "success" if fetched_count == len(tickers) else "partial_success",
+		"message": f"Fetched data for {fetched_count}/{len(tickers)} tickers",
 		"tickers": tickers,
 	}
+
+
+@app.post("/api/analyze")
+async def analyze_tickers(request: AnalyzeRequest):
+	"""
+	Trigger a full analysis run (fetching + scoring) for the given tickers.
+	Returns the full analysis results array.
+	"""
+	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
+	if not tickers:
+		raise HTTPException(status_code=400, detail="No tickers provided")
+
+	# Identify tickers that need fetching
+	missing_tickers = [t for t in tickers if not should_use_cache(t)]
+
+	if missing_tickers:
+		# Fetch missing data first
+		async for _ in orchestrator_fetch_data(missing_tickers):
+			# Wait for all batches to complete
+			pass
+
+	# Execute full analysis
+	try:
+		results = run_bulk_analysis(
+			tickers,
+			request.profile,
+			repo=repo,
+			benchmark_version=request.benchmark_version,
+		)
+		return results
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+

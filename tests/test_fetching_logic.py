@@ -26,9 +26,11 @@ def test_fetch_separation_no_analysis(mock_fetch_bulk, mock_analyze):
 	tickers = ["AAPL", "MSFT", "GOOGL"]
 
 	# Execute fetch
-	success = asyncio.run(fetch_data(tickers, batch_size=2, use_processes=False))
+	async def run_fetch():
+		async for _ in fetch_data(tickers, batch_size=2, use_processes=False):
+			pass
+	asyncio.run(run_fetch())
 
-	assert success is True
 	# Verify fetching was called (3 tickers in batches of 2 = 2 calls)
 	assert mock_fetch_bulk.call_count == 2
 
@@ -48,7 +50,10 @@ def test_fetch_threading_concurrency():
 		mock_batch.return_value = (True, 5.0)
 
 		# Set small batch size to force multiple iterations
-		asyncio.run(fetch_data(tickers, batch_size=3, use_processes=False))
+		async def run_fetch():
+			async for _ in fetch_data(tickers, batch_size=3, use_processes=False):
+				pass
+		asyncio.run(run_fetch())
 
 		# 10 tickers / 3 batch_size = 4 batches (3, 3, 3, 1)
 		assert mock_batch.call_count == 4
@@ -65,5 +70,8 @@ def test_fetch_threading_concurrency():
 def test_batching_logic(tickers, batch_size, expected_calls):
 	with patch("core.openbb_client.fetch_batch_with_backoff") as mock_batch:
 		mock_batch.return_value = (True, 5.0)
-		asyncio.run(fetch_data(tickers, batch_size=batch_size, use_processes=False))
+		async def run_fetch():
+			async for _ in fetch_data(tickers, batch_size=batch_size, use_processes=False):
+				pass
+		asyncio.run(run_fetch())
 		assert mock_batch.call_count == expected_calls
