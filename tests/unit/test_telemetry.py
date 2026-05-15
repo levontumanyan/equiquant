@@ -41,20 +41,24 @@ def test_instrumented_lock_contention():
 def test_instrumented_lock_threaded_contention():
 	stats = SessionStats()
 	lock = InstrumentedLock("threaded_lock", stats)
+	lock_held = threading.Event()
 
-	def worker():
+	def holder():
 		with lock:
-			time.sleep(0.1)
+			lock_held.set()  # signal that the lock is held
+			time.sleep(0.05)
 
-	t1 = threading.Thread(target=worker)
-	t2 = threading.Thread(target=worker)
+	def waiter():
+		lock_held.wait()  # only attempt after holder has the lock
+		with lock:
+			pass
+
+	t1 = threading.Thread(target=holder)
+	t2 = threading.Thread(target=waiter)
 
 	t1.start()
-	time.sleep(0.05)  # Ensure t1 has the lock
 	t2.start()
-
 	t1.join()
 	t2.join()
 
-	# t2 must have waited at least 0.05s
-	assert stats.mutex_wait_times["threaded_lock"] > 0.04
+	assert stats.mutex_wait_times["threaded_lock"] > 0

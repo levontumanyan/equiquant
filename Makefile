@@ -76,6 +76,7 @@ install: ensure-uv install-completions
 setup: ensure-uv install-completions
 	uv sync
 	uv run pre-commit install
+	uv run pre-commit install --hook-type pre-push
 	@echo "Development environment, completions, and git hooks installed successfully."
 
 install-completions: install-zsh-completions install-bash-completions
