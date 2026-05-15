@@ -13,7 +13,7 @@ def mock_fetch():
 	"""Fixture providing a mocked orchestrator_fetch_data function."""
 	with patch("core.api.orchestrator_fetch_data") as mock_fetch:
 		# Setup mock_fetch as an async generator
-		async def mock_fetch_gen(tickers):
+		async def mock_fetch_gen(tickers, repo=None):
 			# Yield in batches to simulate real behavior
 			if len(tickers) > 1:
 				yield [tickers[0]]
@@ -37,7 +37,9 @@ def test_fetch_data_success(mock_fetch):
 	assert response.json()["message"] == "Fetched data for 2/2 tickers"
 	assert response.json()["tickers"] == ["AAPL", "MSFT"]
 
-	mock_fetch.assert_called_once_with(["AAPL", "MSFT"])
+	mock_fetch.assert_called_once()
+	assert mock_fetch.call_args.args[0] == ["AAPL", "MSFT"]
+	assert "repo" in mock_fetch.call_args.kwargs
 
 
 def test_fetch_data_empty():

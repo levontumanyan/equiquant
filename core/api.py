@@ -277,7 +277,7 @@ async def fetch_data(request: FetchRequest, background_tasks: BackgroundTasks):
 		return {"status": "error", "message": "No tickers provided"}
 
 	fetched_count = 0
-	async for batch in orchestrator_fetch_data(tickers):
+	async for batch in orchestrator_fetch_data(tickers, repo=repo):
 		fetched_count += len(batch)
 
 	return {
@@ -300,7 +300,7 @@ async def analyze_assets(request: AnalysisRequest):
 	missing_tickers = [t for t in tickers if not should_use_cache(t)]
 
 	if missing_tickers:
-		async for _ in orchestrator_fetch_data(missing_tickers):
+		async for _ in orchestrator_fetch_data(missing_tickers, repo=repo):
 			pass
 
 	try:

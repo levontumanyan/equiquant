@@ -17,7 +17,7 @@ def mock_orchestrator():
 		patch("core.api.should_use_cache") as mock_cache,
 	):
 		# Setup mock_fetch as an async generator
-		async def mock_fetch_gen(tickers):
+		async def mock_fetch_gen(tickers, repo=None):
 			yield tickers
 
 		mock_fetch.side_effect = mock_fetch_gen
@@ -68,8 +68,10 @@ def test_analyze_tickers_needs_fetching(mock_orchestrator):
 	assert data[0]["symbol"] == "MSFT"
 	assert data[0]["score"] == 75.0
 
-	# Verify fetch WAS called
-	mock_fetch.assert_called_once_with(["MSFT"])
+	# Verify fetch WAS called with tickers and repo
+	mock_fetch.assert_called_once()
+	assert mock_fetch.call_args.args[0] == ["MSFT"]
+	assert "repo" in mock_fetch.call_args.kwargs
 	# Verify analyze WAS called
 	mock_analyze.assert_called_once()
 

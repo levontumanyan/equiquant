@@ -8,6 +8,7 @@ from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
+from core.openbb_client import load_cached_data
 from core.profiles import get_profile_weights
 from core.schema import AssetData, AssetType
 from core.stats import stats
@@ -111,10 +112,28 @@ def _fetch_batch_process_worker(
 	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
 
 
+def _persist_batch_to_db(tickers: List[str], repo: DatabaseRepository) -> None:
+	"""
+	Load each ticker's file cache and write the payload to raw_provider_data.
+
+	Args:
+		tickers: List of ticker symbols whose file cache was just populated.
+		repo: Database repository for persistence.
+	"""
+	for ticker in tickers:
+		data = load_cached_data(ticker)
+		if data:
+			try:
+				repo.upsert_raw_provider_data(ticker, "yfinance", data)
+			except Exception as e:
+				logger.warning(f"Failed to persist raw data for {ticker}: {e}")
+
+
 async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inherent to error-handling branches
 	tickers: List[str],
 	batch_size: int = 20,
 	use_processes: bool = True,
+	repo: Optional[DatabaseRepository] = None,
 ) -> AsyncIterator[List[str]]:
 	"""
 	Fetch data for multiple tickers in parallel batches and yield successful batches.
@@ -152,6 +171,8 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 			)
 			if success:
 				yield batch
+				if repo:
+					_persist_batch_to_db(batch, repo)
 		return
 
 	# PR Feedback: Use get_running_loop() (modern asyncio)
@@ -178,6 +199,8 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 						task_future._yielded = True
 						if success:
 							yield batch
+							if repo:
+								_persist_batch_to_db(batch, repo)
 						break
 			except Exception as e:
 				logger.error(f"Batch fetch task failed: {e}")

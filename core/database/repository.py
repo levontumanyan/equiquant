@@ -147,6 +147,76 @@ class DatabaseRepository:
 			)
 			conn.commit()
 
+	def upsert_raw_provider_data(self, symbol: str, provider: str, data: dict) -> None:
+		"""
+		Insert or update the raw JSON payload for a symbol/provider pair.
+
+		Args:
+			symbol: The asset ticker symbol.
+			provider: The data provider name (e.g. 'yfinance').
+			data: The raw dict payload to persist.
+		"""
+		import json
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO raw_provider_data (symbol, provider, data_json)
+				VALUES (?, ?, ?)
+				ON CONFLICT(symbol, provider) DO UPDATE SET
+					data_json = excluded.data_json,
+					timestamp = CURRENT_TIMESTAMP
+			""",
+				(symbol, provider, json.dumps(data, default=str)),
+			)
+			conn.commit()
+
+	def get_raw_provider_data(
+		self, symbol: str, provider: Optional[str] = None
+	) -> Optional[dict]:
+		"""
+		Retrieve the latest raw provider payload for a symbol.
+
+		Args:
+			symbol: The asset ticker symbol.
+			provider: Optional provider name; returns most-recent entry if omitted.
+
+		Returns:
+			Dict with keys 'data', 'provider', 'timestamp', or None if not found.
+		"""
+		import json
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			if provider:
+				cursor.execute(
+					"""
+					SELECT data_json, provider, timestamp FROM raw_provider_data
+					WHERE symbol = ? AND provider = ?
+				""",
+					(symbol, provider),
+				)
+			else:
+				cursor.execute(
+					"""
+					SELECT data_json, provider, timestamp FROM raw_provider_data
+					WHERE symbol = ?
+					ORDER BY timestamp DESC LIMIT 1
+				""",
+					(symbol,),
+				)
+			row = cursor.fetchone()
+			if not row:
+				return None
+			return {
+				"data": json.loads(row["data_json"]),
+				"provider": row["provider"],
+				"timestamp": row["timestamp"],
+			}
+
 	def create_analysis_snapshot(
 		self,
 		symbol: str,
@@ -172,7 +242,6 @@ class DatabaseRepository:
 		self, analyses: List[dict], profile: str, benchmark_version: str = "1.0.0"
 	):
 		"""Perform a single bulk transaction to save multiple analysis results."""
-		import json
 
 		with self._lock:
 			conn = self.db.get_connection()
@@ -216,26 +285,17 @@ class DatabaseRepository:
 							except (ValueError, TypeError):
 								pass
 
-					# Insert snapshot
-					results_summary = [
-						{
-							"metric": r["metric"],
-							"value": r["value"],
-							"score": r["score"],
-							"weight": r["weight"],
-						}
-						for r in res["results"]
-					]
+					# Insert score snapshot — results_json intentionally omitted;
+					# raw_provider_data is the source of truth for re-scoring
 					cursor.execute(
 						"""
-						INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
-						VALUES (?, ?, ?, ?, ?)
+						INSERT INTO analysis_snapshots (symbol, profile, total_score, benchmark_version)
+						VALUES (?, ?, ?, ?)
 					""",
 						(
 							res["symbol"],
 							profile,
 							res["score"],
-							json.dumps(results_summary),
 							benchmark_version,
 						),
 					)
