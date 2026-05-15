@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
 from core.logger import get_logger
+from core.openbb_client import should_use_cache
 from core.orchestrator import run_bulk_analysis, run_bulk_fetch
 
 logger = get_logger(__name__)
@@ -178,6 +179,11 @@ async def analyze_assets(request: AnalysisRequest):
 	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
 	if not tickers:
 		raise HTTPException(status_code=400, detail="No tickers provided")
+
+	# Fetch missing data
+	missing_tickers = [t for t in tickers if not should_use_cache(t)]
+	if missing_tickers:
+		run_bulk_fetch(missing_tickers)
 
 	try:
 		results = run_bulk_analysis(
