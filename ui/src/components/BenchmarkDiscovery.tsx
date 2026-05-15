@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Play, BarChart2 } from 'lucide-react';
 import type { Benchmark } from '../types';
+import { API_BASE_URL } from '../config';
 import MetricHistory from './MetricHistory';
 import './BenchmarkDiscovery.css';
 
@@ -22,8 +23,8 @@ const BenchmarkDiscovery: React.FC<Props> = ({ onPreview }) => {
 			try {
 				const sectorParam = selectedSector ? `&sector=${encodeURIComponent(selectedSector)}` : '';
 				const [benchRes, sectorRes] = await Promise.all([
-					fetch(`http://localhost:8000/api/benchmarks?asset_type=STOCK${sectorParam}`),
-					fetch('http://localhost:8000/api/sectors')
+					fetch(`${API_BASE_URL}/api/benchmarks?asset_type=STOCK${sectorParam}`),
+					fetch(`${API_BASE_URL}/api/sectors`)
 				]);
 				if (benchRes.ok) setBenchmarks(await benchRes.json());
 				if (sectorRes.ok) setSectors(await sectorRes.json());
