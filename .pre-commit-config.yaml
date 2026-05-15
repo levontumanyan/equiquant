@@ -23,7 +23,7 @@ repos:
         language: system
         types: [python]
         files: ^(core/|analyze\.py)
-        stages: [push]
+        stages: [pre-push]
 
       - id: semgrep
         name: semgrep
@@ -31,7 +31,7 @@ repos:
         language: system
         types: [python]
         files: ^(core/|analyze\.py)
-        stages: [push]
+        stages: [pre-push]
 
       - id: pytest-integration
         name: pytest (integration + acceptance)
@@ -40,4 +40,4 @@ repos:
         types: [python]
         files: ^(core/|tests/integration/|tests/acceptance/|analyze\.py)
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
