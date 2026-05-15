@@ -1,28 +1,70 @@
-# Intelligent Caching Logic
+# Caching Architecture
 
-To optimize API usage and ensure data consistency, this project implements a market-aware caching strategy.
+EquiQuant uses a two-tier cache: a **file cache** for fast TTL-based fetch gating, and a **database cache** (`raw_provider_data`) as a persistent source of truth for re-scoring.
 
-## How it Works
+# File Cache (Tier 1 — fetch gating)
 
-The caching logic is located in `core/openbb_client.py` and uses utility functions from `core/utils/market.py`.
+Location: `cache/yfinance/<SYMBOL>.json`
+Managed by: `core/openbb_client.py`
 
-### 1. Freshness Check (Market Open)
-During active market hours, the cache is considered fresh if it is less than **3 hours old**. This allows for periodic updates during the trading day while minimizing redundant API calls.
+The file cache controls whether a live API call is made. TTL is market-aware:
 
-### 2. Post-Close Persistence (Market Closed)
-When the market is closed, the script optimizes for persistence. If a cache file exists and its modification time is **after the most recent market close**, it is considered valid until the next market open, regardless of the 3-hour limit.
+```
+┌─────────────────────┬──────────────────────────────────────────────┐
+│ Market state        │ Cache TTL                                    │
+├─────────────────────┼──────────────────────────────────────────────┤
+│ Open (9:30–16:00 ET)│ 15 minutes — refresh frequently              │
+│ Closed              │ 12 hours — data doesn't change overnight     │
+└─────────────────────┴──────────────────────────────────────────────┘
+```
 
-**Example:**
-*   Market closes at 4:00 PM ET.
-*   You run an analysis at 5:00 PM ET (API call made, cache saved).
-*   You run the same analysis at 11:00 PM ET. Even though the cache is 6 hours old, the script identifies that the market has been closed since the data was last fetched and will reuse the cache.
+When a ticker's file is within TTL, the API call is skipped entirely. When stale or absent, `fetch_openbb_data_bulk` fetches from OpenBB/yfinance and writes a new JSON file.
 
-## Timezone & Machine Agnosticism
-*   **Timezone:** All internal calculations use **UTC**.
-*   **Market Hours:** Hardcoded to **NYSE/NASDAQ** (9:30 AM - 4:00 PM Eastern Time).
-*   **DST:** Automatically handled via Python's `zoneinfo` module (`America/New_York`).
+**This is the only layer that makes API decisions.** The DB cache plays no role in fetch gating.
 
-## Logging
-The script logs its caching decisions:
-*   `Cache hit for [TICKER]`: Standard 3-hour cache hit.
-*   `Market closed; using post-close cache for [TICKER]`: Intelligent post-close hit.
+# DB Cache (Tier 2 — raw_provider_data)
+
+Table: `raw_provider_data(symbol, provider, timestamp, data_json)`
+Primary key: `(symbol, provider)` — always stores the **latest** payload only.
+
+After every successful fetch batch, `_persist_batch_to_db` reads the fresh file cache and upserts into `raw_provider_data`. This happens in the main process (not the subprocess worker) to avoid SQLite cross-process issues.
+
+The `timestamp` column records exactly when the payload was last written to the DB, so the UI can show data freshness without hitting the filesystem.
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ Purpose                                                            │
+├────────────────────────────────────────────────────────────────────┤
+│ • Source of truth for live UI re-scoring (no API hit needed)       │
+│ • Enables applying different profiles/benchmarks on cached data    │
+│ • Decouples the UI from the filesystem (no file path access)       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+# Flow summary
+
+```
+analyze.py / API
+      │
+      ├─ should_use_cache(ticker)?  ──Yes──► skip fetch, _persist_batch_to_db (file→DB)
+      │                                                      │
+      │                                                      ▼
+      └─ No ──► fetch_openbb_data_bulk ──► write file cache ──► _persist_batch_to_db
+                                                                        │
+                                                                        ▼
+                                                              raw_provider_data (DB)
+                                                                        │
+                                                       ┌────────────────┘
+                                                       ▼
+                                            run_bulk_analysis (re-scoring)
+                                                       │
+                                                       ▼
+                                             analysis_snapshots (score history)
+                                             metrics_history (per-metric series)
+```
+
+# Timezone & machine agnosticism
+
+- All internal time calculations use **UTC**.
+- Market hours hardcoded to NYSE/NASDAQ: 9:30 AM – 4:00 PM Eastern Time.
+- DST handled automatically via Python `zoneinfo` (`America/New_York`).
