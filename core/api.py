@@ -23,7 +23,7 @@ app = FastAPI(
 db_manager = DatabaseManager()
 repo = DatabaseRepository(db_manager)
 
-# CORS configuration
+# CORS configuration - restrict to specific origins in production
 app.add_middleware(
 	CORSMiddleware,
 	allow_origins=["*"],
@@ -41,14 +41,14 @@ class BenchmarkResponse(BaseModel):
 	type: str
 	weight: float
 	asset_type: str
-	unit: str | None = None
-	best: float | None = None
-	worst: float | None = None
-	target: float | None = None
-	target_min: float | None = None
-	target_max: float | None = None
-	width: float | None = None
-	threshold: float | None = None
+	unit: Optional[str] = None
+	best: Optional[float] = None
+	worst: Optional[float] = None
+	target: Optional[float] = None
+	target_min: Optional[float] = None
+	target_max: Optional[float] = None
+	width: Optional[float] = None
+	threshold: Optional[float] = None
 
 
 class FetchRequest(BaseModel):
@@ -72,7 +72,7 @@ class MetricResult(BaseModel):
 	metric: str
 	name: str
 	value: Any
-	raw_value: float | None = None
+	raw_value: Optional[float] = None
 	score: float
 	weight: float
 	status: str
@@ -83,8 +83,8 @@ class AssetAnalysis(BaseModel):
 
 	symbol: str
 	name: str
-	sector: str | None = None
-	industry: str | None = None
+	sector: Optional[str] = None
+	industry: Optional[str] = None
 	score: float
 	results: List[MetricResult]
 
@@ -107,7 +107,7 @@ async def get_status():
 
 @app.get("/api/benchmarks", response_model=List[BenchmarkResponse])
 async def get_benchmarks(
-	asset_type: str = "equity", sector: str | None = None, version: str = "1.0.0"
+	asset_type: str = "equity", sector: Optional[str] = None, version: str = "1.0.0"
 ):
 	"""
 	Fetch all global benchmarks for a given asset type, with optional sector overrides.
@@ -156,7 +156,7 @@ async def get_sector_benchmarks(sector: str, version: str = "1.0.0"):
 
 @app.get("/api/metrics/{metric_key}/history")
 async def get_metric_history(
-	metric_key: str, symbol: str | None = None, limit: int = 100
+	metric_key: str, symbol: Optional[str] = None, limit: int = 100
 ):
 	"""
 	Fetch historical data for a specific metric.
