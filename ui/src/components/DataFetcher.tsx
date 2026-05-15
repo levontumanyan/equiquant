@@ -26,7 +26,10 @@ const DataFetcher: React.FC = () => {
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/groups`);
 			if (res.ok) setGroups(await res.json());
-		} catch {}
+			else console.error('Failed to load groups:', res.status);
+		} catch (err) {
+			console.error('Network error loading groups:', err);
+		}
 	}, []);
 
 	useEffect(() => { loadGroups(); }, [loadGroups]);
@@ -43,13 +46,21 @@ const DataFetcher: React.FC = () => {
 			if (res.ok) {
 				const tickerList: string[] = await res.json();
 				setTickers(tickerList.join(', '));
+			} else {
+				console.error('Failed to load group tickers:', res.status);
 			}
-		} catch {}
+		} catch (err) {
+			console.error('Network error loading group tickers:', err);
+		}
 	};
 
-	const handleDeleteGroup = async (e: React.MouseEvent, groupName: string) => {
-		e.stopPropagation();
-		await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(groupName)}`, { method: 'DELETE' });
+	const handleDeleteGroup = async (groupName: string) => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(groupName)}`, { method: 'DELETE' });
+			if (!res.ok) console.error('Failed to delete group:', await res.text());
+		} catch (err) {
+			console.error('Network error deleting group:', err);
+		}
 		if (selectedGroup === groupName) {
 			setSelectedGroup(null);
 			setTickers('');
@@ -64,11 +75,11 @@ const DataFetcher: React.FC = () => {
 
 		setGroupSaveStatus('saving');
 		try {
-			const params = new URLSearchParams({ name });
-			if (newGroupDesc.trim()) params.set('description', newGroupDesc.trim());
-			tickerList.forEach(t => params.append('tickers', t));
-
-			const res = await fetch(`${API_BASE_URL}/api/groups?${params}`, { method: 'POST' });
+			const res = await fetch(`${API_BASE_URL}/api/groups`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, tickers: tickerList, description: newGroupDesc.trim() || null }),
+			});
 			if (res.ok) {
 				setNewGroupName('');
 				setNewGroupTickers('');
@@ -77,9 +88,11 @@ const DataFetcher: React.FC = () => {
 				setGroupSaveStatus('idle');
 				loadGroups();
 			} else {
+				console.error('Failed to save group:', await res.text());
 				setGroupSaveStatus('error');
 			}
-		} catch {
+		} catch (err) {
+			console.error('Network error saving group:', err);
 			setGroupSaveStatus('error');
 		}
 	};
@@ -197,20 +210,20 @@ const DataFetcher: React.FC = () => {
 							{customGroups.length > 0 && (
 								<div className="group-row">
 									{customGroups.map(g => (
-										<button
-											key={g.name}
-											className={`group-chip ${selectedGroup === g.name ? 'group-chip--active' : ''}`}
-											onClick={() => handleGroupClick(g)}
-											title={g.description ?? undefined}
-										>
-											<span className="group-chip-name">{g.name}</span>
-											<span
+										<div key={g.name} className="group-chip-wrap">
+											<button
+												className={`group-chip ${selectedGroup === g.name ? 'group-chip--active' : ''}`}
+												onClick={() => handleGroupClick(g)}
+												title={g.description ?? undefined}
+											>
+												<span className="group-chip-name">{g.name}</span>
+											</button>
+											<button
 												className="group-chip-delete"
-												onClick={e => handleDeleteGroup(e, g.name)}
-												role="button"
+												onClick={() => handleDeleteGroup(g.name)}
 												aria-label={`Delete ${g.name}`}
-											>✕</span>
-										</button>
+											>✕</button>
+										</div>
 									))}
 								</div>
 							)}

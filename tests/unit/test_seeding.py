@@ -56,21 +56,22 @@ def test_auto_seed_magnificent_7_constituents(fresh_db):
 
 def test_auto_seed_idempotent(tmp_path):
 	"""Running auto-seed twice must not duplicate rows."""
-	db_path = tmp_path / "test.db"
-	manager = DatabaseManager(str(db_path))
-	# Trigger seeding a second time manually
 	from core.database.repository import DatabaseRepository
 	from core.database.seeder import DatabaseSeeder
 
-	repo = DatabaseRepository(manager)
-	DatabaseSeeder(repo).seed_all()
-
+	db_path = tmp_path / "test.db"
+	manager = DatabaseManager(str(db_path))
 	cursor = manager.get_connection().cursor()
+
+	cursor.execute("SELECT COUNT(*) FROM investor_profiles")
+	count_before = cursor.fetchone()[0]
+
+	DatabaseSeeder(DatabaseRepository(manager)).seed_all()
+
 	cursor.execute("SELECT COUNT(*) FROM investor_profiles")
 	count_after = cursor.fetchone()[0]
-	cursor.execute("SELECT COUNT(*) FROM investor_profiles")
-	count_initial = cursor.fetchone()[0]
-	assert count_after == count_initial, "Duplicate rows inserted on second seed"
+
+	assert count_after == count_before, "Duplicate rows inserted on second seed"
 	manager.close()
 
 
@@ -93,8 +94,25 @@ def test_group_crud(fresh_db):
 
 
 def test_system_group_not_deletable(fresh_db):
-	"""System groups must survive a delete_group call."""
+	"""delete_group returns 'system' and leaves the group intact."""
 	repo = DatabaseRepository(fresh_db)
-	repo.delete_group("Magnificent 7")
+	result = repo.delete_group("Magnificent 7")
+	assert result == "system"
 	groups = [g["name"] for g in repo.list_groups()]
-	assert "Magnificent 7" in groups, "System group was incorrectly deleted"
+	assert "Magnificent 7" in groups
+
+
+def test_delete_group_not_found(fresh_db):
+	"""delete_group returns 'not_found' for unknown groups."""
+	repo = DatabaseRepository(fresh_db)
+	result = repo.delete_group("Nonexistent Group")
+	assert result == "not_found"
+
+
+def test_upsert_group_rejects_system_name(fresh_db):
+	"""upsert_group raises ValueError when targeting a system group."""
+	repo = DatabaseRepository(fresh_db)
+	import pytest
+
+	with pytest.raises(ValueError, match="system group"):
+		repo.upsert_group("Magnificent 7", description="hijack attempt")

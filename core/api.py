@@ -96,6 +96,14 @@ class AnalysisRequest(BaseModel):
 	benchmark_version: str = "1.0.0"
 
 
+class GroupRequest(BaseModel):
+	"""Request model for creating or updating a stock group."""
+
+	name: str
+	tickers: List[str]
+	description: Optional[str] = None
+
+
 class ProfileRequest(BaseModel):
 	"""Request model for creating or updating an investor profile."""
 
@@ -285,14 +293,14 @@ async def get_group_tickers(name: str):
 
 
 @app.post("/api/groups")
-async def create_group(
-	name: str, tickers: List[str], description: Optional[str] = None
-):
-	"""Create or update a stock group."""
+async def create_group(request: GroupRequest):
+	"""Create or update a custom stock group."""
 	try:
-		repo.upsert_group(name, description)
-		repo.update_group_constituents(name, tickers)
-		return {"status": "ok", "name": name}
+		repo.upsert_group(request.name, request.description)
+		repo.update_group_constituents(request.name, request.tickers)
+		return {"status": "ok", "name": request.name}
+	except ValueError as e:
+		raise HTTPException(status_code=409, detail=str(e))
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 
@@ -301,8 +309,17 @@ async def create_group(
 async def delete_group(name: str):
 	"""Delete a custom stock group."""
 	try:
-		repo.delete_group(name)
+		result = repo.delete_group(name)
+		if result == "not_found":
+			raise HTTPException(status_code=404, detail=f"Group '{name}' not found")
+		if result == "system":
+			raise HTTPException(
+				status_code=409,
+				detail=f"'{name}' is a system group and cannot be deleted",
+			)
 		return {"status": "ok"}
+	except HTTPException:
+		raise
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 

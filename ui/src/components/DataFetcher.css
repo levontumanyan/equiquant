@@ -179,14 +179,22 @@
 	font-weight: 500;
 }
 
+.group-chip-wrap {
+	display: inline-flex;
+	align-items: center;
+}
+
 .group-chip-delete {
-	font-size: 0.7rem;
-	color: #666;
-	margin-left: 0.2rem;
-	padding: 0.1rem 0.25rem;
+	font-size: 0.65rem;
+	color: #555;
+	background: transparent;
+	border: none;
+	padding: 0.15rem 0.3rem;
+	margin-left: 0.1rem;
 	border-radius: 50%;
-	transition: color 0.15s, background 0.15s;
 	cursor: pointer;
+	transition: color 0.15s, background 0.15s;
+	line-height: 1;
 }
 
 .group-chip-delete:hover {

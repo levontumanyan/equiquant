@@ -31,20 +31,29 @@ class DatabaseManager:
 				self._auto_seed()
 
 	def _auto_seed(self):
-		"""Seed the database if it's empty of configuration data."""
+		"""Seed each config table independently if it has no rows yet.
+
+		Checking per-table lets new seed categories (e.g. groups) populate
+		existing databases without re-running already-seeded tables.
+		"""
 		from core.database.repository import DatabaseRepository
 		from core.database.seeder import DatabaseSeeder
 
 		repo = DatabaseRepository(self)
-		# Check if any investor profiles exist as a proxy for 'has data'
+		seeder = DatabaseSeeder(repo)
 		cursor = self.conn.cursor()
-		cursor.execute("SELECT COUNT(*) FROM investor_profiles")
-		count = cursor.fetchone()[0]
 
-		if count == 0:
-			logger.info("Fresh database detected. Initializing seeds...")
-			seeder = DatabaseSeeder(repo)
-			seeder.seed_all()
+		cursor.execute("SELECT COUNT(*) FROM investor_profiles")
+		if cursor.fetchone()[0] == 0:
+			logger.info("Seeding benchmarks and profiles...")
+			seeder.seed_benchmarks()
+			seeder.seed_sector_benchmarks()
+			seeder.seed_profiles()
+
+		cursor.execute("SELECT COUNT(*) FROM groups")
+		if cursor.fetchone()[0] == 0:
+			logger.info("Seeding stock groups...")
+			seeder.seed_groups()
 
 	def _create_tables(self):
 		"""Create schema tables."""

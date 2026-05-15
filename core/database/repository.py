@@ -117,17 +117,20 @@ class DatabaseRepository:
 	def upsert_group(
 		self, name: str, description: Optional[str] = None, is_system: bool = False
 	):
-		"""Insert or update a group."""
+		"""Insert or update a group. Raises ValueError if the name belongs to a system group."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			cursor.execute("SELECT is_system FROM groups WHERE name = ?", (name,))
+			row = cursor.fetchone()
+			if row and row["is_system"]:
+				raise ValueError(f"Cannot modify system group '{name}'")
 			cursor.execute(
 				"""
 				INSERT INTO groups (name, description, is_system)
 				VALUES (?, ?, ?)
 				ON CONFLICT(name) DO UPDATE SET
-					description = COALESCE(excluded.description, groups.description),
-					is_system = excluded.is_system
+					description = COALESCE(excluded.description, groups.description)
 			""",
 				(name, description, is_system),
 			)
@@ -179,15 +182,20 @@ class DatabaseRepository:
 			cursor.execute("SELECT * FROM groups ORDER BY name")
 			return [dict(row) for row in cursor.fetchall()]
 
-	def delete_group(self, group_name: str):
-		"""Delete a group and its constituents."""
+	def delete_group(self, group_name: str) -> str:
+		"""Delete a custom group. Returns 'deleted', 'not_found', or 'system'."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute(
-				"DELETE FROM groups WHERE name = ? AND is_system = 0", (group_name,)
-			)
+			cursor.execute("SELECT is_system FROM groups WHERE name = ?", (group_name,))
+			row = cursor.fetchone()
+			if not row:
+				return "not_found"
+			if row["is_system"]:
+				return "system"
+			cursor.execute("DELETE FROM groups WHERE name = ?", (group_name,))
 			conn.commit()
+			return "deleted"
 
 	def get_asset(self, symbol: str) -> Optional[dict]:
 		"""Get asset metadata."""
