@@ -96,7 +96,7 @@ def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) ->
 
 		except Exception as e:
 			err_str = str(e).lower()
-			if "429" in err_str or "rate limit" in err_str:
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 				# Test expects FAIL FAST (no retries) for 429 in individual fetches
 				raise RateLimitError(f"Rate limited for {symbol}")
 
@@ -154,7 +154,7 @@ def _fetch_with_retry_bulk(
 			return func(symbol=symbol_str, provider=provider)
 		except Exception as e:
 			err_str = str(e).lower()
-			if "429" in err_str or "rate limit" in err_str:
+			if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 				wait_time = (attempt + 1) * 3.0 + random.uniform(1.0, 2.0)  # nosec B311
 				logger.warning(
 					f"Rate limited during bulk fetch. Waiting {wait_time:.1f}s..."
@@ -367,7 +367,7 @@ def probe_api(ticker: str) -> bool:
 		return True
 	except Exception as e:
 		err_str = str(e).lower()
-		if "429" in err_str or "rate limit" in err_str:
+		if any(x in err_str for x in ["429", "rate limit", "401", "unauthorized", "invalid crumb"]):
 			logger.warning(f"Rate-limit probe failed for {ticker}.")
 			return False
 		# For other errors, assume the API is at least reachable or it's a transient data error

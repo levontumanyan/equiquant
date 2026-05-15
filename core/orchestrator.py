@@ -1,7 +1,8 @@
 import asyncio
+import random
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -112,48 +113,76 @@ def _fetch_batch_process_worker(
 
 async def fetch_data(
 	tickers: List[str],
-	batch_size: int = 100,
+	batch_size: int = 20,
 	use_processes: bool = True,
-) -> bool:
+) -> AsyncIterator[List[str]]:
 	"""
-	Fetch data for multiple tickers in parallel batches using processes.
-	Super fast and async-friendly.
+	Fetch data for multiple tickers in parallel batches and yield successful batches.
+	Enables pipelining where analysis can start before all fetching is done.
 	"""
 	# PR Feedback: Normalize symbols early and consistently
 	tickers = [t.upper().strip() for t in tickers if t.strip()]
 	logger.info(
-		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes})"
+		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes}, batch_size={batch_size})"
 	)
 
 	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
 
 	if not batches:
-		return True
+		return
+
+	if use_processes:
+		# Pre-initialize OpenBB in main process to avoid concurrent build locks in workers.
+		# This ensures extensions are built and locked once before spawning parallel processes.
+		try:
+			from openbb import obb
+
+			logger.info("Initializing OpenBB Platform...")
+			# Accessing a core extension triggers the build process if needed
+			_ = obb.equity
+		except Exception as e:
+			logger.debug(f"OpenBB pre-initialization skipped or failed: {e}")
 
 	if not use_processes:
-		results = []
 		current_cooldown = 5.0
 		for batch in batches:
 			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
 			success, current_cooldown = _fetch_batch_process_worker(
 				batch, current_cooldown
 			)
-			results.append(success)
-		return all(results)
+			if success:
+				yield batch
+		return
 
 	# PR Feedback: Use get_running_loop() (modern asyncio)
 	loop = asyncio.get_running_loop()
 	# Always use ProcessPoolExecutor to avoid signal issues in threads
-	with ProcessPoolExecutor(max_workers=min(4, len(batches))) as pool:
-		tasks = [
-			loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
-			for batch in batches
-		]
-		results = await asyncio.gather(*tasks)
+	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
+	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
+		tasks_map = {}
+		for batch in batches:
+			# Use loop.run_in_executor to spawn the worker
+			task = loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
+			tasks_map[task] = batch
+			# Stagger the task submission slightly for better responsiveness
+			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
 
-	overall_success = all(results)
-	logger.info(f"Parallel data fetch complete. Success: {overall_success}")
-	return overall_success
+		# Yield batches as they complete to enable pipelining
+		for completed_task in asyncio.as_completed(list(tasks_map.keys())):
+			try:
+				success, _ = await completed_task
+				# Find the original task future to get the batch from tasks_map
+				# We need to find which future in tasks_map was completed
+				for task_future, batch in tasks_map.items():
+					if task_future.done() and not hasattr(task_future, "_yielded"):
+						task_future._yielded = True
+						if success:
+							yield batch
+						break
+			except Exception as e:
+				logger.error(f"Batch fetch task failed: {e}")
+
+	logger.info("Data fetch complete.")
 
 
 def run_bulk_analysis(
