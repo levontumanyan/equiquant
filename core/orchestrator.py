@@ -1,8 +1,7 @@
 import asyncio
-import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -101,36 +100,59 @@ def _tracked_analyze_asset(
 		stats.record_task_complete(worker_time)
 
 
+def _fetch_batch_process_worker(
+	batch_tickers: List[str], current_cooldown: float = 5.0
+) -> Tuple[bool, float]:
+	"""Worker function for ProcessPoolExecutor to fetch data."""
+	# Re-import inside process to avoid issues
+	from core.openbb_client import fetch_batch_with_backoff
+
+	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
+
+
 async def fetch_data(
 	tickers: List[str],
-	batch_size: int = 20,
+	batch_size: int = 100,
+	use_processes: bool = True,
 ) -> bool:
 	"""
-	Fetch data for multiple tickers in batches with backoff and retry.
+	Fetch data for multiple tickers in parallel batches using processes.
+	Super fast and async-friendly.
 	"""
-	logger.info(f"Starting data fetch for {len(tickers)} tickers")
-	current_cooldown = 5.0
-	overall_success = True
+	# PR Feedback: Normalize symbols early and consistently
+	tickers = [t.upper().strip() for t in tickers if t.strip()]
+	logger.info(
+		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes})"
+	)
 
-	for i in range(0, len(tickers), batch_size):
-		batch_tickers = [t.upper().strip() for t in tickers[i : i + batch_size]]
-		logger.info(f"Fetching batch: {batch_tickers}")
+	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
 
-		from core.openbb_client import fetch_batch_with_backoff
+	if not batches:
+		return True
 
-		success, current_cooldown = await asyncio.to_thread(
-			fetch_batch_with_backoff, batch_tickers, current_cooldown
-		)
+	if not use_processes:
+		results = []
+		current_cooldown = 5.0
+		for batch in batches:
+			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
+			success, current_cooldown = _fetch_batch_process_worker(
+				batch, current_cooldown
+			)
+			results.append(success)
+		return all(results)
 
-		if not success:
-			overall_success = False
-			logger.warning(f"Batch {i // batch_size + 1} failed partially or fully.")
+	# PR Feedback: Use get_running_loop() (modern asyncio)
+	loop = asyncio.get_running_loop()
+	# Always use ProcessPoolExecutor to avoid signal issues in threads
+	with ProcessPoolExecutor(max_workers=min(4, len(batches))) as pool:
+		tasks = [
+			loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
+			for batch in batches
+		]
+		results = await asyncio.gather(*tasks)
 
-		if i + batch_size < len(tickers):
-			# Jittered wait between batches; B311 safe.
-			await asyncio.sleep(random.uniform(2.0, 4.0))  # nosec B311
-
-	logger.info(f"Data fetch complete. Success: {overall_success}")
+	overall_success = all(results)
+	logger.info(f"Parallel data fetch complete. Success: {overall_success}")
 	return overall_success
 
 

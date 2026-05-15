@@ -38,5 +38,6 @@
 - When you add any new `uv` package make sure to distinguish between dev level packages or user level. Most things should be in dev to keep the user install as small as possible.
 
 ## Subagent & Data Access
+- **Debug Tools**: Use `tests/debug_raw_data.py <ticker>` to inspect raw OpenBB responses across multiple endpoints for troubleshooting.
 - **Tool Configuration**: When using tools like `read_file`, `grep_search`, or `glob`, agents MUST set `respect_git_ignore: false` for paths involving `reports/` or `logs/`.
 - **Fallbacks**: If a high-level tool (like `read_file`) fails due to ignore patterns, use `run_shell_command` with `cat` to ingest the data.

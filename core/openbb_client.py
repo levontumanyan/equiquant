@@ -105,6 +105,7 @@ def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) ->
 				raise e
 	return None
 
+
 def _fetch_bulk_endpoints(
 	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict[str, Dict[str, Any]]
 ) -> bool:
@@ -125,7 +126,11 @@ def _fetch_bulk_endpoints(
 				for r in res.results:
 					s = r.symbol.upper()
 					if s in bulk_combined:
-						bulk_combined[s].update(r.model_dump())
+						# Safe merge: only overwrite if value is not None
+						data = r.model_dump()
+						for k, v in data.items():
+							if v is not None or k not in bulk_combined[s]:
+								bulk_combined[s][k] = v
 			else:
 				logger.warning(f"No results returned for bulk {label}")
 				# If even basic profile fails, we mark partial failure
@@ -178,7 +183,10 @@ def _fetch_etf_info_bulk(
 			try:
 				res = _fetch_with_retry(obb.etf.info, s, provider)
 				if res and hasattr(res, "results") and res.results:
-					bulk_combined[s].update(res.results[0].model_dump())
+					data = res.results[0].model_dump()
+					for k, v in data.items():
+						if v is not None or k not in bulk_combined[s]:
+							bulk_combined[s][k] = v
 			except Exception:
 				pass  # nosec B110
 

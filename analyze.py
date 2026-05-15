@@ -216,31 +216,8 @@ def _handle_special_flags(args):
 		sys.exit(0)
 
 
-def main():
-	args, parser = _parse_args()
-	setup_logging(verbose=args.verbose)
-	_handle_special_flags(args)
-
-	db_manager = DatabaseManager()
-	repo = DatabaseRepository(db_manager)
-	if (db_path := db_manager.db_path).exists():
-		stats.initial_db_size = db_path.stat().st_size
-	stats.record_artifact(LOG_FILE)
-
-	stats.start_stage("Data Discovery")
-	tickers = _collect_tickers(args, repo, db_manager)
-	stats.end_stage("Data Discovery")
-	stats.total_tickers = len(tickers)
-
-	if not tickers:
-		console.print("[bold red]Error: No tickers provided.[/bold red]")
-		parser.print_help()
-		sys.exit(1)
-
-	_handle_backgrounding(args, tickers)
-	if args.history:
-		_handle_history_request(repo, tickers, args.profile)
-
+def _execute_analysis(args, repo, tickers):
+	"""Handle the analysis and reporting phase."""
 	stats.start_stage("Analysis & Scoring")
 	is_bulk = len(tickers) > 1
 	console.print(
@@ -283,6 +260,49 @@ def main():
 		stats.record_artifact(export_path)
 		console.print(f"\n[bold green]Report exported to: {export_path}[/bold green]")
 	stats.end_stage("Reporting")
+
+
+def main():
+	args, parser = _parse_args()
+	setup_logging(verbose=args.verbose)
+	_handle_special_flags(args)
+
+	db_manager = DatabaseManager()
+	repo = DatabaseRepository(db_manager)
+	if (db_path := db_manager.db_path).exists():
+		stats.initial_db_size = db_path.stat().st_size
+	stats.record_artifact(LOG_FILE)
+
+	stats.start_stage("Data Discovery")
+	tickers = _collect_tickers(args, repo, db_manager)
+	stats.end_stage("Data Discovery")
+	stats.total_tickers = len(tickers)
+
+	if not tickers:
+		console.print("[bold red]Error: No tickers provided.[/bold red]")
+		parser.print_help()
+		sys.exit(1)
+
+	_handle_backgrounding(args, tickers)
+	if args.history:
+		_handle_history_request(repo, tickers, args.profile)
+
+	# Data Acquisition Phase: Fetch missing data before analysis
+	from core.openbb_client import should_use_cache
+	from core.orchestrator import fetch_data
+
+	missing_tickers = [t for t in tickers if not should_use_cache(t)]
+	if missing_tickers:
+		stats.start_stage("Data Acquisition")
+		console.print(
+			f"[bold yellow]Fetching missing data for {len(missing_tickers)} asset(s)...[/bold yellow]"
+		)
+		import asyncio
+
+		asyncio.run(fetch_data(missing_tickers))
+		stats.end_stage("Data Acquisition")
+
+	_execute_analysis(args, repo, tickers)
 
 	if db_path.exists():
 		stats.final_db_size = db_path.stat().st_size
