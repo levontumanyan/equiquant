@@ -1,0 +1,14 @@
+[
+	{
+		"name": "Magnificent 7",
+		"description": "The dominant mega-cap tech stocks driving the market.",
+		"is_system": 1,
+		"tickers": ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA"]
+	},
+	{
+		"name": "Semiconductors",
+		"description": "Leading global semiconductor manufacturers and designers.",
+		"is_system": 1,
+		"tickers": ["NVDA", "AMD", "INTC", "TSM", "AVGO", "QCOM", "MU"]
+	}
+]

@@ -7,7 +7,7 @@ from core.database import DatabaseManager, DatabaseRepository
 @pytest.fixture
 def repo(tmp_path):
 	db_file = tmp_path / "test_market_sectors.db"
-	manager = DatabaseManager(str(db_file))
+	manager = DatabaseManager(str(db_file), skip_auto_seed=True)
 	repo = DatabaseRepository(manager)
 
 	# Seed Global Benchmarks

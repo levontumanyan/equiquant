@@ -24,8 +24,8 @@ def test_get_status():
 	"""
 	response = client.get("/api/status")
 	assert response.status_code == 200
-	assert response.json() == {
-		"backend": "connected",
-		"database": "available",
-		"version": "0.1.0",
-	}
+	data = response.json()
+	assert data["backend"] == "connected"
+	assert data["database"] == "available"
+	assert data["version"] == "0.1.0"
+	assert data["openbb"] in ("ready", "warming_up")

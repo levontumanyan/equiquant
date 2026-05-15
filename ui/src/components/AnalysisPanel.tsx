@@ -11,13 +11,24 @@ interface Asset {
 	sector: string | null;
 }
 
-const AnalysisPanel: React.FC = () => {
+interface Group {
+	name: string;
+	description: string | null;
+	is_system: number;
+}
+
+interface AnalysisPanelProps {
+	openbbReady: boolean;
+}
+
+const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [tickers, setTickers] = useState<string[]>([])
 	const [manualInput, setManualInput] = useState('')
 	const [availableAssets, setAvailableAssets] = useState<Asset[]>([])
 	const [assetSearch, setAssetSearch] = useState('')
 	const [profile, setProfile] = useState('balanced')
 	const [profiles, setProfiles] = useState<string[]>([])
+	const [groups, setGroups] = useState<Group[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [results, setResults] = useState<AssetAnalysis[]>([])
 	const [error, setError] = useState<string | null>(null)
@@ -25,26 +36,33 @@ const AnalysisPanel: React.FC = () => {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				const [assetsRes] = await Promise.all([
+				const [assetsRes, groupsRes, profilesRes] = await Promise.all([
 					fetch(`${API_BASE_URL}/api/assets`),
+					fetch(`${API_BASE_URL}/api/groups`),
+					fetch(`${API_BASE_URL}/api/profiles/list`),
 				])
-				
-				if (assetsRes.ok) {
-					const assets = await assetsRes.json()
-					setAvailableAssets(assets)
-				}
-				
-				const profilesRes = await fetch(`${API_BASE_URL}/api/profiles/list`)
-				if (profilesRes.ok) {
-					const profiles = await profilesRes.json()
-					setProfiles(profiles)
-				}
+
+				if (assetsRes.ok) setAvailableAssets(await assetsRes.json())
+				if (groupsRes.ok) setGroups(await groupsRes.json())
+				if (profilesRes.ok) setProfiles(await profilesRes.json())
 			} catch (err) {
 				console.error('Failed to fetch initial data', err)
 			}
 		}
 		fetchData()
 	}, [])
+
+	const addGroup = async (group: Group) => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(group.name)}/tickers`)
+			if (!res.ok) return
+			const incoming: string[] = await res.json()
+			setTickers(prev => {
+				const existing = new Set(prev)
+				return [...prev, ...incoming.filter(t => !existing.has(t))]
+			})
+		} catch {}
+	}
 
 	const filteredAssets = useMemo(() => {
 		if (!assetSearch) return []
@@ -122,7 +140,23 @@ const AnalysisPanel: React.FC = () => {
 					<div className="controls-card">
 						<div className="input-group">
 							<label className="input-label">Select Assets</label>
-							
+
+							{/* Group quick-add chips */}
+							{groups.length > 0 && (
+								<div className="group-chips">
+									{groups.map(g => (
+										<button
+											key={g.name}
+											className={`group-chip${g.is_system ? ' group-chip--system' : ''}`}
+											onClick={() => addGroup(g)}
+											title={g.description ?? undefined}
+										>
+											{g.is_system ? '★ ' : ''}{g.name}
+										</button>
+									))}
+								</div>
+							)}
+
 							{/* Ticker Picker */}
 							<div className="ticker-picker">
 								<div className="search-bar">
@@ -208,7 +242,7 @@ const AnalysisPanel: React.FC = () => {
 
 						<button
 							onClick={handleRunAnalysis}
-							disabled={isLoading}
+							disabled={isLoading || !openbbReady}
 							className={`run-button ${isLoading ? 'loading' : 'idle'}`}
 						>
 							{isLoading ? (
@@ -218,6 +252,13 @@ const AnalysisPanel: React.FC = () => {
 							)}
 							{isLoading ? 'Analyzing...' : 'Run Analysis'}
 						</button>
+
+						{!openbbReady && (
+							<div className="warming-up-box">
+								<Loader2 className="spin" size={13} />
+								<span>Warming up data provider — ready in a few seconds…</span>
+							</div>
+						)}
 
 						{error && (
 							<div className="error-box">

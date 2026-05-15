@@ -189,8 +189,17 @@ body {
 	box-shadow: 0 0 10px rgba(100, 108, 255, 0.3);
 }
 
-.math-section, .benchmarks-section, .fetcher-section, .analysis-section {
+.math-section, .benchmarks-section, .fetcher-section {
 	width: 100%;
+	text-align: left;
+}
+
+.analysis-section {
+	/* Break out of the parent's max-width/padding box so the grid uses the full viewport */
+	width: 100vw;
+	margin-left: calc(-50vw + 50%);
+	padding: 0 1.5rem;
+	box-sizing: border-box;
 	text-align: left;
 }
 
