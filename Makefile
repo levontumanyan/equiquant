@@ -4,7 +4,7 @@
 PROFILE ?= balanced
 BENCHMARK_VERSION ?= 1.0.0
 API_PORT ?= 8000
-UI_PORT ?= 8888
+UI_PORT  ?= 8888
 
 help:
 	@echo "EquiQuant: High-Performance Asset Valuation"
@@ -68,12 +68,12 @@ setup: ensure-uv
 
 # UI & API Management
 ui-server: ensure-uv
-	@echo "Starting EquiQuant API Server on http://localhost:$(API_PORT)"
-	@uv run uvicorn core.api:app --reload --port $(API_PORT)
+	@echo "Starting EquiQuant API Server on http://0.0.0.0:$(API_PORT)"
+	@uv run uvicorn core.api:app --reload --host 0.0.0.0 --port $(API_PORT)
 
 ui-dev:
-	@echo "Starting EquiQuant Frontend on http://localhost:$(UI_PORT)"
-	@cd ui && pnpm install && VITE_API_BASE_URL=http://localhost:$(API_PORT) pnpm run dev -- --port $(UI_PORT)
+	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
+	@cd ui && pnpm install && pnpm run dev -- --host 0.0.0.0 --port $(UI_PORT)
 
 ui-stop:
 	@echo "Stopping EquiQuant processes..."

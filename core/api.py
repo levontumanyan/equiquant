@@ -1,4 +1,6 @@
 import os
+import threading
+from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -14,11 +16,36 @@ from core.scorers import SCORERS
 
 logger = get_logger(__name__)
 
+_openbb_ready = False
+
+
+def _warm_openbb():
+	"""Import openbb in a background thread so the first analysis request is instant."""
+	global _openbb_ready
+	try:
+		logger.info("Warming up OpenBB...")
+		from openbb import obb  # noqa: F401
+
+		_openbb_ready = True
+		logger.info("OpenBB ready.")
+	except Exception as e:
+		logger.error(f"OpenBB warmup failed: {e}")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+	"""Kick off OpenBB warmup on startup without blocking the server."""
+	threading.Thread(target=_warm_openbb, daemon=True).start()
+	yield
+
+
 app = FastAPI(
 	title="EquiQuant API",
 	description="Backend API for the EquiQuant Market Analysis Dashboard",
 	version="0.1.0",
+	lifespan=lifespan,
 )
+
 
 # Initialize Database
 db_manager = DatabaseManager()
@@ -114,7 +141,12 @@ async def health_check():
 @app.get("/api/status")
 async def get_status():
 	"""Detailed status for the frontend dashboard."""
-	return {"backend": "connected", "database": "available", "version": "0.1.0"}
+	return {
+		"backend": "connected",
+		"database": "available",
+		"version": "0.1.0",
+		"openbb": "ready" if _openbb_ready else "warming_up",
+	}
 
 
 @app.get("/api/benchmarks", response_model=List[BenchmarkResponse])
@@ -232,6 +264,47 @@ async def get_benchmark_versions():
 async def get_formulas():
 	"""Fetch all available scoring formulas."""
 	return list(SCORERS.keys())
+
+
+@app.get("/api/groups")
+async def list_groups():
+	"""Fetch all available stock groups."""
+	try:
+		return repo.list_groups()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/groups/{name}/tickers")
+async def get_group_tickers(name: str):
+	"""Fetch tickers for a specific group."""
+	try:
+		return repo.get_group_constituents(name)
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/groups")
+async def create_group(
+	name: str, tickers: List[str], description: Optional[str] = None
+):
+	"""Create or update a stock group."""
+	try:
+		repo.upsert_group(name, description)
+		repo.update_group_constituents(name, tickers)
+		return {"status": "ok", "name": name}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/groups/{name}")
+async def delete_group(name: str):
+	"""Delete a custom stock group."""
+	try:
+		repo.delete_group(name)
+		return {"status": "ok"}
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/profiles/list")

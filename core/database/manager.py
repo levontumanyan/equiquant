@@ -9,10 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-	def __init__(self, db_path: str = "market_analysis.db"):
+	def __init__(
+		self, db_path: str = "market_analysis.db", skip_auto_seed: bool = False
+	):
 		self.db_path = Path(db_path)
 		self.conn: Optional[sqlite3.Connection] = None
 		self._lock = InstrumentedLock("database_manager", stats)
+		self._skip_auto_seed = skip_auto_seed
 		self.initialize()
 
 	def initialize(self):
@@ -24,6 +27,24 @@ class DatabaseManager:
 			self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
 			self.conn.row_factory = sqlite3.Row
 			self._create_tables()
+			if not self._skip_auto_seed:
+				self._auto_seed()
+
+	def _auto_seed(self):
+		"""Seed the database if it's empty of configuration data."""
+		from core.database.repository import DatabaseRepository
+		from core.database.seeder import DatabaseSeeder
+
+		repo = DatabaseRepository(self)
+		# Check if any investor profiles exist as a proxy for 'has data'
+		cursor = self.conn.cursor()
+		cursor.execute("SELECT COUNT(*) FROM investor_profiles")
+		count = cursor.fetchone()[0]
+
+		if count == 0:
+			logger.info("Fresh database detected. Initializing seeds...")
+			seeder = DatabaseSeeder(repo)
+			seeder.seed_all()
 
 	def _create_tables(self):
 		"""Create schema tables."""
@@ -182,6 +203,26 @@ class DatabaseManager:
 				weight REAL,
 				version TEXT DEFAULT '1.0.0',
 				PRIMARY KEY (asset_type, metric_key, version)
+			)
+		""")
+
+		# Groups table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS groups (
+				name TEXT PRIMARY KEY,
+				description TEXT,
+				is_system BOOLEAN DEFAULT 0
+			)
+		""")
+
+		# Group Constituents table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS group_constituents (
+				group_name TEXT,
+				symbol TEXT,
+				PRIMARY KEY (group_name, symbol),
+				FOREIGN KEY (group_name) REFERENCES groups(name) ON DELETE CASCADE,
+				FOREIGN KEY (symbol) REFERENCES assets(symbol)
 			)
 		""")
 

@@ -10,6 +10,7 @@ import type { Benchmark } from './types'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
+	const [openbbReady, setOpenbbReady] = useState(false)
 	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'benchmarks' | 'fetcher' | 'analysis' | 'profile'>('status')
 	const [previewBenchmark, setPreviewBenchmark] = useState<Benchmark | undefined>(undefined)
 
@@ -24,12 +25,16 @@ function App() {
 			try {
 				const response = await fetch(`${API_BASE_URL}/api/status`)
 				if (response.ok) {
+					const data = await response.json()
 					setBackendStatus('online')
+					setOpenbbReady(data.openbb === 'ready')
 				} else {
 					setBackendStatus('offline')
+					setOpenbbReady(false)
 				}
 			} catch (_error) {
 				setBackendStatus('offline')
+				setOpenbbReady(false)
 			}
 		}
 
@@ -143,7 +148,7 @@ function App() {
 
 			{activeTab === 'analysis' && (
 				<section className="analysis-section">
-					<AnalysisPanel />
+					<AnalysisPanel openbbReady={openbbReady} />
 				</section>
 			)}
 
@@ -158,9 +163,7 @@ function App() {
 					<div className="footer-status">
 						<span className={`dot ${backendStatus}`}></span>
 						<span className="status-text">
-							{backendStatus === 'online' 
-								? `Backend Connected (${API_BASE_URL})` 
-								: `Backend Offline (${API_BASE_URL})`}
+							{backendStatus === 'online' ? 'Backend Connected' : 'Backend Offline'}
 						</span>
 					</div>
 					<div className="footer-version">v0.1.0-alpha</div>

@@ -156,6 +156,35 @@
 	margin: auto;
 }
 
+.group-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin-bottom: 0.75rem;
+}
+
+.group-chip {
+	background: #1e1d2e;
+	border: 1px solid #3d3a60;
+	border-radius: 16px;
+	padding: 0.25rem 0.7rem;
+	font-size: 0.75rem;
+	color: #aaa;
+	cursor: pointer;
+	transition: all 0.15s;
+	white-space: nowrap;
+}
+
+.group-chip:hover {
+	border-color: #646cff;
+	color: #fff;
+	background: #2a2a3a;
+}
+
+.group-chip--system {
+	color: #9d9af0;
+}
+
 .quick-actions {
 	display: flex;
 	justify-content: space-between;
@@ -307,6 +336,18 @@
 	background-color: #1f2937;
 	color: #6b7280;
 	cursor: not-allowed;
+}
+
+.warming-up-box {
+	padding: 0.65rem 0.75rem;
+	background-color: rgba(100, 108, 255, 0.08);
+	border: 1px solid rgba(100, 108, 255, 0.2);
+	border-radius: 0.5rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: #9d9af0;
+	font-size: 0.75rem;
 }
 
 .error-box {

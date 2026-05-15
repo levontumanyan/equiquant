@@ -6,7 +6,7 @@ from core.database.repository import DatabaseRepository
 
 @pytest.fixture
 def repo():
-	db_manager = DatabaseManager(":memory:")
+	db_manager = DatabaseManager(":memory:", skip_auto_seed=True)
 	return DatabaseRepository(db_manager)
 
 

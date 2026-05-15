@@ -9,7 +9,7 @@ from core.orchestrator import analyze_asset
 @pytest.fixture
 def db_manager(tmp_path):
 	db_file = tmp_path / "test_versioning.db"
-	manager = DatabaseManager(str(db_file))
+	manager = DatabaseManager(str(db_file), skip_auto_seed=True)
 
 	# Manually create tables
 	conn = manager.get_connection()

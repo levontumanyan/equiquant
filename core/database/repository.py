@@ -114,6 +114,81 @@ class DatabaseRepository:
 			row = cursor.fetchone()
 			return dict(row) if row else None
 
+	def upsert_group(
+		self, name: str, description: Optional[str] = None, is_system: bool = False
+	):
+		"""Insert or update a group."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO groups (name, description, is_system)
+				VALUES (?, ?, ?)
+				ON CONFLICT(name) DO UPDATE SET
+					description = COALESCE(excluded.description, groups.description),
+					is_system = excluded.is_system
+			""",
+				(name, description, is_system),
+			)
+			conn.commit()
+
+	def update_group_constituents(self, group_name: str, symbols: List[str]):
+		"""Replace all constituents for a group."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+
+			# Ensure assets exist
+			for symbol in symbols:
+				cursor.execute(
+					"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+					(symbol,),
+				)
+
+			# Remove old ones
+			cursor.execute(
+				"DELETE FROM group_constituents WHERE group_name = ?", (group_name,)
+			)
+
+			# Add new ones
+			for symbol in symbols:
+				cursor.execute(
+					"INSERT INTO group_constituents (group_name, symbol) VALUES (?, ?)",
+					(group_name, symbol),
+				)
+
+			conn.commit()
+
+	def get_group_constituents(self, group_name: str) -> List[str]:
+		"""Get constituents for a group from the DB."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT symbol FROM group_constituents WHERE group_name = ?",
+				(group_name,),
+			)
+			return [row["symbol"] for row in cursor.fetchall()]
+
+	def list_groups(self) -> List[dict]:
+		"""Return all groups."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT * FROM groups ORDER BY name")
+			return [dict(row) for row in cursor.fetchall()]
+
+	def delete_group(self, group_name: str):
+		"""Delete a group and its constituents."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"DELETE FROM groups WHERE name = ? AND is_system = 0", (group_name,)
+			)
+			conn.commit()
+
 	def get_asset(self, symbol: str) -> Optional[dict]:
 		"""Get asset metadata."""
 		with self._lock:

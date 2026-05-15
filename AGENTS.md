@@ -94,9 +94,11 @@ analysis_snapshots(symbol, profile, total_score, benchmark_version, timestamp)
 4. Orchestrator writes dict to `raw_provider_data` **before** yielding the batch
 5. `_tracked_analyze_asset` reads from DB via `get_cached_stock_data(ticker, repo)`
 
-## DB schema — static config tables (must be seeded, see issue #64)
-`global_benchmarks`, `sector_benchmarks`, `investor_profiles`, `profile_metric_settings`
+## DB schema — static config tables
+`global_benchmarks`, `sector_benchmarks`, `investor_profiles`, `profile_metric_settings`, `groups`, `group_constituents`
+
+Auto-seeded on every `DatabaseManager` init via `_auto_seed()`. Each table checked independently — seeded only if empty. Seed data in `seeds/*.json`, logic in `core/database/seeder.py`.
 
 ## Known gaps
-- `profile_metric_settings` exists in schema but has no data seeded → profile weights always fall back to benchmark defaults. Scoring still works but profiles have no effect. Fix tracked in #64.
+- `profile_metric_settings` is intentionally empty → profile weights fall back to benchmark defaults. Scoring works but profiles have no effect. Fix tracked in #64.
 - `market_analysis.db` is gitignored but still in git history. BFG cleanup tracked in #64.
