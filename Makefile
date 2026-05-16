@@ -1,4 +1,4 @@
-.PHONY: help lint format test check install setup clean db-shell ui-server ui-dev ui-stop ui-start ui-restart run populate-index
+.PHONY: help lint format test check install setup clean db-shell ui-server ui-dev stop start ui-restart run populate-index
 
 # Configuration
 PROFILE ?= balanced
@@ -8,7 +8,7 @@ UI_PORT  ?= 8888
 
 # Package Manager Detection
 # Default to Zero-Pollution (uv-provided npm). 
-# Developers can override with: make PM=pnpm ui-start
+# Developers can override with: make PM=pnpm start
 PM ?= uv run npm
 
 help:
@@ -17,8 +17,8 @@ help:
 	@echo "UI Development:"
 	@echo "  make ui-server   Start the API backend (Uvicorn)"
 	@echo "  make ui-dev      Start the React frontend (Vite)"
-	@echo "  make ui-start    Start both API and UI servers"
-	@echo "  make ui-stop     Kill running API and UI processes"
+	@echo "  make start    Start both API and UI servers"
+	@echo "  make stop     Kill running API and UI processes"
 	@echo "  make ui-restart  Restart both API and UI servers"
 	@echo ""
 	@echo "CLI Usage:"
@@ -79,7 +79,7 @@ install: ensure-uv
 	@echo "----------------------------------------------------------------"
 	@echo "Installation Complete!"
 	@echo "----------------------------------------------------------------"
-	@echo "To start the Web Dashboard:   make ui-start"
+	@echo "To start the Web Dashboard:   make start"
 	@echo "To analyze via CLI:           ./analyze.py AAPL"
 	@echo ""
 	@echo "To enable shell completions (Zsh):"
@@ -103,15 +103,15 @@ ui-dev: ensure-uv
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
 	@cd ui && $(PM) run dev -- --host 0.0.0.0 --port $(UI_PORT)
 
-ui-stop:
+stop:
 	@echo "Stopping EquiQuant processes..."
 	@lsof -ti:$(API_PORT) | xargs kill -9 2>/dev/null || true
 	@lsof -ti:$(UI_PORT) | xargs kill -9 2>/dev/null || true
 
-ui-start: ensure-uv
+start: ensure-uv
 	@$(MAKE) ui-server & $(MAKE) ui-dev
 
-ui-restart: ui-stop ui-start
+ui-restart: stop start
 
 # CLI Tools
 run: ensure-uv

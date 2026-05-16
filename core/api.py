@@ -333,6 +333,26 @@ async def list_profiles():
 		raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/profiles/{name}")
+async def get_profile(name: str):
+	"""Fetch a single investor profile with all metric settings."""
+	try:
+		settings = repo.get_profile_settings(name)
+		if not settings:
+			raise HTTPException(status_code=404, detail=f"Profile '{name}' not found")
+		weights, ranges, formulas = {}, {}, {}
+		for s in settings:
+			key = s["metric_key"]
+			weights[key] = s["weight"]
+			ranges[key] = {"min": s["range_min"], "max": s["range_max"]}
+			formulas[key] = s["formula"]
+		return {"name": name, "weights": weights, "ranges": ranges, "formulas": formulas}
+	except HTTPException:
+		raise
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/profiles")
 async def save_profile(profile: ProfileRequest):
 	"""Create or update an investor profile with metric settings."""
