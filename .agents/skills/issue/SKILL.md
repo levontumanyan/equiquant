@@ -46,19 +46,17 @@ done
 
 **Step 3: Gather Issue Metadata via AskUserQuestion**
 
-Question 1 — Criticality:
-
-```
-Question: "What is the criticality of this issue?"
-Header: "Criticality"
+Question: "What is the urgency of this issue?"
+Header: "Urgency"
 Options:
+  - label: "critical"
+    description: "Blockers or critical data integrity issues"
   - label: "high"
-    description: "Critical path, blocker, or severe regression"
+    description: "High priority features or major technical debt"
   - label: "medium"
-    description: "Standard feature or bug with workaround"
+    description: "Standard features, testing, and improvements"
   - label: "low"
-    description: "Minor enhancement or non-blocking debt"
-
+    description: "Nice-to-haves and minor tweaks"
 ```
 
 Question 2 — Easiness of Implementation:
