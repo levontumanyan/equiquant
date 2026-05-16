@@ -19,7 +19,7 @@ interface ResultsGridProps {
 const columnHelper = createColumnHelper<AssetAnalysis>()
 
 const ResultsGrid: React.FC<ResultsGridProps> = ({ data }) => {
-	const [sorting, setSorting] = useState<SortingState>([])
+	const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 	const [globalFilter, setGlobalFilter] = useState('')
 	const [showSettings, setShowSettings] = useState(false)
