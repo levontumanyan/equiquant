@@ -21,7 +21,7 @@ The easiest way to start the dashboard is from the root directory:
 
 2.  **Start the Dashboard**:
     ```bash
-    make ui-restart
+    make ui-start
     ```
     This starts the API server and the Vite development server simultaneously.
     - **Frontend**: [http://localhost:8888](http://localhost:8888)

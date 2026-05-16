@@ -7,19 +7,19 @@ Programmatic financial analysis pipeline integrating quantitative benchmarks wit
 
 # Quick Start
 
-### 1. Install Everything (Zero-Pollution)
+## 1. Install Everything (Zero-Pollution)
 ```bash
 make install
 ```
 *Sets up Python, Node.js, and all UI dependencies automatically.*
 
-### 2. Launch the Dashboard
+## 2. Launch the Dashboard
 ```bash
-make ui-restart
+make ui-start
 ```
 *Access the UI at [http://localhost:8888](http://localhost:8888)*
 
-### 3. Analyze via CLI
+## 3. Analyze via CLI
 ```bash
 ./analyze.py AAPL
 ```
