@@ -78,8 +78,15 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const addGroup = async (group: Group) => {
 		if (selectedGroups.has(group.name)) {
 			const cached = groupTickerCache.current.get(group.name) ?? []
-			const remove = new Set(cached)
-			setTickers(prev => prev.filter(t => !remove.has(t)))
+			// Build union of tickers still claimed by every OTHER active group
+			const otherClaimed = new Set<string>()
+			selectedGroups.forEach(name => {
+				if (name !== group.name) {
+					groupTickerCache.current.get(name)?.forEach(t => otherClaimed.add(t))
+				}
+			})
+			const safeToRemove = new Set(cached.filter(t => !otherClaimed.has(t)))
+			setTickers(prev => prev.filter(t => !safeToRemove.has(t)))
 			setSelectedGroups(prev => { const n = new Set(prev); n.delete(group.name); return n })
 			return
 		}
@@ -408,6 +415,9 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</div>
 
 							<div className="quick-actions">
+								{tickers.length > 0 && (
+									<span className="ticker-total">{tickers.length} selected</span>
+								)}
 								<button
 									className="action-link"
 									onClick={() => setTickers(availableAssets.map(a => a.symbol))}

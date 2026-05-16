@@ -403,8 +403,16 @@
 
 .quick-actions {
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
 	padding: 0 0.25rem;
+}
+
+.ticker-total {
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: #9d9af0;
+	margin-right: auto;
 }
 
 .action-link {
