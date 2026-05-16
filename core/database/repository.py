@@ -119,33 +119,41 @@ class DatabaseRepository:
 			return dict(row) if row else None
 
 	def upsert_group(
-		self,
-		name: str,
-		description: Optional[str] = None,
-		is_system: bool = False,
-		_bypass_system_guard: bool = False,
+		self, name: str, description: Optional[str] = None, is_system: bool = False
 	):
-		"""Insert or update a group. Raises ValueError if targeting an existing system group.
-
-		Pass _bypass_system_guard=True only from DatabaseSeeder to allow re-seeding system groups.
-		"""
+		"""Insert or update a user group. Raises ValueError if targeting an existing system group."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			if not _bypass_system_guard:
-				cursor.execute("SELECT is_system FROM groups WHERE name = ?", (name,))
-				row = cursor.fetchone()
-				if row and row["is_system"]:
-					raise ValueError(f"Cannot modify system group '{name}'")
+			cursor.execute("SELECT is_system FROM groups WHERE name = ?", (name,))
+			row = cursor.fetchone()
+			if row and row["is_system"]:
+				raise ValueError(f"Cannot modify system group '{name}'")
 			cursor.execute(
 				"""
 				INSERT INTO groups (name, description, is_system)
 				VALUES (?, ?, ?)
 				ON CONFLICT(name) DO UPDATE SET
-					description = COALESCE(excluded.description, groups.description),
-					is_system = excluded.is_system
+					description = COALESCE(excluded.description, groups.description)
 			""",
 				(name, description, is_system),
+			)
+			conn.commit()
+
+	def _upsert_system_group(self, name: str, description: Optional[str] = None):
+		"""Insert or update a system group. Only called by DatabaseSeeder."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO groups (name, description, is_system)
+				VALUES (?, ?, 1)
+				ON CONFLICT(name) DO UPDATE SET
+					description = COALESCE(excluded.description, groups.description),
+					is_system = 1
+			""",
+				(name, description),
 			)
 			conn.commit()
 

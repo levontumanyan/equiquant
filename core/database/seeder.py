@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 
 from config import ROOT_DIR
 from core.database.repository import DatabaseRepository
@@ -68,9 +69,6 @@ class DatabaseSeeder:
 				)
 
 			constituents = json.loads(constituents_file.read_text())
-			# Group by index_symbol for bulk insert
-			from collections import defaultdict
-
 			by_index: dict = defaultdict(list)
 			for row in constituents:
 				by_index[row["index_symbol"]].append(row["asset_symbol"])
@@ -179,12 +177,17 @@ class DatabaseSeeder:
 				data = json.load(f)
 
 			for group in data:
-				self.repo.upsert_group(
-					name=group["name"],
-					description=group.get("description"),
-					is_system=bool(group.get("is_system", False)),
-					_bypass_system_guard=True,
-				)
+				if group.get("is_system"):
+					self.repo._upsert_system_group(
+						name=group["name"],
+						description=group.get("description"),
+					)
+				else:
+					self.repo.upsert_group(
+						name=group["name"],
+						description=group.get("description"),
+						is_system=False,
+					)
 				if "tickers" in group:
 					self.repo.update_group_constituents(group["name"], group["tickers"])
 
