@@ -6,6 +6,11 @@ BENCHMARK_VERSION ?= 1.0.0
 API_PORT ?= 8000
 UI_PORT  ?= 8888
 
+# Podman Configuration
+PODMAN_CPUS ?= 1
+PODMAN_MEMORY ?= 1024
+PODMAN_DISK ?= 20
+
 # Package Manager Detection
 # Default to Zero-Pollution (uv-provided pnpm).
 PM ?= uv run pnpm
@@ -28,7 +33,9 @@ help:
 	@echo "Development & Quality:"
 	@echo "  make check       Run linting and all tests"
 	@echo "  make test        Run unit, integration, and acceptance tests"
+	@echo "  make test-container Run all tests inside a Podman container"
 	@echo "  make setup       Initialize development environment"
+	@echo "  make podman-init Initialize and start Podman machine"
 	@echo "  make db-shell    Open sqlite3 shell for data inspection"
 	@echo "  make clean       Cleanup environment and temporary files"
 
@@ -52,6 +59,11 @@ test-acceptance: ensure-uv
 
 test: test-unit test-integration test-acceptance
 
+test-container: podman-init
+	@echo "Running tests inside Podman container..."
+	podman build -t equiquant-dev -f .devcontainer/Dockerfile .
+	podman run --rm -v $$(pwd):/workspaces/equiquant -w /workspaces/equiquant equiquant-dev make test
+
 coverage: ensure-uv
 	uv run python -m pytest --cov=core --cov-report=term-missing
 
@@ -68,6 +80,14 @@ ensure-uv:
 			exit 1; \
 		fi; \
 	}
+
+podman-init:
+	@echo "Ensuring Podman machine is initialized and running..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		podman machine list --format "{{.Name}}" | grep -q "podman-machine-default" || \
+		podman machine init --cpus $(PODMAN_CPUS) --memory $(PODMAN_MEMORY) --disk-size $(PODMAN_DISK) --rootful=false; \
+		podman machine start || true; \
+	fi
 
 install: ensure-uv
 	@echo "Installing Python dependencies (Zero-Pollution)..."
