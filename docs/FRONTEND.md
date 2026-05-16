@@ -2,58 +2,54 @@
 
 The EquiQuant frontend is a modern web dashboard built with **React**, **TypeScript**, and **Vite**. It provides a visual interface for stock analysis and market data.
 
-## Getting Started
+## Zero-Pollution Architecture
 
-### Prerequisites
+The frontend is designed to run without requiring a global Node.js installation. 
 
-- **Node.js**: Version 18 or higher is recommended.
-- **npm**: Usually comes with Node.js.
+- **Runtime**: Managed by `uv` via `nodejs-wheel`.
+- **Package Manager**: Automatically switches between `pnpm` (if available globally) and `uv run npm` (isolated).
 
-### Running in Development Mode
+## Quick Start
 
-To run the frontend dashboard in development mode with Hot Module Replacement (HMR):
+The easiest way to start the dashboard is from the root directory:
 
-1.  **Start the Backend API**:
-    The frontend requires the backend API to be running to fetch data.
+1.  **Install Everything**:
     ```bash
-    make ui-server
+    make install
     ```
-    This will start the FastAPI server at `http://localhost:8000`.
+    This sets up both the Python backend and the React frontend dependencies.
 
-2.  **Start the Frontend**:
-    In a new terminal window, navigate to the `ui` directory and start the Vite development server:
+2.  **Start the Dashboard**:
     ```bash
-    cd ui
-    npm install
-    npm run dev
+    make ui-restart
     ```
-    The dashboard will be available at `http://localhost:5173`.
+    This starts the API server and the Vite development server simultaneously.
+    - **Frontend**: [http://localhost:8888](http://localhost:8888)
+    - **API**: [http://localhost:8000](http://localhost:8000)
 
-### Alternative: Using Make
+## Manual Management
 
-For convenience, you can use the following `make` commands:
+If you prefer to manage the UI separately, navigate to the `ui` directory:
 
-- **Start Backend**: `make ui-server`
-- **Start Frontend**: `make ui-dev` (Requires `npm` to be installed)
+```bash
+cd ui
+make ui-dev   # (From root) Starts the Vite server
+```
 
-## Project Structure
+For package management:
+- **Install**: `uv run npm install`
+- **Dev**: `uv run npm run dev`
 
-- `ui/src/`: Contains the React components and logic.
-- `ui/public/`: Static assets.
-- `ui/index.html`: Main entry point for the browser.
-- `ui/vite.config.ts`: Configuration for Vite.
+## Available Scripts (in `ui` directory)
 
-## Available Scripts
-
-In the `ui` directory, you can run:
-
-- `npm run dev`: Starts the development server.
-- `npm run build`: Builds the application for production.
-- `npm run lint`: Runs ESLint to check for code quality issues.
-- `npm run preview`: Previews the production build locally.
+- `dev`: Starts the development server.
+- `build`: Builds the application for production.
+- `lint`: Runs ESLint to check for code quality issues.
+- `preview`: Previews the production build locally.
 
 ## Design Principles
 
+- **Zero Global Dependencies**: Only `uv` is required to run the entire stack.
 - **Component-Based**: We use small, reusable React components.
-- **Type Safety**: TypeScript is used throughout the frontend to ensure type safety.
+- **Type Safety**: TypeScript is used throughout the frontend.
 - **Performance**: Vite is used for fast development and optimized production builds.

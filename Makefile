@@ -6,6 +6,10 @@ BENCHMARK_VERSION ?= 1.0.0
 API_PORT ?= 8000
 UI_PORT  ?= 8888
 
+# Package Manager Detection
+# Prefers pnpm if available globally, otherwise uses uv-provided npm
+PM := $(shell command -v pnpm 2>/dev/null || echo "uv run npm")
+
 help:
 	@echo "EquiQuant: High-Performance Asset Valuation"
 	@echo ""
@@ -57,11 +61,25 @@ ensure-uv:
 	@command -v uv >/dev/null 2>&1 || { echo "uv not found. Please install it first."; exit 1; }
 
 install: ensure-uv
+	@echo "Installing Python dependencies (Zero-Pollution)..."
 	uv sync --no-dev
-	@echo "User dependencies installed."
+	@echo "Installing UI dependencies (using $(PM))..."
+	@cd ui && $(PM) install
+	@echo ""
+	@echo "----------------------------------------------------------------"
+	@echo "Installation Complete!"
+	@echo "----------------------------------------------------------------"
+	@echo "To start the Web Dashboard:   make ui-restart"
+	@echo "To analyze via CLI:           ./analyze.py AAPL"
+	@echo ""
+	@echo "To enable shell completions (Zsh):"
+	@echo "  source <(./analyze.py --completion zsh)"
+	@echo "----------------------------------------------------------------"
 
 setup: ensure-uv
+	@echo "Setting up development environment..."
 	uv sync
+	@cd ui && $(PM) install
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
 	@echo "Environment and git hooks installed."
@@ -73,7 +91,7 @@ ui-server: ensure-uv
 
 ui-dev:
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
-	@cd ui && pnpm install && pnpm run dev -- --host 0.0.0.0 --port $(UI_PORT)
+	@cd ui && $(PM) run dev -- --host 0.0.0.0 --port $(UI_PORT)
 
 ui-stop:
 	@echo "Stopping EquiQuant processes..."

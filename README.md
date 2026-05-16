@@ -3,45 +3,49 @@
 Programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
 > [!IMPORTANT]
-> **Zero-Pollution Policy**: This project is strictly isolated via `uv`. It will NEVER touch your global Python site-packages. All dependencies are managed in a local `.venv` folder.
+> **Zero-Pollution Policy**: This project is strictly isolated via `uv`. It will NEVER touch your global Python site-packages or Node.js installation. Everything (including Node/npm) is managed in a local `.venv`.
 
 # Quick Start
 
-Analyze a stock:
+### 1. Install Everything (Zero-Pollution)
+```bash
+make install
+```
+*Sets up Python, Node.js, and all UI dependencies automatically.*
+
+### 2. Launch the Dashboard
+```bash
+make ui-restart
+```
+*Access the UI at [http://localhost:8888](http://localhost:8888)*
+
+### 3. Analyze via CLI
 ```bash
 ./analyze.py AAPL
 ```
 
-Analyze an index:
-```bash
-./analyze.py --index QQQ --export csv
-```
-
 # Installation
 
-## For Users (Minimal)
+## Requirements
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- *That's it.* Node.js and Python are handled automatically by `uv`.
 
-If you just want to run the tool:
+## For Users
 ```bash
 make install
 ```
-*Installs core runtime dependencies and shell completions.*
 
-## For Developers (Full)
-
-If you want to contribute, run tests, or modify the tool:
+## For Developers
 ```bash
 make setup
 ```
-
-*Installs all dependencies (including dev tools) and git hooks.*
+*Installs dev tools (pytest, ruff) and git hooks.*
 
 # CLI Usage
 
 ```bash
 ./analyze.py TICKER [TICKERS...]  # Analyze stocks
-./analyze.py -f tickers.txt        # Analyze from file
-./analyze.py --index QQQ           # Analyze index components
+./analyze.py -i QQQ               # Analyze index components
 ./analyze.py --db assets           # Inspect database
 ./analyze.py --history AAPL        # Show historical scores
 ```
@@ -50,18 +54,8 @@ make setup
 
 - **Multi-Source Data**: Scalable architecture supporting multiple data providers.
 - **Sector Intelligence**: Automatic sector-specific valuation benchmarks.
-- **Zsh/Bash Completions**: Tab-complete tickers, indices, and profiles.
-- **Database-Driven**: All scoring rules and profiles are stored in SQLite.
-
-# Frontend Dashboard
-
-EquiQuant includes a modern web dashboard for visualizing analysis results.
-
-To run the dashboard:
-1. Start the API server: `make ui-server`
-2. Start the frontend: `make ui-dev`
-
-For detailed instructions, see [Frontend Documentation](docs/FRONTEND.md).
+- **Web Dashboard**: Modern React interface for visualizing scoring results.
+- **Zero-Pollution**: Isolated runtime for both Python and Node.js.
 
 # Documentation
 
@@ -76,5 +70,5 @@ For more detailed information, see the `docs/` directory:
 # Development
 
 - `make check`: Run linting, formatting, and tests.
-- `make test`: Run `pytest`.
+- `make test`: Run unit, integration, and acceptance tests.
 - `make db-shell`: Direct SQLite access.
