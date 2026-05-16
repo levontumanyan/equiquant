@@ -454,3 +454,19 @@
 	color: #6b7280;
 	font-style: italic;
 }
+
+/* ── Clickable rows / raw metrics drawer ── */
+
+.clickable-row {
+	cursor: pointer;
+	transition: background 0.1s;
+}
+
+.clickable-row:hover td {
+	background: rgba(99, 102, 241, 0.06);
+}
+
+.clickable-row.row-selected td {
+	background: rgba(99, 102, 241, 0.12);
+	border-bottom-color: rgba(99, 102, 241, 0.2);
+}

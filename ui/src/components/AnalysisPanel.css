@@ -359,15 +359,19 @@
 	gap: 0.35rem;
 	background: transparent;
 	border: none;
+	outline: none;
 	color: #6b7280;
 	font-size: 0.7rem;
 	cursor: pointer;
 	padding: 0;
-	transition: color 0.15s;
+	transition: font-size 0.15s ease, color 0.15s ease;
 }
 
 .settings-toggle:hover {
+	font-size: 0.75rem;
 	color: #9ca3af;
+	border-color: transparent;
+	background-color: transparent;
 }
 
 .settings-panel {

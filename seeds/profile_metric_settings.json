@@ -104,6 +104,54 @@
     "formula": null
   },
   {
+    "profile_name": "balanced",
+    "metric_key": "return_on_assets",
+    "weight": 1.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "overall_risk",
+    "weight": 0.8,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "audit_risk",
+    "weight": 0.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "board_risk",
+    "weight": 0.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "compensation_risk",
+    "weight": 0.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "shareholder_rights_risk",
+    "weight": 0.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
     "profile_name": "dividend",
     "metric_key": "debt_to_equity",
     "weight": 1.4,
@@ -162,6 +210,54 @@
   {
     "profile_name": "dividend",
     "metric_key": "revenue_growth",
+    "weight": 0.7,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "return_on_assets",
+    "weight": 1.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "overall_risk",
+    "weight": 1.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "audit_risk",
+    "weight": 0.7,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "board_risk",
+    "weight": 0.7,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "compensation_risk",
+    "weight": 0.6,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "shareholder_rights_risk",
     "weight": 0.7,
     "range_min": null,
     "range_max": null,
@@ -235,6 +331,54 @@
     "profile_name": "growth",
     "metric_key": "revenue_growth",
     "weight": 2.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "return_on_assets",
+    "weight": 1.2,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "overall_risk",
+    "weight": 0.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "audit_risk",
+    "weight": 0.3,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "board_risk",
+    "weight": 0.3,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "compensation_risk",
+    "weight": 0.3,
+    "range_min": null,
+    "range_max": null,
+    "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "shareholder_rights_risk",
+    "weight": 0.3,
     "range_min": null,
     "range_max": null,
     "formula": null

@@ -11,6 +11,7 @@ import type { ColumnSizingState, SortingState, VisibilityState } from '@tanstack
 import type { AssetAnalysis } from '../types'
 import { ChevronDown, ChevronUp, Settings2, Search, Maximize2, Minimize2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
+import RawMetricsDrawer from './RawMetricsDrawer'
 import './ResultsGrid.css'
 
 interface ResultsGridProps {
@@ -46,6 +47,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 	const [profileMetricKeys, setProfileMetricKeys] = useState<string[]>([])
 	const [profileFilterActive, setProfileFilterActive] = useState(false)
 	const [preset, setPreset] = useState<'all' | 'none' | 'values' | 'strength'>('all')
+	const [selectedAsset, setSelectedAsset] = useState<AssetAnalysis | null>(null)
 
 	// Apply a column preset imperatively — avoids a reactive effect that would
 	// overwrite per-metric checkbox state whenever profileMetricKeys loads.
@@ -187,6 +189,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 	}
 
 	return (
+		<>
 		<div className={`results-grid-container${fullscreen ? ' fullscreen' : ''}`}>
 			<div className="results-grid-header">
 				<div className="header-left">
@@ -354,7 +357,14 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 					</thead>
 					<tbody>
 						{table.getRowModel().rows.map(row => (
-							<tr key={row.id}>
+							<tr
+								key={row.id}
+								className={`clickable-row${selectedAsset?.symbol === row.original.symbol ? ' row-selected' : ''}`}
+								onClick={() => setSelectedAsset(prev =>
+									prev?.symbol === row.original.symbol ? null : row.original
+								)}
+								title="Click to view raw provider data"
+							>
 								{row.getVisibleCells().map(cell => (
 									<td key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -366,6 +376,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 				</table>
 			</div>
 		</div>
+
+		<RawMetricsDrawer
+			asset={selectedAsset}
+			onClose={() => setSelectedAsset(null)}
+		/>
+		</>
 	)
 }
 

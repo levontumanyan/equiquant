@@ -80,6 +80,7 @@ def analyze_asset(
 		"benchmark_defs": benchmark_defs,
 		"score": final_pct,
 		"asset_type": asset.asset_type,
+		"raw_metrics": asset.raw_data,
 	}
 
 
