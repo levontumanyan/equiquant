@@ -1,5 +1,4 @@
 import os
-import threading
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
@@ -9,7 +8,7 @@ from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
-from core.logger import get_logger
+from core.logger import SERVER_LOG_FILE, get_logger, setup_logging
 from core.orchestrator import fetch_data as orchestrator_fetch_data
 from core.orchestrator import run_bulk_analysis
 from core.scorers import SCORERS
@@ -19,23 +18,18 @@ logger = get_logger(__name__)
 _openbb_ready = False
 
 
-def _warm_openbb():
-	"""Import openbb in a background thread so the first analysis request is instant."""
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+	"""Configure logging, then warm up OpenBB synchronously in the main thread."""
 	global _openbb_ready
+	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 	try:
 		logger.info("Warming up OpenBB...")
 		from openbb import obb  # noqa: F401
-
 		_openbb_ready = True
 		logger.info("OpenBB ready.")
 	except Exception as e:
 		logger.error(f"OpenBB warmup failed: {e}")
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-	"""Kick off OpenBB warmup on startup without blocking the server."""
-	threading.Thread(target=_warm_openbb, daemon=True).start()
 	yield
 
 
@@ -329,6 +323,26 @@ async def list_profiles():
 	"""Fetch all saved investor profile names."""
 	try:
 		return repo.list_profiles()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/profiles/{name}")
+async def get_profile(name: str):
+	"""Fetch a single investor profile with all metric settings."""
+	try:
+		settings = repo.get_profile_settings(name)
+		if not settings:
+			raise HTTPException(status_code=404, detail=f"Profile '{name}' not found")
+		weights, ranges, formulas = {}, {}, {}
+		for s in settings:
+			key = s["metric_key"]
+			weights[key] = s["weight"]
+			ranges[key] = {"min": s["range_min"], "max": s["range_max"]}
+			formulas[key] = s["formula"]
+		return {"name": name, "weights": weights, "ranges": ranges, "formulas": formulas}
+	except HTTPException:
+		raise
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 

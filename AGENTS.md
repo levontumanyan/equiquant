@@ -16,6 +16,20 @@
 - **Scalability**: New data sources inherit `BaseProvider`; new metrics update `mappings.py` and `AssetData`.
 - **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
 
+## UI Commands
+
+**Package manager**: `pnpm`. Always pass `PM=pnpm` to make targets that touch the UI.
+
+| Command | Effect |
+|---|---|
+| `make PM=pnpm start` | Start **both** API backend (Uvicorn) and React frontend (Vite) |
+| `make stop` | Kill both API and UI processes |
+| `make ui-server` | Start the API backend only |
+| `make PM=pnpm ui-dev` | Start the React frontend only |
+| `make PM=pnpm ui-restart` | Stop then start both |
+
+If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
+
 ## Environment, Branching & Parallelism
 - **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py`.
 - **STRICT MANDATE**: Use the worktree skill for all new tasks.

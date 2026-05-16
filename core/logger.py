@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.handlers
 import os
 import sys
 from datetime import datetime
@@ -20,9 +21,10 @@ level_map = {
 }
 LOG_LEVEL = level_map.get(DEFAULT_LOG_LEVEL, logging.INFO)
 
-# Generate a unique filename for this execution run
+# CLI uses a unique timestamped file per run; server overrides this explicitly
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_FILE = LOG_DIR / f"run_{RUN_TIMESTAMP}.log"
+SERVER_LOG_FILE = LOG_DIR / "server.log"
 
 
 class JSONFormatter(logging.Formatter):
@@ -46,21 +48,39 @@ class JSONFormatter(logging.Formatter):
 		return json.dumps(log_record)
 
 
-def setup_logging(verbose: bool = False, force_console: bool = False):
+def setup_logging(
+	verbose: bool = False,
+	force_console: bool = False,
+	log_file=None,
+):
 	"""
-	Initializes the root logger with a run-specific file handler
-	and an optional console handler.
+	Initializes the root logger with a file handler and optional console handler.
+
+	Args:
+		verbose: Enable DEBUG-level console output.
+		force_console: Always attach a console handler.
+		log_file: Override the log file path. Defaults to the per-run timestamped
+		          file (LOG_FILE). Pass SERVER_LOG_FILE for the API server so CLI
+		          and server logs stay separate.
 	"""
 	root_logger = logging.getLogger()
-	# Set to the configured LOG_LEVEL (default INFO)
 	root_logger.setLevel(LOG_LEVEL)
 
-	# Remove any existing handlers
 	for handler in root_logger.handlers[:]:
 		root_logger.removeHandler(handler)
 
-	# 1. File Handler (Always JSON, uses global LOG_LEVEL)
-	file_handler = logging.FileHandler(LOG_FILE)
+	target = log_file if log_file is not None else LOG_FILE
+	# CLI runs get a plain FileHandler (one file per run).
+	# Server gets a RotatingFileHandler (persistent, rolls at 10 MB, keeps 20).
+	if log_file is SERVER_LOG_FILE:
+		file_handler = logging.handlers.RotatingFileHandler(
+			target,
+			maxBytes=10 * 1024 * 1024,
+			backupCount=20,
+			encoding="utf-8",
+		)
+	else:
+		file_handler = logging.FileHandler(target, encoding="utf-8")
 	file_handler.setFormatter(JSONFormatter())
 	file_handler.setLevel(LOG_LEVEL)
 	root_logger.addHandler(file_handler)

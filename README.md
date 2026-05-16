@@ -15,7 +15,7 @@ make install
 
 ## 2. Launch the Dashboard
 ```bash
-make ui-start
+make start
 ```
 *Access the UI at [http://localhost:8888](http://localhost:8888)*
 

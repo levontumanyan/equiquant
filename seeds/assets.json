@@ -2457,7 +2457,7 @@
 		"currency": null
 	},
 	{
-		"symbol": "FI",
+		"symbol": "FISV",
 		"name": "Fiserv, Inc.",
 		"asset_type": "STOCK",
 		"sector": "Technology",
@@ -3312,7 +3312,7 @@
 		"currency": null
 	},
 	{
-		"symbol": "MMC",
+		"symbol": "MRSH",
 		"name": "Marsh & McLennan Companies, Inc.",
 		"asset_type": "STOCK",
 		"sector": "Financial Services",

@@ -194,6 +194,14 @@ body {
 	text-align: left;
 }
 
+.studio-section {
+	width: 100vw;
+	margin-left: calc(-50vw + 50%);
+	padding: 0;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
 .analysis-section {
 	/* Break out of the parent's max-width/padding box so the grid uses the full viewport */
 	width: 100vw;

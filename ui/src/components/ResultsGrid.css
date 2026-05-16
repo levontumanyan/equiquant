@@ -3,6 +3,62 @@
 	color: #e5e7eb;
 }
 
+.results-grid-container.fullscreen {
+	position: fixed;
+	inset: 0;
+	z-index: 500;
+	background: #0d1117;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.results-grid-container.fullscreen .results-grid-header {
+	flex-shrink: 0;
+	padding: 1rem 1.5rem;
+	background: #0d1117;
+	border-bottom: 1px solid #1f2937;
+}
+
+.results-grid-container.fullscreen .column-settings {
+	flex-shrink: 0;
+	margin: 0;
+	border-radius: 0;
+	border-left: none;
+	border-right: none;
+}
+
+.results-grid-container.fullscreen .table-wrapper {
+	flex: 1;
+	overflow: auto;
+	border-radius: 0;
+	border: none;
+	box-shadow: none;
+	padding: 0 1.5rem 1.5rem;
+}
+
+.results-grid-container.fullscreen .table-wrapper::-webkit-scrollbar {
+	height: 6px;
+	width: 0;
+}
+
+.results-grid-container.fullscreen .table-wrapper::-webkit-scrollbar-thumb {
+	background: #374151;
+	border-radius: 3px;
+}
+
+.results-grid-container.fullscreen .table-wrapper::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.results-grid-container.fullscreen .results-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	background-color: #0d1117;
+	box-shadow: 0 1px 0 #1f2937;
+}
+
 .results-grid-header {
 	display: flex;
 	justify-content: space-between;
@@ -195,10 +251,8 @@
 }
 
 .results-table {
-	width: 100%;
 	text-align: left;
 	border-collapse: collapse;
-	min-width: 1000px;
 }
 
 .results-table thead tr {
@@ -207,6 +261,7 @@
 }
 
 .results-table th {
+	position: relative;
 	padding: 0.75rem 1rem;
 	font-size: 0.75rem;
 	font-weight: 600;
@@ -215,13 +270,13 @@
 	letter-spacing: 0.05em;
 }
 
-.results-table th.sortable {
+.header-content.sortable {
 	cursor: pointer;
 	user-select: none;
 }
 
-.results-table th.sortable:hover {
-	background-color: rgba(255, 255, 255, 0.05);
+.header-content.sortable:hover {
+	color: #e5e7eb;
 }
 
 .header-content {
@@ -252,10 +307,28 @@
 
 .name-cell {
 	color: #d1d5db;
-	max-width: 150px;
+	display: block;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	display: inline-block;
+	white-space: nowrap;
+}
+
+.resize-handle {
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 4px;
+	cursor: col-resize;
+	user-select: none;
+	touch-action: none;
+	background: transparent;
+	transition: background 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle.resizing {
+	background: rgba(34, 211, 238, 0.5);
 }
 
 .score-container {
