@@ -11,7 +11,7 @@ from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
-from core.profiles import get_profile_weights
+from core.profiles import get_profile_config
 from core.schema import AssetData, AssetType
 from core.stats import stats
 
@@ -52,10 +52,10 @@ def analyze_asset(
 		logger.error(f"No benchmarks found for {symbol}")
 		return None
 
-	profile_weights = get_profile_weights(repo, profile)
+	profile_config = get_profile_config(repo, profile)
 
 	scoring_start = time.perf_counter()
-	results = [evaluate_metric(asset, b, profile_weights) for b in benchmark_defs]
+	results = [evaluate_metric(asset, b, profile_config) for b in benchmark_defs]
 	stats.scoring_time_total += time.perf_counter() - scoring_start
 
 	# Data Quality Audit: Record which metrics were present
@@ -269,7 +269,7 @@ def run_bulk_analysis(
 	return all_results
 
 
-async def stream_bulk_analysis(
+async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE streaming pipeline
 	tickers: List[str],
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
@@ -332,7 +332,9 @@ async def stream_bulk_analysis(
 		total = len(futures)
 		idx = 0
 		while pending:
-			done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+			done, pending = await asyncio.wait(
+				pending, return_when=asyncio.FIRST_COMPLETED
+			)
 			for future in done:
 				idx += 1
 				try:
@@ -361,7 +363,9 @@ async def stream_bulk_analysis(
 			if repo and completed_results:
 				try:
 					logger.info(f"Saving {len(completed_results)} results to database…")
-					repo.bulk_save_analyses(completed_results, profile, benchmark_version)
+					repo.bulk_save_analyses(
+						completed_results, profile, benchmark_version
+					)
 					stats.db_snapshots += len(completed_results)
 				except Exception as e:
 					logger.error(f"Failed bulk save to DB: {e}")

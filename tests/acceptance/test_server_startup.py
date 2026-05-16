@@ -5,7 +5,6 @@ import urllib.request
 
 import pytest
 
-
 TEST_PORT = 8099
 
 
@@ -32,9 +31,14 @@ def live_server():
 	"""Spin up a real uvicorn process and tear it down after the module."""
 	proc = subprocess.Popen(
 		[
-			"uv", "run", "uvicorn", "core.api:app",
-			"--host", "127.0.0.1",
-			"--port", str(TEST_PORT),
+			"uv",
+			"run",
+			"uvicorn",
+			"core.api:app",
+			"--host",
+			"127.0.0.1",
+			"--port",
+			str(TEST_PORT),
 		],
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -57,8 +61,7 @@ def test_server_starts_and_openbb_warms_up(live_server):
 	data = _wait_for_openbb(TEST_PORT, timeout=45)
 	assert data.get("backend") == "connected", "Server never became reachable"
 	assert data.get("openbb") == "ready", (
-		f"OpenBB not ready after 45s — got: {data.get('openbb')!r}. "
-		"Check that the lifespan imports OpenBB in the main thread."
+		f"OpenBB not ready after 45s — got: {data.get('openbb')!r}. Check that the lifespan imports OpenBB in the main thread."
 	)
 
 

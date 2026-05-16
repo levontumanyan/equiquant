@@ -639,11 +639,22 @@ class DatabaseRepository:
 		profile_name: str,
 		metric_key: str,
 		weight: float,
-		range_min: float = 0.0,
-		range_max: float = 100.0,
-		formula: str = "sigmoid",
+		range_min: Optional[float] = None,
+		range_max: Optional[float] = None,
+		formula: Optional[str] = None,
 	):
-		"""Insert or update metric settings for a profile."""
+		"""Insert or update metric settings for a profile.
+
+		Args:
+			profile_name: Profile to update.
+			metric_key: Metric being configured.
+			weight: Scoring weight for this metric.
+			range_min: Custom curve lower param (best/target/target_min/threshold).
+				NULL means "use benchmark default" — not the same as 0.0.
+			range_max: Custom curve upper param (worst/width/target_max).
+				NULL means "use benchmark default" — not the same as 100.0.
+			formula: Scoring formula override. NULL means "use benchmark formula".
+		"""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()

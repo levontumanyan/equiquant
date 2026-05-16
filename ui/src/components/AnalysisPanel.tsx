@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { API_BASE_URL } from '../config'
 import ResultsGrid from './ResultsGrid'
+import CorrelationMap from './CorrelationMap'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -47,6 +48,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 	const [provider, setProvider] = useState('openbb')
 	const [showSettings, setShowSettings] = useState(false)
+	const [viewMode, setViewMode] = useState<'grid' | 'explorer'>('grid')
 
 	const loadGroups = useCallback(async () => {
 		try {
@@ -514,7 +516,30 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 				{/* Results Column */}
 				<div className="results-column">
-					<ResultsGrid data={results} />
+					{results.length > 0 && (
+						<div className="view-toggle">
+							<button
+								className={`view-toggle-btn${viewMode === 'grid' ? ' active' : ''}`}
+								onClick={() => setViewMode('grid')}
+								title="Data Grid"
+							>
+								<LayoutGrid size={13} />
+								Grid
+							</button>
+							<button
+								className={`view-toggle-btn${viewMode === 'explorer' ? ' active' : ''}`}
+								onClick={() => setViewMode('explorer')}
+								title="Cluster Map"
+							>
+								<Network size={13} />
+								Cluster Map
+							</button>
+						</div>
+					)}
+					{viewMode === 'grid' || results.length === 0
+						? <ResultsGrid data={results} profile={profile} />
+						: <CorrelationMap data={results} />
+					}
 				</div>
 			</div>
 		</div>

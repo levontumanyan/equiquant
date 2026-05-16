@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import {
 	createColumnHelper,
 	flexRender,
@@ -10,10 +10,17 @@ import {
 import type { ColumnSizingState, SortingState, VisibilityState } from '@tanstack/react-table'
 import type { AssetAnalysis } from '../types'
 import { ChevronDown, ChevronUp, Settings2, Search, Maximize2, Minimize2 } from 'lucide-react'
+import { API_BASE_URL } from '../config'
 import './ResultsGrid.css'
 
 interface ResultsGridProps {
 	data: AssetAnalysis[]
+	profile?: string
+}
+
+interface ProfileData {
+	name: string
+	weights: Record<string, number>
 }
 
 const columnHelper = createColumnHelper<AssetAnalysis>()
@@ -29,13 +36,48 @@ const COL_SIZES = {
 // ~7px per char at 0.75rem uppercase + 24px padding, capped at 160.
 const metricValSize = (name: string) => Math.min(Math.max(name.length * 7 + 24, 70), 160)
 
-const ResultsGrid: React.FC<ResultsGridProps> = ({ data }) => {
+const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
 	const [globalFilter, setGlobalFilter] = useState('')
 	const [showSettings, setShowSettings] = useState(false)
 	const [fullscreen, setFullscreen] = useState(false)
+	const [profileMetricKeys, setProfileMetricKeys] = useState<string[]>([])
+	const [profileFilterActive, setProfileFilterActive] = useState(false)
+	const [preset, setPreset] = useState<'all' | 'none' | 'values' | 'strength'>('all')
+
+	// Apply a column preset imperatively — avoids a reactive effect that would
+	// overwrite per-metric checkbox state whenever profileMetricKeys loads.
+	const applyPreset = useCallback((
+		nextPreset: typeof preset,
+		nextProfileActive: boolean,
+		metrics: typeof allMetrics,
+		profileKeys: string[],
+	) => {
+		const showValues   = nextPreset !== 'strength' && nextPreset !== 'none'
+		const showStrength = nextPreset !== 'values'   && nextPreset !== 'none'
+		const next: VisibilityState = {}
+		metrics.forEach(m => {
+			const inProfile = !nextProfileActive || profileKeys.includes(m.key)
+			next[`${m.key}_value`]    = inProfile && showValues
+			next[`${m.key}_strength`] = inProfile && showStrength
+		})
+		setColumnVisibility(next)
+	}, [])
+
+	useEffect(() => {
+		if (!profile) return
+		const controller = new AbortController()
+		fetch(`${API_BASE_URL}/api/profiles/${encodeURIComponent(profile)}`, { signal: controller.signal })
+			.then(r => r.ok ? r.json() : null)
+			.then((p: ProfileData | null) => {
+				setProfileMetricKeys(p ? Object.keys(p.weights) : [])
+			})
+			.catch(err => { if (err.name !== 'AbortError') setProfileMetricKeys([]) })
+		setProfileFilterActive(false)
+		return () => controller.abort()
+	}, [profile])
 
 	// 1. Identify all unique metrics across all assets to build dynamic columns
 	const allMetrics = useMemo(() => {
@@ -49,6 +91,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data }) => {
 		})
 		return Array.from(metrics.entries()).map(([key, name]) => ({ key, name }))
 	}, [data])
+
 
 	// 2. Define Columns
 	const columns = useMemo(() => {
@@ -183,6 +226,68 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data }) => {
 
 			{showSettings && (
 				<div className="column-settings">
+					<div className="col-settings-actions">
+						<button
+							className={`col-action-btn${preset === 'all' && !profileFilterActive ? ' col-action-btn--on' : ''}`}
+							onClick={() => {
+								setPreset('all')
+								setProfileFilterActive(false)
+								applyPreset('all', false, allMetrics, profileMetricKeys)
+							}}
+						>
+							Select All
+						</button>
+						<button
+							className={`col-action-btn${preset === 'none' ? ' col-action-btn--on' : ''}`}
+							onClick={() => {
+								setPreset('none')
+								setProfileFilterActive(false)
+								applyPreset('none', false, allMetrics, profileMetricKeys)
+							}}
+						>
+							Select None
+						</button>
+						<button
+							className={`col-action-btn${preset === 'values' ? ' col-action-btn--on' : ''}`}
+							onClick={() => {
+								setPreset('values')
+								applyPreset('values', profileFilterActive, allMetrics, profileMetricKeys)
+							}}
+							title="Show metric values, hide strength scores"
+						>
+							Values
+						</button>
+						<button
+							className={`col-action-btn${preset === 'strength' ? ' col-action-btn--on' : ''}`}
+							onClick={() => {
+								setPreset('strength')
+								applyPreset('strength', profileFilterActive, allMetrics, profileMetricKeys)
+							}}
+							title="Show strength scores only"
+						>
+							Strength
+						</button>
+						{profileMetricKeys.length > 0 && (
+							<button
+								className={`col-action-btn col-action-btn--profile${profileFilterActive ? ' col-action-btn--on' : ''}`}
+								onClick={() => {
+									const next = !profileFilterActive
+									setProfileFilterActive(next)
+									applyPreset(preset, next, allMetrics, profileMetricKeys)
+								}}
+								title={`Filter to metrics in the "${profile}" profile`}
+							>
+								{profile}
+							</button>
+						)}
+						<span className="col-action-count">
+							{allMetrics.filter(m =>
+								table.getColumn(`${m.key}_value`)?.getIsVisible() ||
+								table.getColumn(`${m.key}_strength`)?.getIsVisible()
+							).length} / {allMetrics.length} shown
+						</span>
+					</div>
+					<div className="col-settings-divider" />
 					<div className="settings-grid">
 						{allMetrics.map(m => (
 							<div key={m.key} className="metric-setting-group">

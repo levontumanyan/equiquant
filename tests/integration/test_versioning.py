@@ -213,6 +213,11 @@ def test_analyze_asset_saves_version(repo):
 		"2.0.0",
 	)
 
+	# Seed a minimal profile so the scoring engine has a weight to work with.
+	# This repo uses skip_auto_seed=True so profiles must be set up manually.
+	repo.upsert_profile("balanced")
+	repo.upsert_profile_setting("balanced", "pe_ratio", weight=1.0)
+
 	res = analyze_asset(dummy_asset, "balanced", repo=repo, benchmark_version="2.0.0")
 	repo.bulk_save_analyses([res], "balanced", benchmark_version="2.0.0")
 

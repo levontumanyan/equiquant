@@ -151,13 +151,15 @@ class DatabaseSeeder:
 			raw = settings_file.read_text().strip()
 			settings = json.loads(raw) if raw else []
 			for s in settings:
+				raw_min = s.get("range_min")
+				raw_max = s.get("range_max")
 				self.repo.upsert_profile_setting(
 					profile_name=s["profile_name"],
 					metric_key=s["metric_key"],
 					weight=float(s.get("weight", 1.0)),
-					range_min=float(s.get("range_min", 0.0)),
-					range_max=float(s.get("range_max", 100.0)),
-					formula=s.get("formula", "sigmoid"),
+					range_min=float(raw_min) if raw_min is not None else None,
+					range_max=float(raw_max) if raw_max is not None else None,
+					formula=s.get("formula"),
 				)
 			logger.info(
 				f"Seeded {len(profiles)} profiles and {len(settings)} settings."
