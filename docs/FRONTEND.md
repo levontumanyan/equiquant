@@ -7,7 +7,7 @@ The EquiQuant frontend is a modern web dashboard built with **React**, **TypeScr
 The frontend is designed to run without requiring a global Node.js installation. 
 
 - **Runtime**: Managed by `uv` via `nodejs-wheel`.
-- **Package Manager**: Defaults to `uv run npm` for an isolated, zero-pollution experience.
+- **Package Manager**: Defaults to `uv run pnpm` for an isolated, zero-pollution experience.
 
 ## Quick Start
 
@@ -37,10 +37,8 @@ make ui-dev      # Starts the Vite frontend only
 ```
 
 For package management (from the `ui/` directory):
-- **Install**: `../.venv/bin/npm install` (or `uv run npm install` from root)
-- **Dev**: `../.venv/bin/npm run dev` (or `uv run npm run dev` from root)
-
-*Note: Developers who prefer `pnpm` can override the package manager: `make PM=pnpm start`.*
+- **Install**: `../.venv/bin/pnpm install` (or `uv run pnpm install` from root)
+- **Dev**: `../.venv/bin/pnpm run dev` (or `uv run pnpm run dev` from root)
 
 ## Available Scripts (in `ui/` directory)
 

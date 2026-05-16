@@ -18,15 +18,15 @@
 
 ## UI Commands
 
-**Package manager**: `pnpm`. Always pass `PM=pnpm` to make targets that touch the UI.
+**Package manager**: `pnpm` (isolated via `uv`).
 
 | Command | Effect |
 |---|---|
-| `make PM=pnpm start` | Start **both** API backend (Uvicorn) and React frontend (Vite) |
+| `make start` | Start **both** API backend (Uvicorn) and React frontend (Vite) |
 | `make stop` | Kill both API and UI processes |
 | `make ui-server` | Start the API backend only |
-| `make PM=pnpm ui-dev` | Start the React frontend only |
-| `make PM=pnpm ui-restart` | Stop then start both |
+| `make ui-dev` | Start the React frontend only |
+| `make ui-restart` | Stop then start both |
 
 If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
 
