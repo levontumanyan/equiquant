@@ -29,6 +29,15 @@ repos:
         stages: [pre-commit]
 
       # Runs on push — only when Python source files are in the pushed diff
+      - id: pytest-integration
+        name: pytest (integration + acceptance)
+        entry: uv run python -m pytest -q --disable-warnings tests/integration tests/acceptance
+        language: system
+        types: [python]
+        files: ^(core/|tests/integration/|tests/acceptance/|analyze\.py)
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: bandit
         name: bandit
         entry: uv run bandit -c pyproject.toml -r core analyze.py
@@ -43,13 +52,4 @@ repos:
         language: system
         types: [python]
         files: ^(core/|analyze\.py)
-        stages: [pre-push]
-
-      - id: pytest-integration
-        name: pytest (integration + acceptance)
-        entry: uv run python -m pytest -q --disable-warnings tests/integration tests/acceptance
-        language: system
-        types: [python]
-        files: ^(core/|tests/integration/|tests/acceptance/|analyze\.py)
-        pass_filenames: false
         stages: [pre-push]
