@@ -7,8 +7,9 @@ API_PORT ?= 8000
 UI_PORT  ?= 8888
 
 # Package Manager Detection
-# Prefers pnpm if available globally, otherwise uses uv-provided npm
-PM := $(shell command -v pnpm 2>/dev/null || echo "uv run npm")
+# Default to Zero-Pollution (uv-provided npm). 
+# Developers can override with: make PM=pnpm ui-start
+PM ?= uv run npm
 
 help:
 	@echo "EquiQuant: High-Performance Asset Valuation"
@@ -98,7 +99,7 @@ ui-server: ensure-uv
 	@echo "Starting EquiQuant API Server on http://0.0.0.0:$(API_PORT)"
 	@uv run uvicorn core.api:app --reload --host 0.0.0.0 --port $(API_PORT)
 
-ui-dev:
+ui-dev: ensure-uv
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
 	@cd ui && $(PM) run dev -- --host 0.0.0.0 --port $(UI_PORT)
 
@@ -107,7 +108,7 @@ ui-stop:
 	@lsof -ti:$(API_PORT) | xargs kill -9 2>/dev/null || true
 	@lsof -ti:$(UI_PORT) | xargs kill -9 2>/dev/null || true
 
-ui-start:
+ui-start: ensure-uv
 	@$(MAKE) ui-server & $(MAKE) ui-dev
 
 ui-restart: ui-stop ui-start
@@ -116,7 +117,7 @@ ui-restart: ui-stop ui-start
 run: ensure-uv
 	uv run ./analyze.py $(TICKERS) $(FLAGS)
 
-populate-index:
+populate-index: ensure-uv
 	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
 
 db-shell:
