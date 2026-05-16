@@ -67,6 +67,7 @@ test-container: podman-init
 	@echo "Running tests inside Podman container..."
 	podman build -t equiquant-dev -f .devcontainer/Dockerfile .
 	podman run --rm \
+		--userns=keep-id \
 		-v $$(pwd):/workspaces/equiquant \
 		-v /workspaces/equiquant/.venv \
 		-v /workspaces/equiquant/ui/node_modules \

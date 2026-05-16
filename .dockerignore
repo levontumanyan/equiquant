@@ -7,3 +7,6 @@ ui/node_modules
 logs/
 reports/
 .git
+.env
+.env.*
+.envrc

@@ -1,7 +1,8 @@
 {
 	"name": "EquiQuant (Podman)",
 	"build": {
-		"dockerfile": "Dockerfile"
+		"dockerfile": "Dockerfile",
+		"context": ".."
 	},
 	"customizations": {
 		"vscode": {
