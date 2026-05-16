@@ -718,6 +718,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "rich" },
+    { name = "sse-starlette" },
     { name = "uvicorn" },
     { name = "yfinance" },
 ]
@@ -745,6 +746,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "requests", specifier = ">=2.33.1" },
     { name = "rich", specifier = ">=13.9.4" },
+    { name = "sse-starlette", specifier = ">=3.4.4" },
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "yfinance", specifier = ">=1.3.0" },
 ]

@@ -1,8 +1,10 @@
 import asyncio
+import os
 import random
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from functools import partial
+from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Optional, Tuple
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
@@ -260,3 +262,87 @@ def run_bulk_analysis(
 		f"Bulk analysis complete. {len(all_results)}/{len(tickers)} successful."
 	)
 	return all_results
+
+
+async def stream_bulk_analysis(
+	tickers: List[str],
+	profile: str,
+	repo: Optional[DatabaseRepository] = None,
+	benchmark_version: str = "1.0.0",
+	max_workers: int = min(32, (os.cpu_count() or 4) + 4),
+) -> AsyncGenerator[Dict[str, Any], None]:
+	"""
+	Async generator that yields individual analysis results as each ticker completes.
+
+	Runs analysis in a ThreadPoolExecutor and yields results via asyncio.wait so
+	the caller receives each result as soon as it is ready. On cancellation the
+	executor is shut down immediately without waiting for in-flight threads.
+
+	Args:
+		tickers: Ticker symbols to analyse (normalised to uppercase internally).
+		profile: Investor profile name used for metric weighting.
+		repo: Optional database repository for persistence and result saving.
+		benchmark_version: Benchmark definition version string.
+		max_workers: Maximum parallel worker threads.
+
+	Yields:
+		Analysis result dict for each completed ticker (None results are skipped).
+	"""
+	loop = asyncio.get_running_loop()
+	completed_results: List[Dict[str, Any]] = []
+	cancelled = False
+
+	executor = ThreadPoolExecutor(max_workers=max_workers)
+	futures: List[asyncio.Future] = []
+
+	try:
+		for ticker in tickers:
+			ticker = ticker.upper().strip()
+			stats.record_pool_submission()
+			task = loop.run_in_executor(
+				executor,
+				partial(
+					_tracked_analyze_asset,
+					ticker,
+					profile,
+					repo,
+					benchmark_version,
+					time.perf_counter(),
+				),
+			)
+			futures.append(task)
+
+		pending = set(futures)
+		total = len(futures)
+		idx = 0
+		while pending:
+			done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+			for future in done:
+				idx += 1
+				try:
+					res = future.result()
+					if res:
+						completed_results.append(res)
+						yield res
+					logger.info(f"[{idx}/{total}] Streaming analysis complete")
+				except Exception as e:
+					logger.error(f"Analysis error: {e}")
+
+	except (asyncio.CancelledError, GeneratorExit):
+		cancelled = True
+		logger.info("Streaming analysis cancelled — stopping executor")
+		for f in futures:
+			f.cancel()
+		executor.shutdown(wait=False, cancel_futures=True)
+		raise
+
+	finally:
+		if not cancelled:
+			executor.shutdown(wait=True)
+			if repo and completed_results:
+				try:
+					logger.info(f"Saving {len(completed_results)} results to database…")
+					repo.bulk_save_analyses(completed_results, profile, benchmark_version)
+					stats.db_snapshots += len(completed_results)
+				except Exception as e:
+					logger.error(f"Failed bulk save to DB: {e}")

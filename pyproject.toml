@@ -13,6 +13,7 @@ dependencies = [
 	"fastapi>=0.128.8",
 	"uvicorn>=0.40.0",
 	"nodejs-wheel>=23.6.1",
+	"sse-starlette>=3.4.4",
 ]
 
 [tool.ruff]

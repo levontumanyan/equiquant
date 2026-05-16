@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { API_BASE_URL } from '../config'
 import ResultsGrid from './ResultsGrid'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search, Settings } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -15,10 +16,11 @@ interface Group {
 	name: string;
 	description: string | null;
 	is_system: number;
+	ticker_count: number;
 }
 
 interface AnalysisPanelProps {
-	openbbReady: boolean;
+	openbbReady: boolean | null;
 }
 
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
@@ -32,6 +34,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [isLoading, setIsLoading] = useState(false)
 	const [results, setResults] = useState<AssetAnalysis[]>([])
 	const [error, setError] = useState<string | null>(null)
+	const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+	const abortControllerRef = useRef<AbortController | null>(null)
 
 	const [showNewGroup, setShowNewGroup] = useState(false)
 	const [newGroupName, setNewGroupName] = useState('')
@@ -159,33 +163,64 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 			return
 		}
 
+		const controller = new AbortController()
+		abortControllerRef.current = controller
+
 		setIsLoading(true)
 		setError(null)
+		setResults([])
+		setProgress({ done: 0, total: tickers.length })
 
 		try {
-			const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+			await fetchEventSource(`${API_BASE_URL}/api/analyze/stream`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tickers, profile }),
+				signal: controller.signal,
+				openWhenHidden: true,
+				onmessage(ev) {
+					if (ev.event === 'result') {
+						const result: AssetAnalysis = JSON.parse(ev.data)
+						setResults(prev => [...prev, result])
+						setProgress(prev => prev ? { ...prev, done: prev.done + 1 } : null)
+					} else if (ev.event === 'done') {
+						setIsLoading(false)
+						setProgress(null)
+					} else if (ev.event === 'error') {
+						const err = JSON.parse(ev.data)
+						setError(err.message || 'Analysis failed')
+						setIsLoading(false)
+						setProgress(null)
+					}
 				},
-				body: JSON.stringify({
-					tickers: tickers,
-					profile: profile,
-				}),
+				onerror(err) {
+					if (controller.signal.aborted) return
+					setError(err?.message || 'Connection error')
+					setIsLoading(false)
+					setProgress(null)
+					throw err
+				},
+				onclose() {
+					setIsLoading(false)
+					setProgress(null)
+				},
 			})
-
-			if (!response.ok) {
-				const detail = await response.json()
-				throw new Error(detail.detail || 'Analysis failed')
-			}
-
-			const data = await response.json()
-			setResults(data)
 		} catch (err: any) {
-			setError(err.message)
-		} finally {
+			if (!controller.signal.aborted) {
+				setError(err?.message || 'Analysis failed')
+			}
 			setIsLoading(false)
+			setProgress(null)
 		}
+	}
+
+	const handleCancelAnalysis = () => {
+		if (abortControllerRef.current) {
+			abortControllerRef.current.abort()
+			abortControllerRef.current = null
+		}
+		setIsLoading(false)
+		setProgress(null)
 	}
 
 	const systemGroups = groups.filter(g => g.is_system)
@@ -263,6 +298,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 												title={g.description ?? undefined}
 											>
 												★ {g.name}
+												{g.ticker_count > 0 && <span className="group-chip-count">{g.ticker_count}</span>}
 											</button>
 										))}
 										{customGroups.map(g => (
@@ -273,6 +309,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 													title={g.description ?? undefined}
 												>
 													{g.name}
+													{g.ticker_count > 0 && <span className="group-chip-count">{g.ticker_count}</span>}
 												</button>
 												<button
 													className="group-chip-delete"
@@ -369,7 +406,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</select>
 						</div>
 
-						{/* Run Button */}
+						{/* Run / Cancel Buttons */}
 						<button
 							onClick={handleRunAnalysis}
 							disabled={isLoading || !openbbReady}
@@ -380,8 +417,18 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							) : (
 								<Play size={18} fill="currentColor" />
 							)}
-							{isLoading ? 'Fetching & Analyzing…' : 'Run Analysis'}
+							{isLoading
+								? progress
+									? `Analyzing… ${progress.done}/${progress.total}`
+									: 'Fetching data…'
+								: 'Run Analysis'}
 						</button>
+						{isLoading && (
+							<button onClick={handleCancelAnalysis} className="cancel-button">
+								<Square size={14} fill="currentColor" />
+								Cancel
+							</button>
+						)}
 
 						{/* Settings (Provider) */}
 						<div className="settings-row">
@@ -408,7 +455,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							)}
 						</div>
 
-						{!openbbReady && (
+						{openbbReady === false && (
 							<div className="warming-up-box">
 								<Loader2 className="spin" size={13} />
 								<span>Warming up data provider — ready in a few seconds…</span>

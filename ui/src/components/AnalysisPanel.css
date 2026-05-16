@@ -320,6 +320,22 @@
 	color: #9d9af0;
 }
 
+.group-chip-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 0.35rem;
+	padding: 0 0.35rem;
+	min-width: 1.25rem;
+	height: 1.25rem;
+	border-radius: 8px;
+	background: rgba(100, 108, 255, 0.18);
+	color: #9d9af0;
+	font-size: 0.65rem;
+	font-weight: 600;
+	vertical-align: middle;
+}
+
 .settings-row {
 	display: flex;
 	flex-direction: column;
@@ -525,6 +541,29 @@
 	background-color: #1f2937;
 	color: #6b7280;
 	cursor: not-allowed;
+}
+
+.cancel-button {
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	font-size: 0.8rem;
+	transition: all 0.2s;
+	cursor: pointer;
+	border: 1px solid rgba(239, 68, 68, 0.4);
+	background-color: rgba(239, 68, 68, 0.08);
+	color: #f87171;
+}
+
+.cancel-button:hover {
+	background-color: rgba(239, 68, 68, 0.18);
+	border-color: rgba(239, 68, 68, 0.6);
+	color: #fca5a5;
 }
 
 .warming-up-box {
