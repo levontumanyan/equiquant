@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+import threading
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from functools import partial
@@ -88,7 +89,11 @@ def _tracked_analyze_asset(
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
 	submitted_at: float = 0.0,
+	cancel_event: Optional[threading.Event] = None,
 ) -> Optional[Dict[str, Any]]:
+	"""Wraps analyze_asset with telemetry and cooperative cancellation support."""
+	if cancel_event and cancel_event.is_set():
+		return None
 	queued_latency = time.perf_counter() - submitted_at
 	stats.record_task_start(queued_latency)
 	start_time = time.perf_counter()
@@ -270,6 +275,8 @@ async def stream_bulk_analysis(
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
 	max_workers: int = min(32, (os.cpu_count() or 4) + 4),
+	executor: Optional[ThreadPoolExecutor] = None,
+	cancel_event: Optional[threading.Event] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
 	"""
 	Async generator that yields individual analysis results as each ticker completes.
@@ -278,12 +285,17 @@ async def stream_bulk_analysis(
 	the caller receives each result as soon as it is ready. On cancellation the
 	executor is shut down immediately without waiting for in-flight threads.
 
+	When an external executor is provided the caller owns its lifecycle; otherwise
+	this function creates and tears down its own executor.
+
 	Args:
 		tickers: Ticker symbols to analyse (normalised to uppercase internally).
 		profile: Investor profile name used for metric weighting.
 		repo: Optional database repository for persistence and result saving.
 		benchmark_version: Benchmark definition version string.
-		max_workers: Maximum parallel worker threads.
+		max_workers: Maximum parallel worker threads (used only when no external executor).
+		executor: Optional external ThreadPoolExecutor to reuse across calls.
+		cancel_event: Optional threading.Event for cooperative cancellation.
 
 	Yields:
 		Analysis result dict for each completed ticker (None results are skipped).
@@ -291,8 +303,11 @@ async def stream_bulk_analysis(
 	loop = asyncio.get_running_loop()
 	completed_results: List[Dict[str, Any]] = []
 	cancelled = False
+	owns_executor = executor is None
 
-	executor = ThreadPoolExecutor(max_workers=max_workers)
+	if owns_executor:
+		executor = ThreadPoolExecutor(max_workers=max_workers)
+
 	futures: List[asyncio.Future] = []
 
 	try:
@@ -308,6 +323,7 @@ async def stream_bulk_analysis(
 					repo,
 					benchmark_version,
 					time.perf_counter(),
+					cancel_event,
 				),
 			)
 			futures.append(task)
@@ -322,7 +338,8 @@ async def stream_bulk_analysis(
 				try:
 					res = future.result()
 					if res:
-						completed_results.append(res)
+						if repo:
+							completed_results.append(res)
 						yield res
 					logger.info(f"[{idx}/{total}] Streaming analysis complete")
 				except Exception as e:
@@ -333,12 +350,14 @@ async def stream_bulk_analysis(
 		logger.info("Streaming analysis cancelled — stopping executor")
 		for f in futures:
 			f.cancel()
-		executor.shutdown(wait=False, cancel_futures=True)
+		if owns_executor:
+			executor.shutdown(wait=False, cancel_futures=True)
 		raise
 
 	finally:
 		if not cancelled:
-			executor.shutdown(wait=True)
+			if owns_executor:
+				executor.shutdown(wait=True)
 			if repo and completed_results:
 				try:
 					logger.info(f"Saving {len(completed_results)} results to database…")

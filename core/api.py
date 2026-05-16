@@ -1,6 +1,8 @@
 import asyncio
 import json
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
@@ -444,9 +446,15 @@ async def analyze_assets_stream(request: AnalysisRequest):
 		raise HTTPException(status_code=400, detail="No tickers provided")
 
 	async def event_generator():
-		cached_tickers = [t for t in tickers if repo.should_use_db_cache(t)]
-		missing_tickers = [t for t in tickers if not repo.should_use_db_cache(t)]
+		# Single pass — avoids TTL-flip race from two separate list comprehensions.
+		cache_status = {t: repo.should_use_db_cache(t) for t in tickers}
+		cached_tickers = [t for t, hit in cache_status.items() if hit]
+		missing_tickers = [t for t, hit in cache_status.items() if not hit]
 		analyzed_count = 0
+
+		# One executor and one cancel event shared across all stream_bulk_analysis calls.
+		cancel_event = threading.Event()
+		executor = ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) + 4))
 
 		async def _stream(batch: List[str]):
 			async for result in stream_bulk_analysis(
@@ -454,6 +462,8 @@ async def analyze_assets_stream(request: AnalysisRequest):
 				profile=request.profile,
 				repo=repo,
 				benchmark_version=request.benchmark_version,
+				executor=executor,
+				cancel_event=cancel_event,
 			):
 				yield result
 
@@ -475,16 +485,22 @@ async def analyze_assets_stream(request: AnalysisRequest):
 						analyzed_count += 1
 						yield {"event": "result", "data": AssetAnalysis.model_validate(result).model_dump_json()}
 
+			executor.shutdown(wait=False)
+
 		except (asyncio.CancelledError, GeneratorExit):
+			cancel_event.set()
+			executor.shutdown(wait=False, cancel_futures=True)
 			logger.info("SSE stream cancelled by client disconnect")
 			return
 		except Exception as e:
 			import traceback
 
+			cancel_event.set()
+			executor.shutdown(wait=False)
 			logger.error(f"Streaming analysis failed: {e}\n{traceback.format_exc()}")
 			yield {"event": "error", "data": json.dumps({"message": str(e)})}
 			return
 
-		yield {"event": "done", "data": json.dumps({"total": analyzed_count})}
+		yield {"event": "done", "data": json.dumps({"analyzed": analyzed_count, "total": len(tickers)})}
 
 	return EventSourceResponse(event_generator())

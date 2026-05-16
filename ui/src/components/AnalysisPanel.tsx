@@ -171,6 +171,21 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setResults([])
 		setProgress({ done: 0, total: tickers.length })
 
+		// Buffer incoming results and flush in batches per animation frame to
+		// avoid a full grid rerender on every single SSE event.
+		const resultBuffer: AssetAnalysis[] = []
+		let flushRaf: number | null = null
+		let doneCount = 0
+
+		const scheduleFlush = () => {
+			if (flushRaf !== null) return
+			flushRaf = requestAnimationFrame(() => {
+				const batch = resultBuffer.splice(0)
+				if (batch.length > 0) setResults(prev => [...prev, ...batch])
+				flushRaf = null
+			})
+		}
+
 		try {
 			await fetchEventSource(`${API_BASE_URL}/api/analyze/stream`, {
 				method: 'POST',
@@ -181,9 +196,14 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 				onmessage(ev) {
 					if (ev.event === 'result') {
 						const result: AssetAnalysis = JSON.parse(ev.data)
-						setResults(prev => [...prev, result])
-						setProgress(prev => prev ? { ...prev, done: prev.done + 1 } : null)
+						resultBuffer.push(result)
+						doneCount++
+						setProgress(prev => prev ? { ...prev, done: doneCount } : null)
+						scheduleFlush()
 					} else if (ev.event === 'done') {
+						if (flushRaf !== null) { cancelAnimationFrame(flushRaf); flushRaf = null }
+						const remaining = resultBuffer.splice(0)
+						if (remaining.length > 0) setResults(prev => [...prev, ...remaining])
 						setIsLoading(false)
 						setProgress(null)
 					} else if (ev.event === 'error') {
