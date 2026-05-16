@@ -64,6 +64,11 @@ test-container: podman-init
 	podman build -t equiquant-dev -f .devcontainer/Dockerfile .
 	podman run --rm -v $$(pwd):/workspaces/equiquant -w /workspaces/equiquant equiquant-dev make test
 
+pr: test-container
+	@echo "All checks passed in container. Pushing and creating PR..."
+	git push -u origin HEAD
+	gh pr create --fill
+
 coverage: ensure-uv
 	uv run python -m pytest --cov=core --cov-report=term-missing
 
