@@ -196,11 +196,19 @@ class DatabaseRepository:
 			return [row["symbol"] for row in cursor.fetchall()]
 
 	def list_groups(self) -> List[dict]:
-		"""Return all groups."""
+		"""Return all groups with their constituent ticker count."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute("SELECT * FROM groups ORDER BY name")
+			cursor.execute(
+				"""
+				SELECT g.*, COUNT(gc.symbol) AS ticker_count
+				FROM groups g
+				LEFT JOIN group_constituents gc ON gc.group_name = g.name
+				GROUP BY g.name
+				ORDER BY g.name
+				"""
+			)
 			return [dict(row) for row in cursor.fetchall()]
 
 	def delete_group(self, group_name: str) -> str:

@@ -1,16 +1,21 @@
+import asyncio
+import json
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
 from core.logger import SERVER_LOG_FILE, get_logger, setup_logging
 from core.orchestrator import fetch_data as orchestrator_fetch_data
-from core.orchestrator import run_bulk_analysis
+from core.orchestrator import run_bulk_analysis, stream_bulk_analysis
 from core.scorers import SCORERS
 
 logger = get_logger(__name__)
@@ -419,3 +424,83 @@ async def analyze_assets(request: AnalysisRequest):
 
 		logger.error(f"Analysis failed: {e}\n{traceback.format_exc()}")
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/analyze/stream")
+async def analyze_assets_stream(request: AnalysisRequest):
+	"""
+	Stream analysis results for a list of tickers via Server-Sent Events.
+
+	Emits one SSE event per completed ticker so the UI can render results
+	incrementally. Closing the connection (AbortController on the client)
+	cancels the backend processing immediately.
+
+	Event types:
+	  status  — informational message during data-fetch phase
+	  result  — JSON-serialised AssetAnalysis for a completed ticker
+	  error   — fatal error message; stream ends after this
+	  done    — final event; data contains total ticker count
+	"""
+	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
+	if not tickers:
+		raise HTTPException(status_code=400, detail="No tickers provided")
+
+	async def event_generator():
+		# Single pass — avoids TTL-flip race from two separate list comprehensions.
+		cache_status = {t: repo.should_use_db_cache(t) for t in tickers}
+		cached_tickers = [t for t, hit in cache_status.items() if hit]
+		missing_tickers = [t for t, hit in cache_status.items() if not hit]
+		analyzed_count = 0
+
+		# One executor and one cancel event shared across all stream_bulk_analysis calls.
+		cancel_event = threading.Event()
+		executor = ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) + 4))
+
+		async def _stream(batch: List[str]):
+			async for result in stream_bulk_analysis(
+				batch,
+				profile=request.profile,
+				repo=repo,
+				benchmark_version=request.benchmark_version,
+				executor=executor,
+				cancel_event=cancel_event,
+			):
+				yield result
+
+		try:
+			# Phase 1: stream cached tickers immediately — zero wait.
+			if cached_tickers:
+				async for result in _stream(cached_tickers):
+					analyzed_count += 1
+					yield {"event": "result", "data": AssetAnalysis.model_validate(result).model_dump_json()}
+
+			# Phase 2: pipeline — analyze each fetch batch as it lands.
+			if missing_tickers:
+				yield {
+					"event": "status",
+					"data": json.dumps({"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"}),
+				}
+				async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+					async for result in _stream(batch):
+						analyzed_count += 1
+						yield {"event": "result", "data": AssetAnalysis.model_validate(result).model_dump_json()}
+
+			executor.shutdown(wait=False)
+
+		except (asyncio.CancelledError, GeneratorExit):
+			cancel_event.set()
+			executor.shutdown(wait=False, cancel_futures=True)
+			logger.info("SSE stream cancelled by client disconnect")
+			return
+		except Exception as e:
+			import traceback
+
+			cancel_event.set()
+			executor.shutdown(wait=False)
+			logger.error(f"Streaming analysis failed: {e}\n{traceback.format_exc()}")
+			yield {"event": "error", "data": json.dumps({"message": str(e)})}
+			return
+
+		yield {"event": "done", "data": json.dumps({"analyzed": analyzed_count, "total": len(tickers)})}
+
+	return EventSourceResponse(event_generator())

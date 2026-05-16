@@ -7,7 +7,7 @@ import AnalysisPanel from './components/AnalysisPanel'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
-	const [openbbReady, setOpenbbReady] = useState(false)
+	const [openbbReady, setOpenbbReady] = useState<boolean | null>(null)
 	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis'>('status')
 
 	useEffect(() => {
