@@ -412,7 +412,8 @@
 	font-size: 0.7rem;
 	font-weight: 600;
 	color: #9d9af0;
-	margin-right: auto;
+	display: block;
+	margin-bottom: 0.35rem;
 }
 
 .action-link {

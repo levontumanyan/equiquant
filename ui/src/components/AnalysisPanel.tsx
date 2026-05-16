@@ -364,6 +364,9 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 							{/* Ticker Picker */}
 							<div className="ticker-picker">
+								{tickers.length > 0 && (
+									<span className="ticker-total">{tickers.length} selected</span>
+								)}
 								<div className="search-bar">
 									<Search size={14} className="search-icon" />
 									<input
@@ -415,9 +418,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</div>
 
 							<div className="quick-actions">
-								{tickers.length > 0 && (
-									<span className="ticker-total">{tickers.length} selected</span>
-								)}
 								<button
 									className="action-link"
 									onClick={() => setTickers(availableAssets.map(a => a.symbol))}
