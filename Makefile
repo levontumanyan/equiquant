@@ -59,7 +59,15 @@ check: lint test
 
 # Setup
 ensure-uv:
-	@command -v uv >/dev/null 2>&1 || { echo "uv not found. Please install it first."; exit 1; }
+	@command -v uv >/dev/null 2>&1 || { \
+		if [ "$$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then \
+			echo "uv not found. Installing via Homebrew..."; \
+			brew install uv; \
+		else \
+			echo "uv not found. Please install it first: https://docs.astral.sh/uv/getting-started/installation/"; \
+			exit 1; \
+		fi; \
+	}
 
 install: ensure-uv
 	@echo "Installing Python dependencies (Zero-Pollution)..."
