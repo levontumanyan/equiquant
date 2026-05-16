@@ -105,8 +105,9 @@ ui-dev: ensure-uv
 
 stop:
 	@echo "Stopping EquiQuant processes..."
-	@lsof -ti:$(API_PORT) | xargs kill -9 2>/dev/null || true
-	@lsof -ti:$(UI_PORT) | xargs kill -9 2>/dev/null || true
+	@pkill -f "uvicorn core.api" 2>/dev/null || true
+	@pkill -f "vite.*--port $(UI_PORT)" 2>/dev/null || true
+	@sleep 0.5
 
 start: ensure-uv
 	@$(MAKE) ui-server & $(MAKE) ui-dev

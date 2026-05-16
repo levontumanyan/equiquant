@@ -1,5 +1,4 @@
 import os
-import threading
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
@@ -19,23 +18,17 @@ logger = get_logger(__name__)
 _openbb_ready = False
 
 
-def _warm_openbb():
-	"""Import openbb in a background thread so the first analysis request is instant."""
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+	"""Warm up OpenBB synchronously on startup so it runs in the main thread."""
 	global _openbb_ready
 	try:
 		logger.info("Warming up OpenBB...")
 		from openbb import obb  # noqa: F401
-
 		_openbb_ready = True
 		logger.info("OpenBB ready.")
 	except Exception as e:
 		logger.error(f"OpenBB warmup failed: {e}")
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-	"""Kick off OpenBB warmup on startup without blocking the server."""
-	threading.Thread(target=_warm_openbb, daemon=True).start()
 	yield
 
 

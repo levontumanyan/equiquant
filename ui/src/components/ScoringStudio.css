@@ -1,3 +1,235 @@
+/* Landing screen */
+
+.studio-landing {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: calc(100vh - 5rem);
+	background: #141414;
+}
+
+.studio-landing-content {
+	max-width: 560px;
+	width: 100%;
+	padding: 2rem;
+	text-align: center;
+}
+
+.studio-landing-title {
+	font-size: 2rem;
+	font-weight: 700;
+	color: #646cff;
+	margin: 0 0 0.75rem;
+}
+
+.studio-landing-desc {
+	color: #666;
+	font-size: 1rem;
+	margin: 0 0 2.5rem;
+	line-height: 1.6;
+}
+
+.studio-start-cards {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+.studio-start-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 2rem 1.5rem;
+	background: #111;
+	border: 1px solid #333;
+	border-radius: 12px;
+	cursor: pointer;
+	transition: all 0.2s;
+	text-align: center;
+	color: #888;
+	width: auto;
+}
+
+.studio-start-card:hover {
+	border-color: #646cff;
+	background: #13131f;
+	color: #646cff;
+	transform: translateY(-2px);
+	box-shadow: 0 4px 20px rgba(100, 108, 255, 0.15);
+}
+
+.studio-start-card-title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: #ddd;
+}
+
+.studio-start-card:hover .studio-start-card-title {
+	color: #646cff;
+}
+
+.studio-start-card-desc {
+	font-size: 0.82rem;
+	color: #555;
+	line-height: 1.5;
+}
+
+/* Import picker */
+
+.studio-import-picker {
+	background: #111;
+	border: 1px solid #333;
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.studio-import-header {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 1rem 1.25rem;
+	border-bottom: 1px solid #222;
+}
+
+.studio-import-label {
+	font-size: 0.85rem;
+	color: #666;
+}
+
+.studio-back-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	background: transparent;
+	border: 1px solid #333;
+	border-radius: 5px;
+	color: #666;
+	padding: 0.3rem 0.7rem;
+	font-size: 0.82rem;
+	cursor: pointer;
+	transition: all 0.15s;
+	width: auto;
+	white-space: nowrap;
+}
+
+.studio-back-btn:hover {
+	border-color: #646cff;
+	color: #646cff;
+}
+
+.studio-no-profiles {
+	padding: 2rem;
+	color: #555;
+	font-size: 0.9rem;
+	margin: 0;
+}
+
+.studio-profile-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.studio-profile-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.875rem 1.25rem;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid #1a1a1a;
+	color: #ccc;
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.15s;
+	border-radius: 0;
+	width: auto;
+	font-size: 0.95rem;
+}
+
+.studio-profile-item:last-child {
+	border-bottom: none;
+}
+
+.studio-profile-item:hover {
+	background: #1a1a1f;
+	color: #646cff;
+}
+
+.studio-profile-item-name {
+	font-weight: 500;
+}
+
+.studio-profile-item-icon {
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.studio-profile-item:hover .studio-profile-item-icon {
+	opacity: 1;
+}
+
+/* Name conflict indicator */
+
+.studio-name-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.studio-name-input.conflict {
+	border-color: #ffab00;
+}
+
+.studio-name-conflict {
+	font-size: 0.72rem;
+	color: #ffab00;
+	padding-left: 0.25rem;
+}
+
+/* Overwrite confirmation */
+
+.studio-overwrite-confirm {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	font-size: 0.85rem;
+	color: #ffab00;
+}
+
+.studio-confirm-yes {
+	background: #ff4757;
+	border: none;
+	border-radius: 5px;
+	color: white;
+	padding: 0.35rem 0.75rem;
+	font-size: 0.82rem;
+	font-weight: 600;
+	cursor: pointer;
+	width: auto;
+	white-space: nowrap;
+}
+
+.studio-confirm-yes:hover {
+	background: #e03040;
+}
+
+.studio-confirm-no {
+	background: #1a1a1a;
+	border: 1px solid #333;
+	border-radius: 5px;
+	color: #888;
+	padding: 0.35rem 0.75rem;
+	font-size: 0.82rem;
+	cursor: pointer;
+	width: auto;
+}
+
+.studio-confirm-no:hover {
+	border-color: #555;
+	color: #ccc;
+}
+
 .studio-container {
 	display: flex;
 	flex-direction: column;
@@ -143,8 +375,8 @@
 .studio-metric-row {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
-	padding: 0.6rem 1rem;
+	gap: 0.6rem;
+	padding: 0.5rem 1rem;
 	cursor: pointer;
 	border-left: 3px solid transparent;
 	transition: background 0.15s, border-color 0.15s;
@@ -159,9 +391,16 @@
 	border-left-color: #646cff;
 }
 
-.studio-metric-name {
+.studio-metric-left {
 	flex: 1;
-	font-size: 0.875rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	min-width: 0;
+}
+
+.studio-metric-name {
+	font-size: 0.85rem;
 	font-weight: 500;
 	color: #ddd;
 	white-space: nowrap;
@@ -173,26 +412,21 @@
 	color: #646cff;
 }
 
-.studio-weight-input {
-	width: 56px;
-	background: #1a1a1a;
-	border: 1px solid #333;
-	border-radius: 4px;
-	color: white;
-	padding: 0.25rem 0.4rem;
-	font-size: 0.8rem;
-	text-align: right;
+.studio-metric-slider-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 }
 
-.studio-weight-input:focus {
-	outline: none;
-	border-color: #646cff;
+.studio-importance-slider {
+	flex: 1;
+	accent-color: #646cff;
+	cursor: pointer;
+	height: 3px;
 }
 
-.studio-weight-unit {
-	font-size: 0.75rem;
-	color: #555;
-	width: 10px;
+.studio-metric-row.selected .studio-importance-slider {
+	accent-color: #646cff;
 }
 
 .studio-formula-badge {
@@ -208,6 +442,19 @@
 .studio-formula-badge.bell_curve { background: rgba(255, 171, 0, 0.15); color: #ffab00; }
 .studio-formula-badge.plateau { background: rgba(162, 155, 254, 0.15); color: #a29bfe; }
 .studio-formula-badge.threshold { background: rgba(255, 71, 87, 0.15); color: #ff4757; }
+
+.studio-contribution {
+	font-size: 0.72rem;
+	font-variant-numeric: tabular-nums;
+	color: #555;
+	min-width: 32px;
+	text-align: right;
+	flex-shrink: 0;
+}
+
+.studio-metric-row.selected .studio-contribution {
+	color: #646cff99;
+}
 
 .studio-remove-btn {
 	background: none;
@@ -400,25 +647,6 @@
 	font-size: 0.875rem;
 }
 
-.studio-drawer-sector {
-	display: flex;
-	align-items: center;
-	gap: 0.4rem;
-	background: #1a1a1a;
-	border: 1px solid #333;
-	border-radius: 6px;
-	padding: 0.4rem 0.75rem;
-	color: #888;
-}
-
-.studio-drawer-sector select {
-	background: transparent;
-	border: none;
-	color: white;
-	outline: none;
-	font-size: 0.875rem;
-	cursor: pointer;
-}
 
 .studio-library-scroll {
 	flex: 1;

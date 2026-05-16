@@ -16,13 +16,12 @@ def evaluate_metric(
 	"""
 	metric_key = benchmark["metric"]
 	raw_val = asset.get(metric_key)
-	default_weight = benchmark.get("weight", 1.0)
 	formula_type = benchmark.get("type", "sigmoid")
 	unit = benchmark.get("unit")
 	is_decimal = benchmark.get("is_decimal", False)
 
-	# Use profile weight if available, otherwise fallback to default
-	weight = profile_weights.get(metric_key, default_weight)
+	# Weight is always profile-driven. Metrics not in the profile are excluded (weight=0).
+	weight = profile_weights.get(metric_key, 0.0)
 
 	# Pre-process the value (normalization, special fallbacks)
 	val = preprocess_metric_value(metric_key, raw_val, asset)

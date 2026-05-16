@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Plus, X, Search, Filter, BarChart2, BookOpen } from 'lucide-react'
+import { Plus, X, Search, BarChart2, BookOpen, Download, ArrowLeft } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 import type { Benchmark, ScorerType } from '../types'
 import type { StudioMetric } from '../types/studio'
@@ -15,27 +15,30 @@ const FORMULA_LABELS: Record<string, string> = {
 	threshold: 'Thresh',
 }
 
+type StudioMode = 'landing' | 'importing' | 'active'
+
 const ScoringStudio: React.FC = () => {
 	const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([])
-	const [sectors, setSectors] = useState<string[]>([])
 	const [profileNames, setProfileNames] = useState<string[]>([])
 	const [availableFormulas, setAvailableFormulas] = useState<string[]>([])
 	const [loading, setLoading] = useState(true)
 
+	const [mode, setMode] = useState<StudioMode>('landing')
 	const [activeMetrics, setActiveMetrics] = useState<StudioMetric[]>([])
-	const [profileName, setProfileName] = useState('balanced')
+	const [profileName, setProfileName] = useState('')
+	const [sourceProfileName, setSourceProfileName] = useState<string | null>(null)
 	const [selectedMetricKey, setSelectedMetricKey] = useState<string | null>(null)
 
 	const [drawerOpen, setDrawerOpen] = useState(false)
 	const [drawerSearch, setDrawerSearch] = useState('')
-	const [drawerSector, setDrawerSector] = useState('')
-	const [drawerBenchmarks, setDrawerBenchmarks] = useState<Benchmark[]>([])
 	const [drawerHistoryKey, setDrawerHistoryKey] = useState<string | null>(null)
 
 	const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+	const [overwriteTarget, setOverwriteTarget] = useState<string | null>(null)
 
 	const profileLoadRef = useRef(0)
 	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const nameInputRef = useRef<HTMLInputElement>(null)
 
 	const selectedMetric = useMemo(
 		() => activeMetrics.find(m => m.metric === selectedMetricKey) ?? null,
@@ -44,38 +47,39 @@ const ScoringStudio: React.FC = () => {
 
 	const activeKeys = useMemo(() => new Set(activeMetrics.map(m => m.metric)), [activeMetrics])
 
+	const totalWeight = useMemo(
+		() => activeMetrics.reduce((sum, m) => sum + (m.weight || 0), 0),
+		[activeMetrics]
+	)
+
+	const profileNameConflict = useMemo(
+		() => profileName.trim().length > 0 &&
+			profileNames.includes(profileName.trim()) &&
+			profileName.trim() !== sourceProfileName,
+		[profileName, profileNames, sourceProfileName]
+	)
+
 	const filteredDrawerBenchmarks = useMemo(() => {
 		const q = drawerSearch.toLowerCase()
-		if (!q) return drawerBenchmarks
-		return drawerBenchmarks.filter(
+		if (!q) return allBenchmarks
+		return allBenchmarks.filter(
 			b => b.name.toLowerCase().includes(q) || b.metric.toLowerCase().includes(q)
 		)
-	}, [drawerBenchmarks, drawerSearch])
+	}, [allBenchmarks, drawerSearch])
 
 	useEffect(() => {
 		const init = async () => {
 			setLoading(true)
 			try {
-				const [benchRes, sectorRes, profileListRes, formulaRes] = await Promise.all([
+				const [benchRes, profileListRes, formulaRes] = await Promise.all([
 					fetch(`${API_BASE_URL}/api/benchmarks?asset_type=STOCK`),
-					fetch(`${API_BASE_URL}/api/sectors`),
 					fetch(`${API_BASE_URL}/api/profiles/list`),
 					fetch(`${API_BASE_URL}/api/formulas`),
 				])
 				const benchmarks: Benchmark[] = benchRes.ok ? await benchRes.json() : []
-				const sectorList: string[] = sectorRes.ok ? await sectorRes.json() : []
-				const names: string[] = profileListRes.ok ? await profileListRes.json() : []
-				const formulas: string[] = formulaRes.ok ? await formulaRes.json() : []
-
 				setAllBenchmarks(benchmarks)
-				setDrawerBenchmarks(benchmarks)
-				setSectors(sectorList)
-				setProfileNames(names)
-				setAvailableFormulas(formulas)
-
-				const defaultProfile = names[0] ?? 'balanced'
-				setProfileName(defaultProfile)
-				await loadProfileWithBenchmarks(defaultProfile, benchmarks)
+				setProfileNames(profileListRes.ok ? await profileListRes.json() : [])
+				setAvailableFormulas(formulaRes.ok ? await formulaRes.json() : [])
 			} finally {
 				setLoading(false)
 			}
@@ -83,22 +87,17 @@ const ScoringStudio: React.FC = () => {
 		init()
 	}, [])
 
-	useEffect(() => {
-		if (!drawerOpen) return
-		const fetchSectorBenchmarks = async () => {
-			const sectorParam = drawerSector ? `&sector=${encodeURIComponent(drawerSector)}` : ''
-			const res = await fetch(`${API_BASE_URL}/api/benchmarks?asset_type=STOCK${sectorParam}`)
-			if (res.ok) setDrawerBenchmarks(await res.json())
-		}
-		fetchSectorBenchmarks()
-	}, [drawerSector, drawerOpen])
-
-	const loadProfileWithBenchmarks = async (name: string, benchmarks: Benchmark[]) => {
+	const loadProfileData = async (name: string, benchmarks: Benchmark[]) => {
 		const requestId = ++profileLoadRef.current
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/profiles/${encodeURIComponent(name)}`)
 			if (!res.ok) return
-			const profile: { name: string; weights: Record<string, number>; ranges: Record<string, { min: number; max: number }>; formulas: Record<string, string> } = await res.json()
+			const profile: {
+				name: string
+				weights: Record<string, number>
+				ranges: Record<string, { min: number; max: number }>
+				formulas: Record<string, string>
+			} = await res.json()
 			if (requestId !== profileLoadRef.current) return
 
 			const merged: StudioMetric[] = Object.entries(profile.weights)
@@ -130,14 +129,35 @@ const ScoringStudio: React.FC = () => {
 
 			setActiveMetrics(merged)
 			setSelectedMetricKey(merged[0]?.metric ?? null)
+			setProfileName(name)
+			setSourceProfileName(name)
+			setMode('active')
 		} catch {
-			// silent — backend may be offline
+			// silent
 		}
 	}
 
-	const loadProfile = async (name: string) => {
-		setProfileName(name)
-		await loadProfileWithBenchmarks(name, allBenchmarks)
+	const handleSelectProfile = (name: string) => {
+		loadProfileData(name, allBenchmarks)
+	}
+
+	const handleStartFresh = () => {
+		setActiveMetrics([])
+		setSelectedMetricKey(null)
+		setProfileName('')
+		setSourceProfileName(null)
+		setMode('active')
+		setTimeout(() => nameInputRef.current?.focus(), 50)
+	}
+
+	const handleReset = () => {
+		setMode('landing')
+		setActiveMetrics([])
+		setSelectedMetricKey(null)
+		setProfileName('')
+		setSourceProfileName(null)
+		setSaveStatus('idle')
+		setOverwriteTarget(null)
 	}
 
 	const addMetric = (bench: Benchmark) => {
@@ -156,23 +176,20 @@ const ScoringStudio: React.FC = () => {
 			target_max: bench.target_max,
 			width: bench.width,
 			threshold: bench.threshold,
-			weight: 1.0,
+			weight: 50,
 			range_min: 0,
 			range_max: 100,
 			formula: bench.type,
 		}
 		setActiveMetrics(prev => [...prev, newMetric])
 		setSelectedMetricKey(bench.metric)
-		setDrawerOpen(false)
 	}
 
 	const removeMetric = (key: string) => {
 		setActiveMetrics(prev => prev.filter(m => m.metric !== key))
 		if (selectedMetricKey === key) {
-			setSelectedMetricKey(prev => {
-				const remaining = activeMetrics.filter(m => m.metric !== key)
-				return remaining[0]?.metric ?? null
-			})
+			const remaining = activeMetrics.filter(m => m.metric !== key)
+			setSelectedMetricKey(remaining[0]?.metric ?? null)
 		}
 	}
 
@@ -180,9 +197,10 @@ const ScoringStudio: React.FC = () => {
 		setActiveMetrics(prev => prev.map(m => m.metric === key ? { ...m, ...patch } : m))
 	}
 
-	const saveProfile = async () => {
+	const doSave = async (name: string) => {
 		if (saveStatus === 'saving') return
 		setSaveStatus('saving')
+		setOverwriteTarget(null)
 		try {
 			const weights: Record<string, number> = {}
 			const ranges: Record<string, { min: number; max: number }> = {}
@@ -195,9 +213,17 @@ const ScoringStudio: React.FC = () => {
 			const res = await fetch(`${API_BASE_URL}/api/profiles`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: profileName, weights, ranges, formulas }),
+				body: JSON.stringify({ name, weights, ranges, formulas }),
 			})
-			setSaveStatus(res.ok ? 'saved' : 'error')
+			if (res.ok) {
+				setSaveStatus('saved')
+				setSourceProfileName(name)
+				if (!profileNames.includes(name)) {
+					setProfileNames(prev => [...prev, name].sort())
+				}
+			} else {
+				setSaveStatus('error')
+			}
 		} catch {
 			setSaveStatus('error')
 		} finally {
@@ -206,41 +232,123 @@ const ScoringStudio: React.FC = () => {
 		}
 	}
 
+	const handleSave = () => {
+		const name = profileName.trim()
+		if (!name) {
+			nameInputRef.current?.focus()
+			return
+		}
+		if (profileNameConflict) {
+			setOverwriteTarget(name)
+			return
+		}
+		doSave(name)
+	}
+
 	const saveBtnLabel = { idle: 'Save Profile', saving: 'Saving…', saved: 'Saved!', error: 'Error' }
 
 	if (loading) return <div className="studio-drawer-loading">Loading Scoring Studio…</div>
 
+	// Landing screen
+	if (mode === 'landing' || mode === 'importing') {
+		return (
+			<div className="studio-landing">
+				<div className="studio-landing-content">
+					<h2 className="studio-landing-title">Scoring Studio</h2>
+					<p className="studio-landing-desc">
+						Configure how financial metrics are weighted and scored. Load an existing profile or build one from scratch.
+					</p>
+
+					{mode === 'landing' && (
+						<div className="studio-start-cards">
+							<button className="studio-start-card" onClick={() => setMode('importing')}>
+								<Download size={28} />
+								<span className="studio-start-card-title">Load a Profile</span>
+								<span className="studio-start-card-desc">Import a system or saved profile to view and customize</span>
+							</button>
+							<button className="studio-start-card" onClick={handleStartFresh}>
+								<Plus size={28} />
+								<span className="studio-start-card-title">Start from Scratch</span>
+								<span className="studio-start-card-desc">Build a new scoring profile with your own metrics and weights</span>
+							</button>
+						</div>
+					)}
+
+					{mode === 'importing' && (
+						<div className="studio-import-picker">
+							<div className="studio-import-header">
+								<button className="studio-back-btn" onClick={() => setMode('landing')}>
+									<ArrowLeft size={14} /> Back
+								</button>
+								<span className="studio-import-label">Select a profile to load</span>
+							</div>
+							<div className="studio-profile-list">
+								{profileNames.length === 0 && (
+									<p className="studio-no-profiles">No saved profiles found.</p>
+								)}
+								{profileNames.map(name => (
+									<button
+										key={name}
+										className="studio-profile-item"
+										onClick={() => handleSelectProfile(name)}
+									>
+										<span className="studio-profile-item-name">{name}</span>
+										<Download size={14} className="studio-profile-item-icon" />
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		)
+	}
+
+	// Active mode
+	// Pass the full metric (including any user-edited curve params) into the explorer
 	const explorerSeed: Benchmark | undefined = selectedMetric
 		? { ...selectedMetric, type: selectedMetric.formula as ScorerType }
 		: undefined
+
+	// Force ScoringExplorer to re-initialize when the selected metric changes
+	const explorerKey = selectedMetricKey ?? 'none'
 
 	return (
 		<div className="studio-container">
 			{/* Header */}
 			<div className="studio-header">
-				<span className="studio-header-title">Studio</span>
-				<select
-					className="studio-profile-select"
-					value={profileName}
-					onChange={e => loadProfile(e.target.value)}
-				>
-					{profileNames.map(n => <option key={n} value={n}>{n}</option>)}
-				</select>
-				<input
-					className="studio-name-input"
-					type="text"
-					placeholder="Profile name…"
-					value={profileName}
-					onChange={e => setProfileName(e.target.value)}
-				/>
-				<div className="studio-header-spacer" />
-				<button
-					className={`studio-save-btn ${saveStatus}`}
-					onClick={saveProfile}
-					disabled={saveStatus === 'saving'}
-				>
-					{saveBtnLabel[saveStatus]}
+				<button className="studio-back-btn" onClick={handleReset} title="Back to start">
+					<ArrowLeft size={14} />
 				</button>
+				<div className="studio-name-group">
+					<input
+						ref={nameInputRef}
+						className={`studio-name-input${profileNameConflict ? ' conflict' : ''}`}
+						type="text"
+						placeholder="Name this profile…"
+						value={profileName}
+						onChange={e => { setProfileName(e.target.value); setOverwriteTarget(null) }}
+					/>
+					{profileNameConflict && (
+						<span className="studio-name-conflict">Will overwrite existing "{profileName.trim()}"</span>
+					)}
+				</div>
+				<div className="studio-header-spacer" />
+				{overwriteTarget ? (
+					<div className="studio-overwrite-confirm">
+						<span>Overwrite <strong>{overwriteTarget}</strong>?</span>
+						<button className="studio-confirm-yes" onClick={() => doSave(overwriteTarget)}>Yes, overwrite</button>
+						<button className="studio-confirm-no" onClick={() => setOverwriteTarget(null)}>Cancel</button>
+					</div>
+				) : (
+					<button
+						className={`studio-save-btn ${saveStatus}`}
+						onClick={handleSave}
+						disabled={saveStatus === 'saving' || !profileName.trim()}
+					>
+						{saveBtnLabel[saveStatus]}
+					</button>
+				)}
 			</div>
 
 			{/* Body */}
@@ -256,37 +364,43 @@ const ScoringStudio: React.FC = () => {
 					<div className="studio-metric-list">
 						{activeMetrics.length === 0 && (
 							<div className="studio-empty-set">
-								No metrics yet. Add some from the Library.
+								No metrics yet.<br />Add some from the Library.
 							</div>
 						)}
-						{activeMetrics.map(m => (
-							<div
-								key={m.metric}
-								className={`studio-metric-row${selectedMetricKey === m.metric ? ' selected' : ''}`}
-								onClick={() => setSelectedMetricKey(m.metric)}
-							>
-								<span className="studio-metric-name" title={m.name}>{m.name}</span>
-								<input
-									className="studio-weight-input"
-									type="number"
-									min={0}
-									max={5}
-									step={0.1}
-									value={m.weight}
-									onClick={e => e.stopPropagation()}
-									onChange={e => updateMetric(m.metric, { weight: parseFloat(e.target.value) || 0 })}
-								/>
-								<span className="studio-weight-unit">×</span>
-								<span className={`studio-formula-badge ${m.formula}`}>{FORMULA_LABELS[m.formula] ?? m.formula}</span>
-								<button
-									className="studio-remove-btn"
-									title="Remove metric"
-									onClick={e => { e.stopPropagation(); removeMetric(m.metric) }}
+						{activeMetrics.map(m => {
+							const pct = totalWeight > 0 ? Math.round((m.weight / totalWeight) * 100) : 0
+							return (
+								<div
+									key={m.metric}
+									className={`studio-metric-row${selectedMetricKey === m.metric ? ' selected' : ''}`}
+									onClick={() => setSelectedMetricKey(m.metric)}
 								>
-									<X size={13} />
-								</button>
-							</div>
-						))}
+									<div className="studio-metric-left">
+										<span className="studio-metric-name" title={m.name}>{m.name}</span>
+										<div className="studio-metric-slider-row" onClick={e => e.stopPropagation()}>
+											<input
+												className="studio-importance-slider"
+												type="range"
+												min={0}
+												max={100}
+												step={1}
+												value={m.weight}
+												onChange={e => updateMetric(m.metric, { weight: parseInt(e.target.value) })}
+											/>
+											<span className="studio-contribution">{pct}%</span>
+										</div>
+									</div>
+									<span className={`studio-formula-badge ${m.formula}`}>{FORMULA_LABELS[m.formula] ?? m.formula}</span>
+									<button
+										className="studio-remove-btn"
+										title="Remove metric"
+										onClick={e => { e.stopPropagation(); removeMetric(m.metric) }}
+									>
+										<X size={13} />
+									</button>
+								</div>
+							)
+						})}
 					</div>
 				</div>
 
@@ -301,43 +415,99 @@ const ScoringStudio: React.FC = () => {
 						<div className="studio-curve-panel">
 							<div className="studio-overrides">
 								<div className="studio-override-group">
-									<label>Weight (×)</label>
+									<label>Importance — {totalWeight > 0 ? Math.round((selectedMetric.weight / totalWeight) * 100) : 0}% of score</label>
 									<input
-										type="number"
+										type="range"
 										min={0}
-										max={5}
-										step={0.1}
+										max={100}
+										step={1}
 										value={selectedMetric.weight}
-										onChange={e => updateMetric(selectedMetric.metric, { weight: parseFloat(e.target.value) || 0 })}
+										onChange={e => updateMetric(selectedMetric.metric, { weight: parseInt(e.target.value) })}
 									/>
 								</div>
 								<div className="studio-override-group">
-									<label>Formula</label>
+									<label>Function</label>
 									<select
 										value={selectedMetric.formula}
-										onChange={e => updateMetric(selectedMetric.metric, { formula: e.target.value })}
+										onChange={e => updateMetric(selectedMetric.metric, { formula: e.target.value, type: e.target.value as ScorerType })}
 									>
-										{availableFormulas.map(f => <option key={f} value={f}>{f}</option>)}
+										{availableFormulas.map(f => <option key={f} value={f}>{FORMULA_LABELS[f] ?? f}</option>)}
 									</select>
 								</div>
-								<div className="studio-override-group">
-									<label>Range Min</label>
-									<input
-										type="number"
-										value={selectedMetric.range_min}
-										onChange={e => updateMetric(selectedMetric.metric, { range_min: parseFloat(e.target.value) || 0 })}
-									/>
-								</div>
-								<div className="studio-override-group">
-									<label>Range Max</label>
-									<input
-										type="number"
-										value={selectedMetric.range_max}
-										onChange={e => updateMetric(selectedMetric.metric, { range_max: parseFloat(e.target.value) || 0 })}
-									/>
-								</div>
+
+								{(selectedMetric.formula === 'sigmoid' || selectedMetric.formula === 'linear') && (<>
+									<div className="studio-override-group">
+										<label>Best Value</label>
+										<input type="number" step="any"
+											value={selectedMetric.best ?? ''}
+											placeholder="e.g. 15"
+											onChange={e => updateMetric(selectedMetric.metric, { best: parseFloat(e.target.value) })}
+										/>
+									</div>
+									<div className="studio-override-group">
+										<label>Worst Value</label>
+										<input type="number" step="any"
+											value={selectedMetric.worst ?? ''}
+											placeholder="e.g. 50"
+											onChange={e => updateMetric(selectedMetric.metric, { worst: parseFloat(e.target.value) })}
+										/>
+									</div>
+								</>)}
+
+								{selectedMetric.formula === 'bell_curve' && (<>
+									<div className="studio-override-group">
+										<label>Target</label>
+										<input type="number" step="any"
+											value={selectedMetric.target ?? ''}
+											placeholder="e.g. 1.0"
+											onChange={e => updateMetric(selectedMetric.metric, { target: parseFloat(e.target.value) })}
+										/>
+									</div>
+									<div className="studio-override-group">
+										<label>Width (σ)</label>
+										<input type="number" step="any" min={0.01}
+											value={selectedMetric.width ?? ''}
+											placeholder="e.g. 0.5"
+											onChange={e => updateMetric(selectedMetric.metric, { width: parseFloat(e.target.value) })}
+										/>
+									</div>
+								</>)}
+
+								{selectedMetric.formula === 'plateau' && (<>
+									<div className="studio-override-group">
+										<label>Target Min</label>
+										<input type="number" step="any"
+											value={selectedMetric.target_min ?? ''}
+											onChange={e => updateMetric(selectedMetric.metric, { target_min: parseFloat(e.target.value) })}
+										/>
+									</div>
+									<div className="studio-override-group">
+										<label>Target Max</label>
+										<input type="number" step="any"
+											value={selectedMetric.target_max ?? ''}
+											onChange={e => updateMetric(selectedMetric.metric, { target_max: parseFloat(e.target.value) })}
+										/>
+									</div>
+									<div className="studio-override-group">
+										<label>Decay Width</label>
+										<input type="number" step="any" min={0.01}
+											value={selectedMetric.width ?? ''}
+											onChange={e => updateMetric(selectedMetric.metric, { width: parseFloat(e.target.value) })}
+										/>
+									</div>
+								</>)}
+
+								{selectedMetric.formula === 'threshold' && (
+									<div className="studio-override-group">
+										<label>Threshold</label>
+										<input type="number" step="any"
+											value={selectedMetric.threshold ?? ''}
+											onChange={e => updateMetric(selectedMetric.metric, { threshold: parseFloat(e.target.value) })}
+										/>
+									</div>
+								)}
 							</div>
-							<ScoringExplorer initialData={explorerSeed} />
+							<ScoringExplorer key={explorerKey} initialData={explorerSeed} />
 						</div>
 					)}
 				</div>
@@ -365,13 +535,6 @@ const ScoringStudio: React.FC = () => {
 							onChange={e => setDrawerSearch(e.target.value)}
 						/>
 					</div>
-					<div className="studio-drawer-sector">
-						<Filter size={14} />
-						<select value={drawerSector} onChange={e => { setDrawerSector(e.target.value); setDrawerHistoryKey(null) }}>
-							<option value="">Global</option>
-							{sectors.map(s => <option key={s} value={s}>{s}</option>)}
-						</select>
-					</div>
 				</div>
 				<div className="studio-library-scroll">
 					<table className="studio-library-table">
@@ -379,30 +542,23 @@ const ScoringStudio: React.FC = () => {
 							<tr>
 								<th>Metric</th>
 								<th>Type</th>
-								<th>Weight</th>
 								<th></th>
 							</tr>
 						</thead>
 						<tbody>
 							{filteredDrawerBenchmarks.map(b => (
 								<React.Fragment key={b.metric}>
-									<tr
-										className={`studio-library-row${drawerHistoryKey === b.metric ? ' history-open' : ''}`}
-									>
+									<tr className={`studio-library-row${drawerHistoryKey === b.metric ? ' history-open' : ''}`}>
 										<td className="studio-lib-name">{b.name}</td>
 										<td>
 											<span className={`studio-formula-badge ${b.type}`}>{FORMULA_LABELS[b.type] ?? b.type}</span>
 										</td>
-										<td>{b.weight.toFixed(1)}×</td>
 										<td>
 											<div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
 												{activeKeys.has(b.metric) ? (
 													<span className="studio-in-use-badge">In Use</span>
 												) : (
-													<button
-														className="studio-lib-add-btn"
-														onClick={() => addMetric(b)}
-													>
+													<button className="studio-lib-add-btn" onClick={() => addMetric(b)}>
 														<Plus size={12} /> Add
 													</button>
 												)}
@@ -418,7 +574,7 @@ const ScoringStudio: React.FC = () => {
 									</tr>
 									{drawerHistoryKey === b.metric && (
 										<tr>
-											<td colSpan={4} style={{ padding: 0 }}>
+											<td colSpan={3} style={{ padding: 0 }}>
 												<div className="studio-drawer-history">
 													<MetricHistory metricKey={b.metric} metricName={b.name} />
 												</div>

@@ -1,15 +1,13 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from core.api import app
 
-client = TestClient(app)
-
 
 def test_health_check():
-	"""
-	Tests the /health endpoint.
-	"""
-	response = client.get("/health")
+	"""Tests the /health endpoint without triggering lifespan."""
+	with TestClient(app, raise_server_exceptions=True) as client:
+		response = client.get("/health")
 	assert response.status_code == 200
 	assert response.json() == {
 		"status": "online",
@@ -18,14 +16,31 @@ def test_health_check():
 	}
 
 
-def test_get_status():
-	"""
-	Tests the /api/status endpoint.
-	"""
-	response = client.get("/api/status")
+def test_get_status_shape():
+	"""Tests the /api/status response shape without asserting OpenBB state."""
+	with TestClient(app) as client:
+		response = client.get("/api/status")
 	assert response.status_code == 200
 	data = response.json()
 	assert data["backend"] == "connected"
 	assert data["database"] == "available"
 	assert data["version"] == "0.1.0"
+	assert "openbb" in data
 	assert data["openbb"] in ("ready", "warming_up")
+
+
+@pytest.mark.slow
+def test_openbb_ready_after_lifespan():
+	"""
+	Verifies OpenBB is fully ready after the lifespan runs.
+	The context manager triggers startup, which imports OpenBB synchronously
+	in the main thread — the only way signal handlers work.
+	Marked slow because OpenBB import takes a few seconds.
+	"""
+	with TestClient(app) as client:
+		response = client.get("/api/status")
+	assert response.status_code == 200
+	assert response.json()["openbb"] == "ready", (
+		"OpenBB must be ready after lifespan completes. "
+		"If this fails, the lifespan import is broken or running in a thread."
+	)

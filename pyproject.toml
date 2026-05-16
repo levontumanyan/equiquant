@@ -55,6 +55,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+markers = [
+    "slow: marks tests that take more than a few seconds (OpenBB import, real server startup)",
+]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
