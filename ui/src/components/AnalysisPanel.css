@@ -320,6 +320,17 @@
 	color: #9d9af0;
 }
 
+.group-chip--active {
+	border-color: #646cff;
+	background: rgba(100, 108, 255, 0.15);
+	color: #fff;
+}
+
+.group-chip--active .group-chip-count {
+	background: rgba(100, 108, 255, 0.35);
+	color: #c8c6ff;
+}
+
 .group-chip-count {
 	display: inline-flex;
 	align-items: center;

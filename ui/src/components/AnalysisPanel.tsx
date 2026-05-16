@@ -35,6 +35,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [results, setResults] = useState<AssetAnalysis[]>([])
 	const [error, setError] = useState<string | null>(null)
 	const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+	const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+	const groupTickerCache = useRef<Map<string, string[]>>(new Map())
 	const abortControllerRef = useRef<AbortController | null>(null)
 
 	const [showNewGroup, setShowNewGroup] = useState(false)
@@ -74,14 +76,23 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	}, [loadGroups])
 
 	const addGroup = async (group: Group) => {
+		if (selectedGroups.has(group.name)) {
+			const cached = groupTickerCache.current.get(group.name) ?? []
+			const remove = new Set(cached)
+			setTickers(prev => prev.filter(t => !remove.has(t)))
+			setSelectedGroups(prev => { const n = new Set(prev); n.delete(group.name); return n })
+			return
+		}
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(group.name)}/tickers`)
 			if (!res.ok) return
 			const incoming: string[] = await res.json()
+			groupTickerCache.current.set(group.name, incoming)
 			setTickers(prev => {
 				const existing = new Set(prev)
 				return [...prev, ...incoming.filter(t => !existing.has(t))]
 			})
+			setSelectedGroups(prev => new Set([...prev, group.name]))
 		} catch {}
 	}
 
@@ -313,7 +324,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 										{systemGroups.map(g => (
 											<button
 												key={g.name}
-												className="group-chip group-chip--system"
+												className={`group-chip group-chip--system${selectedGroups.has(g.name) ? ' group-chip--active' : ''}`}
 												onClick={() => addGroup(g)}
 												title={g.description ?? undefined}
 											>
@@ -324,7 +335,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 										{customGroups.map(g => (
 											<div key={g.name} className="group-chip-wrap">
 												<button
-													className="group-chip"
+													className={`group-chip${selectedGroups.has(g.name) ? ' group-chip--active' : ''}`}
 													onClick={() => addGroup(g)}
 													title={g.description ?? undefined}
 												>
@@ -405,7 +416,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 								</button>
 								<button
 									className="action-link text-red"
-									onClick={() => setTickers([])}
+									onClick={() => { setTickers([]); setSelectedGroups(new Set()) }}
 								>
 									Clear
 								</button>
