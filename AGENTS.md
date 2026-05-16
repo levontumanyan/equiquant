@@ -2,7 +2,7 @@
 
 ## Code Standards
 - **Indentation**: **Tabs** exclusively for all code (except YAML).
-- **Quality**: Prioritize **targeted testing** (e.g., `make test-unit` or running a specific test file) during development. Only run `make check` (full suite) as a final verification before a PR or if specifically required. Rely on **pre-commit hooks** to catch linting and basic test failures during the commit process.
+- **Quality**: Prioritize **targeted testing** (e.g., `make test-unit` or running a specific test file) during development. Only run `make check` (full suite) as a final verification before a PR or if specifically required. Rely on **pre-commit hooks** to catch linting and basic test failures during the commit process. If precommits aren't running then it's a critical issue and let the user know. The only exception is when you are directly asked to ignore them.
 - **Functional & Modular**: Write pure functions whenever possible. Keep functions small and focused on a single responsibility. If a function exceeds ~50 lines, evaluate it for refactoring. Whenever a function needs a significant update, consider creating a new one instead of modifying the existing one to preserve behavioral integrity.
 - **Documentation**: EVERY function and class must have a descriptive docstring using triple quotes (`"""`). 
 	- **Requirements**: Include a brief description of the purpose, detailed parameter descriptions (type and role), and return value specifications.
