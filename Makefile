@@ -7,9 +7,8 @@ API_PORT ?= 8000
 UI_PORT  ?= 8888
 
 # Package Manager Detection
-# Default to Zero-Pollution (uv-provided npm). 
-# Developers can override with: make PM=pnpm start
-PM ?= uv run npm
+# Default to Zero-Pollution (uv-provided pnpm).
+PM ?= uv run pnpm
 
 help:
 	@echo "EquiQuant: High-Performance Asset Valuation"
@@ -73,20 +72,20 @@ ensure-uv:
 install: ensure-uv
 	@echo "Installing Python dependencies (Zero-Pollution)..."
 	uv sync --no-dev
-	@echo "Installing UI dependencies (using $(PM))..."
-	@cd ui && $(PM) install
+	@echo "Installing UI dependencies (using pnpm)..."
+	@cd ui && uv run pnpm install
 	@echo ""
 	@echo "----------------------------------------------------------------"
 	@echo "Installation Complete!"
 	@echo "----------------------------------------------------------------"
 	@echo "To start the Web Dashboard:   make start"
 	@echo "To analyze via CLI:           ./analyze.py AAPL"
-"----------------------------------------------------------------"
+	@echo "----------------------------------------------------------------"
 
 setup: ensure-uv
 	@echo "Setting up development environment..."
 	uv sync
-	@cd ui && $(PM) install
+	@cd ui && uv run pnpm install
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
 	@echo "Environment and git hooks installed."
@@ -98,7 +97,7 @@ ui-server: ensure-uv
 
 ui-dev: ensure-uv
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
-	@cd ui && $(PM) run dev -- --host 0.0.0.0 --port $(UI_PORT)
+	@cd ui && uv run pnpm run dev -- --host 0.0.0.0 --port $(UI_PORT)
 
 stop:
 	@echo "Stopping EquiQuant processes..."

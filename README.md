@@ -3,7 +3,7 @@
 Programmatic financial analysis pipeline integrating quantitative benchmarks with extensible scoring methodologies.
 
 > [!IMPORTANT]
-> **Zero-Pollution Policy**: This project is strictly isolated via `uv`. It will NEVER touch your global Python site-packages or Node.js installation. Everything (including Node/npm) is managed in a local `.venv`.
+> **Zero-Pollution Policy**: This project is strictly isolated via `uv`. It will NEVER touch your global Python site-packages or Node.js installation. Everything (including Node/pnpm) is managed in a local `.venv`.
 
 # Quick Start
 
