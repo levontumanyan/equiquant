@@ -629,3 +629,42 @@
 	from { transform: rotate(0deg); }
 	to { transform: rotate(360deg); }
 }
+
+.view-toggle {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	background: rgba(0, 0, 0, 0.3);
+	border: 1px solid #1f2937;
+	border-radius: 10px;
+	padding: 3px;
+	width: fit-content;
+	margin-bottom: 0.75rem;
+}
+
+.view-toggle-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.3rem 0.8rem;
+	border-radius: 7px;
+	border: none;
+	background: transparent;
+	color: #6b7280;
+	font-size: 0.75rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.18s;
+	white-space: nowrap;
+}
+
+.view-toggle-btn:hover {
+	color: #d1d5db;
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.view-toggle-btn.active {
+	background: #646cff;
+	color: #fff;
+	box-shadow: 0 2px 8px rgba(100, 108, 255, 0.35);
+}

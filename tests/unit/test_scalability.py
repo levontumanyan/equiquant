@@ -8,14 +8,19 @@ def test_analyze_asset_routing(mocker):
 	# Create an ETF asset
 	etf_asset = AssetData(symbol="SPY", asset_type=AssetType.ETF)
 
-	# Mock load_benchmarks and get_profile_weights
+	# Mock load_benchmarks and get_profile_config
 	mocker.patch(
 		"core.orchestrator.load_benchmarks",
 		return_value=[
 			{"metric": "test", "weight": 1.0, "type": "threshold", "threshold": 0}
 		],
 	)
-	mocker.patch("core.orchestrator.get_profile_weights", return_value={"test": 1.0})
+	mocker.patch(
+		"core.orchestrator.get_profile_config",
+		return_value={
+			"test": {"weight": 1.0, "best": None, "worst": None, "formula": "threshold"}
+		},
+	)
 	mocker.patch(
 		"core.orchestrator.evaluate_metric", return_value={"score": 1.0, "weight": 1.0}
 	)
