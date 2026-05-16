@@ -3,13 +3,12 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
 import ScoringStudio from './components/ScoringStudio'
-import DataFetcher from './components/DataFetcher'
 import AnalysisPanel from './components/AnalysisPanel'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
 	const [openbbReady, setOpenbbReady] = useState(false)
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'fetcher' | 'analysis'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis'>('status')
 
 	useEffect(() => {
 		const handleNavigate = (e: any) => setActiveTab(e.detail)
@@ -70,12 +69,6 @@ function App() {
 						Analysis
 					</button>
 					<button
-						className={activeTab === 'fetcher' ? 'active' : ''}
-						onClick={() => setActiveTab('fetcher')}
-					>
-						Data Fetcher
-					</button>
-					<button
 						className={activeTab === 'studio' ? 'active' : ''}
 						onClick={() => setActiveTab('studio')}
 					>
@@ -110,12 +103,6 @@ function App() {
 							)}
 						</div>
 					</div>
-				)}
-
-				{activeTab === 'fetcher' && (
-					<section className="fetcher-section">
-						<DataFetcher />
-					</section>
 				)}
 
 				{activeTab === 'studio' && (

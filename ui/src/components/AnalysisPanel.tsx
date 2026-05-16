@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { API_BASE_URL } from '../config'
 import ResultsGrid from './ResultsGrid'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -33,24 +33,41 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [results, setResults] = useState<AssetAnalysis[]>([])
 	const [error, setError] = useState<string | null>(null)
 
+	const [showNewGroup, setShowNewGroup] = useState(false)
+	const [newGroupName, setNewGroupName] = useState('')
+	const [newGroupTickers, setNewGroupTickers] = useState('')
+	const [newGroupDesc, setNewGroupDesc] = useState('')
+	const [groupSaveStatus, setGroupSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+
+	const [provider, setProvider] = useState('openbb')
+	const [showSettings, setShowSettings] = useState(false)
+
+	const loadGroups = useCallback(async () => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/groups`)
+			if (res.ok) setGroups(await res.json())
+			else console.error('Failed to load groups:', res.status)
+		} catch (err) {
+			console.error('Network error loading groups:', err)
+		}
+	}, [])
+
 	useEffect(() => {
-		const fetchData = async () => {
+		const fetchInitial = async () => {
 			try {
-				const [assetsRes, groupsRes, profilesRes] = await Promise.all([
+				const [assetsRes, profilesRes] = await Promise.all([
 					fetch(`${API_BASE_URL}/api/assets`),
-					fetch(`${API_BASE_URL}/api/groups`),
 					fetch(`${API_BASE_URL}/api/profiles/list`),
 				])
-
 				if (assetsRes.ok) setAvailableAssets(await assetsRes.json())
-				if (groupsRes.ok) setGroups(await groupsRes.json())
 				if (profilesRes.ok) setProfiles(await profilesRes.json())
 			} catch (err) {
 				console.error('Failed to fetch initial data', err)
 			}
 		}
-		fetchData()
-	}, [])
+		fetchInitial()
+		loadGroups()
+	}, [loadGroups])
 
 	const addGroup = async (group: Group) => {
 		try {
@@ -64,6 +81,45 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		} catch {}
 	}
 
+	const handleDeleteGroup = async (groupName: string) => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/groups/${encodeURIComponent(groupName)}`, { method: 'DELETE' })
+			if (!res.ok) console.error('Failed to delete group:', await res.text())
+		} catch (err) {
+			console.error('Network error deleting group:', err)
+		}
+		loadGroups()
+	}
+
+	const handleSaveGroup = async () => {
+		const name = newGroupName.trim()
+		const tickerList = newGroupTickers.split(',').map(t => t.trim()).filter(Boolean)
+		if (!name || tickerList.length === 0) return
+
+		setGroupSaveStatus('saving')
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/groups`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name, tickers: tickerList, description: newGroupDesc.trim() || null }),
+			})
+			if (res.ok) {
+				setNewGroupName('')
+				setNewGroupTickers('')
+				setNewGroupDesc('')
+				setShowNewGroup(false)
+				setGroupSaveStatus('idle')
+				loadGroups()
+			} else {
+				console.error('Failed to save group:', await res.text())
+				setGroupSaveStatus('error')
+			}
+		} catch (err) {
+			console.error('Network error saving group:', err)
+			setGroupSaveStatus('error')
+		}
+	}
+
 	const filteredAssets = useMemo(() => {
 		if (!assetSearch) return []
 		const search = assetSearch.toUpperCase()
@@ -71,7 +127,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 			.filter(a => {
 				const symbol = a.symbol?.toUpperCase() || ''
 				const name = a.name?.toUpperCase() || ''
-				return (symbol.includes(search) || name.includes(search)) && 
+				return (symbol.includes(search) || name.includes(search)) &&
 					!tickers.includes(a.symbol)
 			})
 			.slice(0, 8)
@@ -132,30 +188,104 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		}
 	}
 
+	const systemGroups = groups.filter(g => g.is_system)
+	const customGroups = groups.filter(g => !g.is_system)
+
 	return (
 		<div className="analysis-panel">
 			<div className="analysis-layout">
 				{/* Controls Column */}
 				<div className="controls-column">
 					<div className="controls-card">
+						{/* Asset Selection */}
 						<div className="input-group">
 							<label className="input-label">Select Assets</label>
 
-							{/* Group quick-add chips */}
-							{groups.length > 0 && (
-								<div className="group-chips">
-									{groups.map(g => (
-										<button
-											key={g.name}
-											className={`group-chip${g.is_system ? ' group-chip--system' : ''}`}
-											onClick={() => addGroup(g)}
-											title={g.description ?? undefined}
-										>
-											{g.is_system ? '★ ' : ''}{g.name}
-										</button>
-									))}
+							{/* Groups */}
+							<div className="groups-section">
+								<div className="groups-header-row">
+									<span className="groups-sublabel">Groups</span>
+									<button
+										className="new-group-btn"
+										onClick={() => { setShowNewGroup(v => !v); setGroupSaveStatus('idle') }}
+									>
+										{showNewGroup ? 'Cancel' : <><Plus size={11} /> New</>}
+									</button>
 								</div>
-							)}
+
+								{showNewGroup && (
+									<div className="new-group-form">
+										<div className="new-group-fields">
+											<input
+												type="text"
+												placeholder="Group name"
+												value={newGroupName}
+												onChange={e => setNewGroupName(e.target.value)}
+												className="group-input"
+											/>
+											<input
+												type="text"
+												placeholder="Description (optional)"
+												value={newGroupDesc}
+												onChange={e => setNewGroupDesc(e.target.value)}
+												className="group-input"
+											/>
+											<input
+												type="text"
+												placeholder="Tickers: AAPL, MSFT, GOOGL…"
+												value={newGroupTickers}
+												onChange={e => setNewGroupTickers(e.target.value)}
+												className="group-input group-input--mono"
+											/>
+										</div>
+										<div className="new-group-actions">
+											<button
+												className="save-group-btn"
+												onClick={handleSaveGroup}
+												disabled={groupSaveStatus === 'saving' || !newGroupName.trim() || !newGroupTickers.trim()}
+											>
+												{groupSaveStatus === 'saving' ? 'Saving…' : 'Save Group'}
+											</button>
+											{groupSaveStatus === 'error' && (
+												<span className="group-save-error">Failed to save.</span>
+											)}
+										</div>
+									</div>
+								)}
+
+								{groups.length > 0 && (
+									<div className="group-chips">
+										{systemGroups.map(g => (
+											<button
+												key={g.name}
+												className="group-chip group-chip--system"
+												onClick={() => addGroup(g)}
+												title={g.description ?? undefined}
+											>
+												★ {g.name}
+											</button>
+										))}
+										{customGroups.map(g => (
+											<div key={g.name} className="group-chip-wrap">
+												<button
+													className="group-chip"
+													onClick={() => addGroup(g)}
+													title={g.description ?? undefined}
+												>
+													{g.name}
+												</button>
+												<button
+													className="group-chip-delete"
+													onClick={() => handleDeleteGroup(g.name)}
+													aria-label={`Delete ${g.name}`}
+												>
+													<X size={9} />
+												</button>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
 
 							{/* Ticker Picker */}
 							<div className="ticker-picker">
@@ -169,7 +299,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 											setManualInput(e.target.value)
 										}}
 										onKeyDown={handleManualSubmit}
-										placeholder="Search"
+										placeholder="Search or type ticker"
 										className="ticker-input"
 									/>
 									{manualInput && (
@@ -179,12 +309,11 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 									)}
 								</div>
 
-								{/* Autocomplete Dropdown */}
 								{filteredAssets.length > 0 && (
 									<div className="asset-dropdown">
 										{filteredAssets.map(asset => (
-											<button 
-												key={asset.symbol} 
+											<button
+												key={asset.symbol}
 												className="dropdown-item"
 												onClick={() => addTicker(asset.symbol)}
 											>
@@ -195,7 +324,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 									</div>
 								)}
 
-								{/* Selected Chips */}
 								<div className="ticker-chips">
 									{tickers.map(t => (
 										<div key={t} className="ticker-chip">
@@ -212,13 +340,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</div>
 
 							<div className="quick-actions">
-								<button 
+								<button
 									className="action-link"
 									onClick={() => setTickers(availableAssets.map(a => a.symbol))}
 								>
 									Select All ({availableAssets.length})
 								</button>
-								<button 
+								<button
 									className="action-link text-red"
 									onClick={() => setTickers([])}
 								>
@@ -227,6 +355,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</div>
 						</div>
 
+						{/* Investor Profile */}
 						<div className="input-group">
 							<label className="input-label">Investor Profile</label>
 							<select
@@ -240,6 +369,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</select>
 						</div>
 
+						{/* Run Button */}
 						<button
 							onClick={handleRunAnalysis}
 							disabled={isLoading || !openbbReady}
@@ -250,8 +380,33 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							) : (
 								<Play size={18} fill="currentColor" />
 							)}
-							{isLoading ? 'Analyzing...' : 'Run Analysis'}
+							{isLoading ? 'Fetching & Analyzing…' : 'Run Analysis'}
 						</button>
+
+						{/* Settings (Provider) */}
+						<div className="settings-row">
+							<button
+								className="settings-toggle"
+								onClick={() => setShowSettings(v => !v)}
+								aria-label="Toggle advanced options"
+							>
+								<Settings size={13} />
+								<span>Advanced Options</span>
+							</button>
+							{showSettings && (
+								<div className="settings-panel">
+									<label className="settings-label">Data Provider</label>
+									<select
+										value={provider}
+										onChange={e => setProvider(e.target.value)}
+										className="provider-select"
+									>
+										<option value="openbb">OpenBB (Default)</option>
+										<option value="nasdaq" disabled>Nasdaq Data Link (Coming Soon)</option>
+									</select>
+								</div>
+							)}
+						</div>
 
 						{!openbbReady && (
 							<div className="warming-up-box">
@@ -279,4 +434,3 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 }
 
 export default AnalysisPanel
-
