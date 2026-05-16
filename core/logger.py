@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.handlers
 import os
 import sys
 from datetime import datetime
@@ -20,9 +21,8 @@ level_map = {
 }
 LOG_LEVEL = level_map.get(DEFAULT_LOG_LEVEL, logging.INFO)
 
-# Generate a unique filename for this execution run
-RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-LOG_FILE = LOG_DIR / f"run_{RUN_TIMESTAMP}.log"
+# Rotating log file — 10 MB per file, keep last 20
+LOG_FILE = LOG_DIR / "server.log"
 
 
 class JSONFormatter(logging.Formatter):
@@ -59,8 +59,13 @@ def setup_logging(verbose: bool = False, force_console: bool = False):
 	for handler in root_logger.handlers[:]:
 		root_logger.removeHandler(handler)
 
-	# 1. File Handler (Always JSON, uses global LOG_LEVEL)
-	file_handler = logging.FileHandler(LOG_FILE)
+	# 1. Rotating File Handler — 10 MB per file, keep last 20
+	file_handler = logging.handlers.RotatingFileHandler(
+		LOG_FILE,
+		maxBytes=10 * 1024 * 1024,
+		backupCount=20,
+		encoding="utf-8",
+	)
 	file_handler.setFormatter(JSONFormatter())
 	file_handler.setLevel(LOG_LEVEL)
 	root_logger.addHandler(file_handler)

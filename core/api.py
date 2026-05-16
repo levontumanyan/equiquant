@@ -8,11 +8,12 @@ from pydantic import BaseModel
 
 from core.database.manager import DatabaseManager
 from core.database.repository import DatabaseRepository
-from core.logger import get_logger
+from core.logger import get_logger, setup_logging
 from core.orchestrator import fetch_data as orchestrator_fetch_data
 from core.orchestrator import run_bulk_analysis
 from core.scorers import SCORERS
 
+setup_logging(force_console=True)
 logger = get_logger(__name__)
 
 _openbb_ready = False
