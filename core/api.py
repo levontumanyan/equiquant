@@ -4,7 +4,7 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +31,7 @@ async def lifespan(_app: FastAPI):
 	try:
 		logger.info("Warming up OpenBB...")
 		from openbb import obb  # noqa: F401
+
 		_openbb_ready = True
 		logger.info("OpenBB ready.")
 	except Exception as e:
@@ -133,6 +134,7 @@ class AssetAnalysis(BaseModel):
 	industry: Optional[str] = None
 	score: float
 	results: List[MetricResult]
+	raw_metrics: Optional[Dict[str, Any]] = None
 
 
 @app.get("/health")
@@ -345,7 +347,12 @@ async def get_profile(name: str):
 			weights[key] = s["weight"]
 			ranges[key] = {"min": s["range_min"], "max": s["range_max"]}
 			formulas[key] = s["formula"]
-		return {"name": name, "weights": weights, "ranges": ranges, "formulas": formulas}
+		return {
+			"name": name,
+			"weights": weights,
+			"ranges": ranges,
+			"formulas": formulas,
+		}
 	except HTTPException:
 		raise
 	except Exception as e:
@@ -427,7 +434,7 @@ async def analyze_assets(request: AnalysisRequest):
 
 
 @app.post("/api/analyze/stream")
-async def analyze_assets_stream(request: AnalysisRequest):
+async def analyze_assets_stream(request: AnalysisRequest):  # noqa: C901
 	"""
 	Stream analysis results for a list of tickers via Server-Sent Events.
 
@@ -436,10 +443,10 @@ async def analyze_assets_stream(request: AnalysisRequest):
 	cancels the backend processing immediately.
 
 	Event types:
-	  status  — informational message during data-fetch phase
-	  result  — JSON-serialised AssetAnalysis for a completed ticker
-	  error   — fatal error message; stream ends after this
-	  done    — final event; data contains total ticker count
+		status  — informational message during data-fetch phase
+		result  — JSON-serialised AssetAnalysis for a completed ticker
+		error   — fatal error message; stream ends after this
+		done    — final event; data contains total ticker count
 	"""
 	tickers = [t.strip().upper() for t in request.tickers if t.strip()]
 	if not tickers:
@@ -472,18 +479,30 @@ async def analyze_assets_stream(request: AnalysisRequest):
 			if cached_tickers:
 				async for result in _stream(cached_tickers):
 					analyzed_count += 1
-					yield {"event": "result", "data": AssetAnalysis.model_validate(result).model_dump_json()}
+					yield {
+						"event": "result",
+						"data": AssetAnalysis.model_validate(result).model_dump_json(),
+					}
 
 			# Phase 2: pipeline — analyze each fetch batch as it lands.
 			if missing_tickers:
 				yield {
 					"event": "status",
-					"data": json.dumps({"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"}),
+					"data": json.dumps(
+						{
+							"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"
+						}
+					),
 				}
 				async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
 					async for result in _stream(batch):
 						analyzed_count += 1
-						yield {"event": "result", "data": AssetAnalysis.model_validate(result).model_dump_json()}
+						yield {
+							"event": "result",
+							"data": AssetAnalysis.model_validate(
+								result
+							).model_dump_json(),
+						}
 
 			executor.shutdown(wait=False)
 
@@ -501,6 +520,9 @@ async def analyze_assets_stream(request: AnalysisRequest):
 			yield {"event": "error", "data": json.dumps({"message": str(e)})}
 			return
 
-		yield {"event": "done", "data": json.dumps({"analyzed": analyzed_count, "total": len(tickers)})}
+		yield {
+			"event": "done",
+			"data": json.dumps({"analyzed": analyzed_count, "total": len(tickers)}),
+		}
 
 	return EventSourceResponse(event_generator())

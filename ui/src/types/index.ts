@@ -35,4 +35,5 @@ export interface AssetAnalysis {
 	industry: string | null;
 	score: number;
 	results: MetricResult[];
+	raw_metrics?: Record<string, unknown> | null;
 }
