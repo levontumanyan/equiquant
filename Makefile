@@ -81,10 +81,7 @@ install: ensure-uv
 	@echo "----------------------------------------------------------------"
 	@echo "To start the Web Dashboard:   make start"
 	@echo "To analyze via CLI:           ./analyze.py AAPL"
-	@echo ""
-	@echo "To enable shell completions (Zsh):"
-	@echo "  source <(./analyze.py --completion zsh)"
-	@echo "----------------------------------------------------------------"
+"----------------------------------------------------------------"
 
 setup: ensure-uv
 	@echo "Setting up development environment..."
