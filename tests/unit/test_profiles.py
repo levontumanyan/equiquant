@@ -135,11 +135,7 @@ def test_get_profile_config_returns_full_settings(seeded_repo):
 
 
 def test_profile_curve_override_shifts_strength():
-	"""
-	Changing a profile's 'best' value must shift the metric strength %.
-	This is the core regression fixed by #148 — previously evaluate_metric
-	ignored profile-level range overrides entirely.
-	"""
+	"""Real non-NULL curve override must shift the metric strength %."""
 	benchmark = {
 		"metric": "pe_ratio",
 		"name": "P/E Ratio",
@@ -148,35 +144,64 @@ def test_profile_curve_override_shifts_strength():
 		"worst": 50.0,
 		"weight": 1.0,
 	}
-
 	asset = AssetData(
 		symbol="TEST",
 		asset_type=AssetType.STOCK,
 		metrics={"pe_ratio": 25.0},
 	)
 
-	# Default profile config — uses benchmark curve (best=15)
-	default_config = {
-		"pe_ratio": {"weight": 1.0, "best": 15.0, "worst": 50.0, "formula": "sigmoid"}
+	# NULL range → benchmark curve used (best=15, worse for P/E=25)
+	null_override = {
+		"pe_ratio": {"weight": 1.0, "best": None, "worst": None, "formula": None}
 	}
-
-	# Custom profile — user moved 'best' to 25, meaning 25x P/E is now ideal
-	# Sigmoid should now score 25.0 much higher than with best=15
-	custom_config = {
+	# Real override → best=25 means P/E=25 is now ideal → much higher score
+	real_override = {
 		"pe_ratio": {"weight": 1.0, "best": 25.0, "worst": 50.0, "formula": "sigmoid"}
 	}
 
-	default_result = evaluate_metric(asset, benchmark, default_config)
-	custom_result = evaluate_metric(asset, benchmark, custom_config)
+	null_result = evaluate_metric(asset, benchmark, null_override)
+	real_result = evaluate_metric(asset, benchmark, real_override)
 
-	msg = f"Custom profile (best=25) should score P/E=25 higher than default (best=15). Got default={default_result['pct']:.3f}, custom={custom_result['pct']:.3f}"
-	assert custom_result["pct"] > default_result["pct"], msg
+	msg = f"Real override (best=25) should score P/E=25 higher than null (benchmark best=15). Got null={null_result['pct']:.3f}, real={real_result['pct']:.3f}"
+	assert real_result["pct"] > null_result["pct"], msg
 
 
-def test_profile_formula_override_changes_scorer():
-	"""
-	Switching formula from sigmoid to linear in a profile must change the score.
-	"""
+def test_null_range_falls_back_to_benchmark_params():
+	"""NULL range_min/range_max must use the benchmark curve, not default (0, 100)."""
+	benchmark = {
+		"metric": "pe_ratio",
+		"name": "P/E Ratio",
+		"type": "sigmoid",
+		"best": 15.0,
+		"worst": 50.0,
+		"weight": 1.0,
+	}
+	asset = AssetData(
+		symbol="TEST",
+		asset_type=AssetType.STOCK,
+		metrics={"pe_ratio": 25.0},
+	)
+
+	null_config = {
+		"pe_ratio": {"weight": 1.0, "best": None, "worst": None, "formula": None}
+	}
+	no_profile = {}
+
+	null_result = evaluate_metric(asset, benchmark, null_config)
+	no_profile_result = evaluate_metric(asset, benchmark, no_profile)
+
+	# Both should score identically — NULL override == no override == benchmark params
+	assert abs(null_result["pct"] - no_profile_result["pct"]) < 1e-9, (
+		f"NULL profile range must yield same score as benchmark default. Got {null_result['pct']:.4f} vs {no_profile_result['pct']:.4f}"
+	)
+	# And must NOT be near 1.0 (which would indicate the broken 0/100 override)
+	assert null_result["pct"] < 0.95, (
+		"Score suspiciously high — likely using wrong best=0 worst=100 override"
+	)
+
+
+def test_profile_formula_override_independent_of_range():
+	"""Formula override must apply even when range_min/range_max are NULL."""
 	benchmark = {
 		"metric": "revenue_growth",
 		"name": "Revenue Growth",
@@ -185,43 +210,35 @@ def test_profile_formula_override_changes_scorer():
 		"worst": 0.0,
 		"weight": 1.0,
 	}
-
 	asset = AssetData(
 		symbol="TEST",
 		asset_type=AssetType.STOCK,
 		metrics={"revenue_growth": 0.15},
 	)
 
-	sigmoid_config = {
+	# NULL range but explicit formula override — should still apply the formula
+	formula_only = {
 		"revenue_growth": {
 			"weight": 1.0,
-			"best": 0.25,
-			"worst": 0.0,
-			"formula": "sigmoid",
-		}
-	}
-	linear_config = {
-		"revenue_growth": {
-			"weight": 1.0,
-			"best": 0.25,
-			"worst": 0.0,
+			"best": None,
+			"worst": None,
 			"formula": "linear",
 		}
 	}
+	no_override = {
+		"revenue_growth": {"weight": 1.0, "best": None, "worst": None, "formula": None}
+	}
 
-	sigmoid_result = evaluate_metric(asset, benchmark, sigmoid_config)
-	linear_result = evaluate_metric(asset, benchmark, linear_config)
+	formula_result = evaluate_metric(asset, benchmark, formula_only)
+	no_formula_result = evaluate_metric(asset, benchmark, no_override)
 
-	assert sigmoid_result["pct"] != linear_result["pct"], (
-		"sigmoid and linear scorers must produce different results for the same input"
+	assert formula_result["pct"] != no_formula_result["pct"], (
+		"Formula-only override (linear vs sigmoid) must produce a different score even with NULL ranges"
 	)
 
 
 def test_legacy_weight_dict_still_works():
-	"""
-	evaluate_metric must accept the old Dict[str, float] weight format so
-	existing callers are not broken by the #148 refactor.
-	"""
+	"""evaluate_metric must accept the old Dict[str, float] weight format."""
 	benchmark = {
 		"metric": "pe_ratio",
 		"name": "P/E Ratio",

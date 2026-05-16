@@ -1,10 +1,28 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from core.analysis.preprocessing import postprocess_score, preprocess_metric_value
 from core.ui.formatters import format_display_value
 
 from .schema import AssetData
 from .scorers import SCORERS
+
+
+def _is_real_override(range_min: Optional[float], range_max: Optional[float]) -> bool:
+	"""
+	Return True when a profile row carries genuine user-set curve parameters.
+
+	NULL is the explicit DB sentinel for "not customised — use benchmark default".
+	This avoids the old (0.0, 100.0) pattern-matching approach, which would
+	silently discard valid user overrides that happened to equal those values.
+
+	Args:
+		range_min: Stored range_min value from profile_metric_settings (may be None).
+		range_max: Stored range_max value from profile_metric_settings (may be None).
+
+	Returns:
+		True when both values are non-NULL.
+	"""
+	return range_min is not None and range_max is not None
 
 
 def _resolve_params(
@@ -33,12 +51,7 @@ def _resolve_params(
 	p_best = profile_setting.get("best")
 	p_worst = profile_setting.get("worst")
 
-	# (0.0, 100.0) is the seeder/default placeholder — not a real user customisation.
-	# Treat it as "no override" so benchmark curve params are preserved.
-	is_placeholder = p_best == 0.0 and p_worst == 100.0
-	has_override = p_best is not None and p_worst is not None and not is_placeholder
-
-	if not has_override:
+	if not _is_real_override(p_best, p_worst):
 		return benchmark
 
 	params = dict(benchmark)
@@ -56,7 +69,7 @@ def _resolve_params(
 	return params
 
 
-def evaluate_metric(
+def evaluate_metric(  # noqa: C901 — branching is inherent to multi-formula scoring
 	asset: AssetData,
 	benchmark: Dict[str, Any],
 	profile_config: Dict[str, Any],
@@ -64,6 +77,11 @@ def evaluate_metric(
 	"""
 	Evaluate a single metric for an asset against its benchmark definition,
 	honouring any profile-level curve overrides (formula, best, worst).
+
+	Formula and range overrides are applied independently. Formula override
+	applies when the stored formula differs from the benchmark regardless of
+	whether range params are customised. Range override applies only when
+	range_min/range_max are non-NULL in the DB.
 
 	Args:
 		asset: Pre-loaded asset data object.
@@ -76,6 +94,7 @@ def evaluate_metric(
 		Dict with metric, name, status, value, raw_value, score, weight, pct.
 	"""
 	metric_key = benchmark["metric"]
+	bench_formula = benchmark.get("type", "sigmoid")
 
 	# Support both new full-config dicts and legacy weight-only dicts
 	raw_setting = profile_config.get(metric_key, {})
@@ -84,23 +103,19 @@ def evaluate_metric(
 	else:
 		p = raw_setting
 
-	weight = p.get("weight", 0.0)
+	# If the metric is not in the profile at all, fall back to benchmark weight
+	if metric_key not in profile_config:
+		weight = benchmark.get("weight", 1.0)
+	else:
+		weight = p.get("weight", 0.0)
 
-	# Only override formula when a real range customisation is also present.
-	# Without this guard, seeded placeholder formulas silently replace the
-	# benchmark's formula_type (e.g. turning bell_curve → sigmoid).
-	p_best_raw = p.get("best")
-	p_worst_raw = p.get("worst")
-	is_real_override = (
-		p_best_raw is not None
-		and p_worst_raw is not None
-		and not (p_best_raw == 0.0 and p_worst_raw == 100.0)
-	)
-	formula_type = (p.get("formula") if is_real_override else None) or benchmark.get(
-		"type", "sigmoid"
+	# Formula override is independent: apply whenever profile specifies a different
+	# formula, even if the range hasn't been customised yet.
+	p_formula = p.get("formula")
+	formula_type = (
+		p_formula if (p_formula and p_formula != bench_formula) else bench_formula
 	)
 
-	# Resolve scoring curve params — profile overrides take priority
 	params = _resolve_params(formula_type, p, benchmark)
 
 	unit = benchmark.get("unit")

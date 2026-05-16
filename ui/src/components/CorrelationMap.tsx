@@ -63,7 +63,6 @@ function sectorId(sector: string | null): string {
 function setupGlassDefs(
 	defs: d3.Selection<SVGDefsElement, unknown, null, undefined>,
 	sectors: string[],
-	gemIds: string[],
 ) {
 	// Shared specular shine — strong upper-left highlight
 	const shine = defs.append('radialGradient')
@@ -106,17 +105,15 @@ function setupGlassDefs(
 		fm.append('feMergeNode').attr('in', 'SourceGraphic')
 	})
 
-	// Gem glow (green)
-	gemIds.forEach(id => {
-		const f = defs.append('filter')
-			.attr('id', `gem-glow-${id}`)
-			.attr('x', '-60%').attr('y', '-60%')
-			.attr('width', '220%').attr('height', '220%')
-		f.append('feGaussianBlur').attr('in', 'SourceGraphic').attr('stdDeviation', '5').attr('result', 'blur')
-		const fm = f.append('feMerge')
-		fm.append('feMergeNode').attr('in', 'blur')
-		fm.append('feMergeNode').attr('in', 'SourceGraphic')
-	})
+	// Single shared gem glow filter — all gem rings reference this one id
+	const gemFilter = defs.append('filter')
+		.attr('id', 'gem-glow')
+		.attr('x', '-60%').attr('y', '-60%')
+		.attr('width', '220%').attr('height', '220%')
+	gemFilter.append('feGaussianBlur').attr('in', 'SourceGraphic').attr('stdDeviation', '5').attr('result', 'blur')
+	const gemMerge = gemFilter.append('feMerge')
+	gemMerge.append('feMergeNode').attr('in', 'blur')
+	gemMerge.append('feMergeNode').attr('in', 'SourceGraphic')
 }
 
 function applyGlass(
@@ -137,7 +134,7 @@ function applyGlass(
 		.attr('fill-opacity', 0.14)
 		.style('filter', `blur(${Math.round(r * 0.55)}px)`)
 
-	// 2. Gem ring (behind the main body)
+	// 2. Gem ring (behind the main body) — references the single shared filter
 	if (gem) {
 		g.append('circle')
 			.attr('r', r + 5)
@@ -145,7 +142,7 @@ function applyGlass(
 			.attr('stroke', '#2ed573')
 			.attr('stroke-width', 1.5)
 			.attr('stroke-opacity', 0.65)
-			.attr('filter', `url(#gem-glow-${symbol})`)
+			.attr('filter', 'url(#gem-glow)')
 	}
 
 	// 3. Main glass body — vibrant sector fill
@@ -261,9 +258,8 @@ export default function CorrelationMap({ data }: Props) {
 		svg.selectAll('*').remove()
 
 		const sectors = [...new Set(nodes.map(n => n.sector ?? 'Unknown'))]
-		const gemIds = nodes.filter(n => isHiddenGem(n, assets)).map(n => n.id)
 		const defs = svg.append('defs')
-		setupGlassDefs(defs, sectors, gemIds)
+		setupGlassDefs(defs, sectors)
 
 		const zg = svg.append('g')
 		svg.call(
@@ -350,9 +346,8 @@ export default function CorrelationMap({ data }: Props) {
 		svg.selectAll('*').remove()
 
 		const sectors = [...new Set(nodes.map(n => n.sector ?? 'Unknown'))]
-		const gemIds = nodes.filter(n => isHiddenGem(n, assets)).map(n => n.id)
 		const defs = svg.append('defs')
-		setupGlassDefs(defs, sectors, gemIds)
+		setupGlassDefs(defs, sectors)
 
 		const hierarchy = buildSectorHierarchy(nodes)
 		const root = d3.hierarchy<object>(hierarchy as object)
@@ -436,9 +431,8 @@ export default function CorrelationMap({ data }: Props) {
 		svg.selectAll('*').remove()
 
 		const sectors = [...new Set(nodes.map(n => n.sector ?? 'Unknown'))]
-		const gemIds = nodes.filter(n => isHiddenGem(n, assets)).map(n => n.id)
 		const defs = svg.append('defs')
-		setupGlassDefs(defs, sectors, gemIds)
+		setupGlassDefs(defs, sectors)
 
 		const cx = w / 2, cy = h / 2
 		const sectorMap = new Map<string, SimilarityNode[]>()

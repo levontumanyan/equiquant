@@ -191,14 +191,17 @@ class DatabaseManager:
 		""")
 
 		# Profile Metric Settings table
+		# range_min / range_max are NULL when the user has not customised the
+		# scoring curve — NULL is the explicit "use benchmark default" sentinel,
+		# which avoids ambiguity with legitimate values like (0.0, 100.0).
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS profile_metric_settings (
 				profile_name TEXT,
 				metric_key TEXT,
 				weight REAL DEFAULT 1.0,
-				range_min REAL DEFAULT 0.0,
-				range_max REAL DEFAULT 100.0,
-				formula TEXT DEFAULT 'sigmoid',
+				range_min REAL,
+				range_max REAL,
+				formula TEXT,
 				PRIMARY KEY (profile_name, metric_key),
 				FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
 			)
@@ -258,6 +261,37 @@ class DatabaseManager:
 
 		# Migration: drop legacy profile_weights (superseded by profile_metric_settings)
 		cursor.execute("DROP TABLE IF EXISTS profile_weights")
+
+		# Migration: remove DEFAULT constraints from range_min/range_max so that
+		# NULL means "not customised" rather than 0/100 placeholder values.
+		# SQLite cannot ALTER COLUMN so we recreate the table when old defaults exist.
+		cursor.execute("PRAGMA table_info(profile_metric_settings)")
+		cols = {row[1]: row[4] for row in cursor.fetchall()}  # col_name → default_value
+		if cols.get("range_min") == "0.0" or cols.get("range_max") == "100.0":
+			cursor.execute("""
+				CREATE TABLE IF NOT EXISTS profile_metric_settings_new (
+					profile_name TEXT,
+					metric_key TEXT,
+					weight REAL DEFAULT 1.0,
+					range_min REAL,
+					range_max REAL,
+					formula TEXT,
+					PRIMARY KEY (profile_name, metric_key),
+					FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
+				)
+			""")
+			cursor.execute("""
+				INSERT OR IGNORE INTO profile_metric_settings_new
+				SELECT profile_name, metric_key, weight,
+					CASE WHEN range_min = 0.0 AND range_max = 100.0 THEN NULL ELSE range_min END,
+					CASE WHEN range_min = 0.0 AND range_max = 100.0 THEN NULL ELSE range_max END,
+					formula
+				FROM profile_metric_settings
+			""")
+			cursor.execute("DROP TABLE profile_metric_settings")
+			cursor.execute(
+				"ALTER TABLE profile_metric_settings_new RENAME TO profile_metric_settings"
+			)
 
 		self.conn.commit()
 
