@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 
 from config import ROOT_DIR
 from core.database.repository import DatabaseRepository
@@ -21,11 +22,64 @@ class DatabaseSeeder:
 	def seed_all(self):
 		"""Orchestrate the full seeding process."""
 		logger.info("Starting database seeding...")
+		self.seed_assets()
+		self.seed_indices()
 		self.seed_benchmarks()
 		self.seed_sector_benchmarks()
 		self.seed_profiles()
 		self.seed_groups()
 		logger.info("Database seeding complete.")
+
+	def seed_assets(self):
+		"""Seed the asset registry (ticker universe)."""
+		seed_file = SEEDS_DIR / "assets.json"
+		if not seed_file.exists():
+			logger.warning(f"Seed file not found: {seed_file}")
+			return
+		try:
+			data = json.loads(seed_file.read_text())
+			for row in data:
+				self.repo.upsert_asset(
+					symbol=row["symbol"],
+					name=row.get("name"),
+					asset_type=row.get("asset_type"),
+					sector=row.get("sector"),
+					industry=row.get("industry"),
+					exchange=row.get("exchange"),
+					currency=row.get("currency"),
+				)
+			logger.info(f"Seeded {len(data)} assets.")
+		except Exception as e:
+			logger.error(f"Failed to seed assets: {e}")
+
+	def seed_indices(self):
+		"""Seed market indices and their constituents."""
+		indices_file = SEEDS_DIR / "indices.json"
+		constituents_file = SEEDS_DIR / "index_constituents.json"
+		if not indices_file.exists() or not constituents_file.exists():
+			logger.warning("Index seed files not found.")
+			return
+		try:
+			indices = json.loads(indices_file.read_text())
+			for idx in indices:
+				self.repo.upsert_index(
+					symbol=idx["symbol"],
+					name=idx["name"],
+					is_etf=bool(idx.get("is_etf", False)),
+				)
+
+			constituents = json.loads(constituents_file.read_text())
+			by_index: dict = defaultdict(list)
+			for row in constituents:
+				by_index[row["index_symbol"]].append(row["asset_symbol"])
+			for index_symbol, symbols in by_index.items():
+				self.repo.update_index_constituents(index_symbol, symbols)
+
+			logger.info(
+				f"Seeded {len(indices)} indices and {len(constituents)} constituents."
+			)
+		except Exception as e:
+			logger.error(f"Failed to seed indices: {e}")
 
 	def seed_benchmarks(self):
 		"""Seed global benchmarks for STOCK and ETF."""
@@ -123,11 +177,17 @@ class DatabaseSeeder:
 				data = json.load(f)
 
 			for group in data:
-				self.repo.upsert_group(
-					name=group["name"],
-					description=group.get("description"),
-					is_system=bool(group.get("is_system", False)),
-				)
+				if group.get("is_system"):
+					self.repo._upsert_system_group(
+						name=group["name"],
+						description=group.get("description"),
+					)
+				else:
+					self.repo.upsert_group(
+						name=group["name"],
+						description=group.get("description"),
+						is_system=False,
+					)
 				if "tickers" in group:
 					self.repo.update_group_constituents(group["name"], group["tickers"])
 

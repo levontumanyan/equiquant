@@ -1,0 +1,4952 @@
+[
+	{
+		"symbol": "AAPL",
+		"name": "Apple Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Consumer Electronics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMGN",
+		"name": "Amgen Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMZN",
+		"name": "Amazon.com, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AXP",
+		"name": "American Express Company",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BA",
+		"name": "The Boeing Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CAT",
+		"name": "Caterpillar Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Farm & Heavy Construction Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CRM",
+		"name": "Salesforce, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CSCO",
+		"name": "Cisco Systems, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CVX",
+		"name": "Chevron Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Integrated",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DIS",
+		"name": "The Walt Disney Company",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GS",
+		"name": "The Goldman Sachs Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Capital Markets",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HD",
+		"name": "The Home Depot, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Home Improvement Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HON",
+		"name": "Honeywell International Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Conglomerates",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IBM",
+		"name": "International Business Machines Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JNJ",
+		"name": "Johnson & Johnson",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JPM",
+		"name": "JPMorgan Chase & Co.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KO",
+		"name": "The Coca-Cola Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Non-Alcoholic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MCD",
+		"name": "McDonald's Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MMM",
+		"name": "3M Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Conglomerates",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MRK",
+		"name": "Merck & Co., Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MSFT",
+		"name": "Microsoft Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NKE",
+		"name": "NIKE, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Footwear & Accessories",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NVDA",
+		"name": "NVIDIA Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PG",
+		"name": "The Procter & Gamble Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SHW",
+		"name": "The Sherwin-Williams Company",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TRV",
+		"name": "The Travelers Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UNH",
+		"name": "UnitedHealth Group Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "V",
+		"name": "Visa Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VZ",
+		"name": "Verizon Communications Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WMT",
+		"name": "Walmart Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Discount Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ABNB",
+		"name": "Airbnb, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ADBE",
+		"name": "Adobe Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ADI",
+		"name": "Analog Devices, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ADP",
+		"name": "Automatic Data Processing, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ADSK",
+		"name": "Autodesk, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AEP",
+		"name": "American Electric Power Company, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ALNY",
+		"name": "Alnylam Pharmaceuticals, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMAT",
+		"name": "Applied Materials, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMD",
+		"name": "Advanced Micro Devices, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APP",
+		"name": "AppLovin Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Advertising Agencies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ARM",
+		"name": "Arm Holdings plc",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ASML",
+		"name": "ASML Holding N.V.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AVGO",
+		"name": "Broadcom Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AXON",
+		"name": "Axon Enterprise, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BKNG",
+		"name": "Booking Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BKR",
+		"name": "Baker Hughes Company",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Equipment & Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CCEP",
+		"name": "Coca-Cola Europacific Partners PLC",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Non-Alcoholic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CDNS",
+		"name": "Cadence Design Systems, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CEG",
+		"name": "Constellation Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Independent Power Producers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CHTR",
+		"name": "Charter Communications, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMCSA",
+		"name": "Comcast Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COST",
+		"name": "Costco Wholesale Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Discount Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CPRT",
+		"name": "Copart, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Business Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CRWD",
+		"name": "CrowdStrike Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CSGP",
+		"name": "CoStar Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "Real Estate Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CSX",
+		"name": "CSX Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Railroads",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CTAS",
+		"name": "Cintas Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Business Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CTSH",
+		"name": "Cognizant Technology Solutions Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DASH",
+		"name": "DoorDash, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DDOG",
+		"name": "Datadog, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DXCM",
+		"name": "DexCom, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EA",
+		"name": "Electronic Arts Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Electronic Gaming & Multimedia",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EXC",
+		"name": "Exelon Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FANG",
+		"name": "Diamondback Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FAST",
+		"name": "Fastenal Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Industrial Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FER",
+		"name": "Ferrovial N.V.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Engineering & Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FTNT",
+		"name": "Fortinet, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GEHC",
+		"name": "GE HealthCare Technologies Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GILD",
+		"name": "Gilead Sciences, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GOOG",
+		"name": "Alphabet Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Internet Content & Information",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GOOGL",
+		"name": "Alphabet Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Internet Content & Information",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IDXX",
+		"name": "IDEXX Laboratories, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "INSM",
+		"name": "Insmed Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "INTC",
+		"name": "Intel Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "INTU",
+		"name": "Intuit Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ISRG",
+		"name": "Intuitive Surgical, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KDP",
+		"name": "Keurig Dr Pepper Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Non-Alcoholic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KHC",
+		"name": "The Kraft Heinz Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KLAC",
+		"name": "KLA Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LIN",
+		"name": "Linde plc",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LRCX",
+		"name": "Lam Research Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MAR",
+		"name": "Marriott International, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Lodging",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MCHP",
+		"name": "Microchip Technology Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MDLZ",
+		"name": "Mondelez International, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Confectioners",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MELI",
+		"name": "MercadoLibre, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "META",
+		"name": "Meta Platforms, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Internet Content & Information",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MNST",
+		"name": "Monster Beverage Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Non-Alcoholic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MPWR",
+		"name": "Monolithic Power Systems, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MRVL",
+		"name": "Marvell Technology, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MSTR",
+		"name": "Strategy Inc",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MU",
+		"name": "Micron Technology, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NFLX",
+		"name": "Netflix, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NXPI",
+		"name": "NXP Semiconductors N.V.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ODFL",
+		"name": "Old Dominion Freight Line, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Trucking",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ORLY",
+		"name": "O'Reilly Automotive, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PANW",
+		"name": "Palo Alto Networks, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PAYX",
+		"name": "Paychex, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PCAR",
+		"name": "PACCAR Inc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Farm & Heavy Construction Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PDD",
+		"name": "PDD Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PEP",
+		"name": "PepsiCo, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Non-Alcoholic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PLTR",
+		"name": "Palantir Technologies Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PYPL",
+		"name": "PayPal Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "QCOM",
+		"name": "QUALCOMM Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "REGN",
+		"name": "Regeneron Pharmaceuticals, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ROP",
+		"name": "Roper Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ROST",
+		"name": "Ross Stores, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Apparel Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SBUX",
+		"name": "Starbucks Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SHOP",
+		"name": "Shopify Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SNDK",
+		"name": "Sandisk Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SNPS",
+		"name": "Synopsys, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "STX",
+		"name": "Seagate Technology Holdings plc",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TMUS",
+		"name": "T-Mobile US, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TRI",
+		"name": "Thomson Reuters Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Business Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TSLA",
+		"name": "Tesla, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Manufacturers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TTWO",
+		"name": "Take-Two Interactive Software, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Electronic Gaming & Multimedia",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TXN",
+		"name": "Texas Instruments Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VRSK",
+		"name": "Verisk Analytics, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Consulting Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VRTX",
+		"name": "Vertex Pharmaceuticals Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WBD",
+		"name": "Warner Bros. Discovery, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WDAY",
+		"name": "Workday, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WDC",
+		"name": "Western Digital Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "XEL",
+		"name": "Xcel Energy Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ZS",
+		"name": "Zscaler, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "A",
+		"name": null,
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ABBV",
+		"name": "AbbVie Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ABT",
+		"name": "Abbott Laboratories",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ACGL",
+		"name": "Arch Capital Group Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ACN",
+		"name": "Accenture plc",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ADM",
+		"name": "Archer-Daniels-Midland Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Farm Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AEE",
+		"name": "Ameren Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AES",
+		"name": "The AES Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AFL",
+		"name": "Aflac Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Life",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AIG",
+		"name": "American International Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AIZ",
+		"name": "Assurant, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AJG",
+		"name": "Arthur J. Gallagher & Co.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AKAM",
+		"name": "Akamai Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ALB",
+		"name": "Albemarle Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ALGN",
+		"name": "Align Technology, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ALL",
+		"name": "The Allstate Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ALLE",
+		"name": "Allegion plc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Security & Protection Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMCR",
+		"name": "Amcor plc",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AME",
+		"name": "AMETEK, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMP",
+		"name": "Ameriprise Financial, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMT",
+		"name": "American Tower Corporation",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ANET",
+		"name": "Arista Networks, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AON",
+		"name": "Aon plc",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AOS",
+		"name": "A. O. Smith Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APA",
+		"name": "APA Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APD",
+		"name": "Air Products and Chemicals, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APH",
+		"name": "Amphenol Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Electronic Components",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APO",
+		"name": "Apollo Global Management, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "APTV",
+		"name": "Aptiv PLC",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ARE",
+		"name": "Alexandria Real Estate Equities, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Office",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ARES",
+		"name": "Ares Management Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ATO",
+		"name": "Atmos Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Gas",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AVB",
+		"name": "AvalonBay Communities, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AVY",
+		"name": "Avery Dennison Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AWK",
+		"name": "American Water Works Company, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Water",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AZO",
+		"name": "AutoZone, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BAC",
+		"name": "Bank of America Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BALL",
+		"name": "Ball Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BAX",
+		"name": "Baxter International Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BBY",
+		"name": "Best Buy Co., Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Specialty Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BDX",
+		"name": "Becton, Dickinson and Company",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BEN",
+		"name": "Franklin Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BF-B",
+		"name": "Brown-Forman Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Wineries & Distilleries",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BG",
+		"name": "Bunge Global SA",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Farm Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BIIB",
+		"name": "Biogen Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BK",
+		"name": "The Bank of New York Mellon Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BLDR",
+		"name": "Builders FirstSource, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BLK",
+		"name": "BlackRock, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BMY",
+		"name": "Bristol-Myers Squibb Company",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BR",
+		"name": "Broadridge Financial Solutions, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BRK-B",
+		"name": "Berkshire Hathaway Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BRO",
+		"name": "Brown & Brown, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BSX",
+		"name": "Boston Scientific Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BX",
+		"name": "Blackstone Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BXP",
+		"name": "BXP, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Office",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "C",
+		"name": "Citigroup Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CAG",
+		"name": "Conagra Brands, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CAH",
+		"name": "Cardinal Health, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CARR",
+		"name": "Carrier Global Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CASY",
+		"name": "Casey's General Stores, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Specialty Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CB",
+		"name": "Chubb Limited",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CBOE",
+		"name": "Cboe Global Markets, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CBRE",
+		"name": "CBRE Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "Real Estate Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CCI",
+		"name": "Crown Castle Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CCL",
+		"name": "Carnival Corporation Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CDW",
+		"name": "CDW Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CF",
+		"name": "CF Industries Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Agricultural Inputs",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CFG",
+		"name": "Citizens Financial Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CHD",
+		"name": "Church & Dwight Co., Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CHRW",
+		"name": "C.H. Robinson Worldwide, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Integrated Freight & Logistics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CI",
+		"name": "The Cigna Group",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CIEN",
+		"name": "Ciena Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CINF",
+		"name": "Cincinnati Financial Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CL",
+		"name": "Colgate-Palmolive Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CLX",
+		"name": "The Clorox Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CME",
+		"name": "CME Group Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMG",
+		"name": "Chipotle Mexican Grill, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMI",
+		"name": "Cummins Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMS",
+		"name": "CMS Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CNC",
+		"name": "Centene Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CNP",
+		"name": "CenterPoint Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COF",
+		"name": "Capital One Financial Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COHR",
+		"name": "Coherent Corp.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COIN",
+		"name": "Coinbase Global, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COO",
+		"name": "The Cooper Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COP",
+		"name": "ConocoPhillips",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "COR",
+		"name": "Cencora, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CPAY",
+		"name": "Corpay, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CPB",
+		"name": "The Campbell's Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CPT",
+		"name": "Camden Property Trust",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CRH",
+		"name": "CRH plc",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Building Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CRL",
+		"name": "Charles River Laboratories International, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CTRA",
+		"name": "Coterra Energy Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CTVA",
+		"name": "Corteva, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Agricultural Inputs",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CVNA",
+		"name": "Carvana Co.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto & Truck Dealerships",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CVS",
+		"name": "CVS Health Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "D",
+		"name": "Dominion Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DAL",
+		"name": "Delta Air Lines, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Airlines",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DD",
+		"name": "DuPont de Nemours, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DE",
+		"name": "Deere & Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Farm & Heavy Construction Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DECK",
+		"name": "Deckers Outdoor Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Footwear & Accessories",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DELL",
+		"name": "Dell Technologies Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DG",
+		"name": "Dollar General Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Discount Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DGX",
+		"name": "Quest Diagnostics Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DHI",
+		"name": "D.R. Horton, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Residential Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DHR",
+		"name": "Danaher Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DLR",
+		"name": "Digital Realty Trust, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DLTR",
+		"name": "Dollar Tree, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Discount Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DOC",
+		"name": "Healthpeak Properties, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Healthcare Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DOV",
+		"name": "Dover Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DPZ",
+		"name": "Domino's Pizza, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DRI",
+		"name": "Darden Restaurants, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DTE",
+		"name": "DTE Energy Company",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DUK",
+		"name": "Duke Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DVA",
+		"name": "DaVita Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Care Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DVN",
+		"name": "Devon Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EBAY",
+		"name": "eBay Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ECL",
+		"name": "Ecolab Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ED",
+		"name": "Consolidated Edison, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EFX",
+		"name": "Equifax Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Consulting Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EG",
+		"name": "Everest Group, Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Reinsurance",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EIX",
+		"name": "Edison International",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EL",
+		"name": "The Est\u00e9e Lauder Companies Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ELV",
+		"name": "Elevance Health, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EME",
+		"name": "EMCOR Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Engineering & Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EMR",
+		"name": "Emerson Electric Co.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EOG",
+		"name": "EOG Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EPAM",
+		"name": "EPAM Systems, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EQIX",
+		"name": "Equinix, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EQR",
+		"name": "Equity Residential",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EQT",
+		"name": "EQT Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ERIE",
+		"name": "Erie Indemnity Company",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ES",
+		"name": "Eversource Energy",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ESS",
+		"name": "Essex Property Trust, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ETN",
+		"name": "Eaton Corporation plc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ETR",
+		"name": "Entergy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EVRG",
+		"name": "Evergy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EW",
+		"name": "Edwards Lifesciences Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EXE",
+		"name": "Expand Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EXPD",
+		"name": "Expeditors International of Washington, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Integrated Freight & Logistics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EXPE",
+		"name": "Expedia Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "EXR",
+		"name": "Extra Space Storage Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Industrial",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "F",
+		"name": "Ford Motor Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Manufacturers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FCX",
+		"name": "Freeport-McMoRan Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Copper",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FDS",
+		"name": "FactSet Research Systems Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FDX",
+		"name": "FedEx Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Integrated Freight & Logistics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FE",
+		"name": "FirstEnergy Corp.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FFIV",
+		"name": "F5, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FICO",
+		"name": "Fair Isaac Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FIS",
+		"name": "Fidelity National Information Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FI",
+		"name": "Fiserv, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": "NASDAQ",
+		"currency": "USD"
+	},
+	{
+		"symbol": "FITB",
+		"name": "Fifth Third Bancorp",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FIX",
+		"name": "Comfort Systems USA, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Engineering & Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FOX",
+		"name": "Fox Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FOXA",
+		"name": "Fox Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FRT",
+		"name": "Federal Realty Investment Trust",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FSLR",
+		"name": "First Solar, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Solar",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "FTV",
+		"name": "Fortive Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GD",
+		"name": "General Dynamics Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GDDY",
+		"name": "GoDaddy Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GE",
+		"name": "GE Aerospace",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GEN",
+		"name": "Gen Digital Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GEV",
+		"name": "GE Vernova Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GIS",
+		"name": "General Mills, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GL",
+		"name": "Globe Life Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Life",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GLW",
+		"name": "Corning Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Electronic Components",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GM",
+		"name": "General Motors Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Manufacturers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GNRC",
+		"name": "Generac Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GPC",
+		"name": "Genuine Parts Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Auto Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GPN",
+		"name": "Global Payments Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Business Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GRMN",
+		"name": "Garmin Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "GWW",
+		"name": "W.W. Grainger, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Industrial Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HAL",
+		"name": "Halliburton Company",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Equipment & Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HAS",
+		"name": "Hasbro, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Leisure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HBAN",
+		"name": "Huntington Bancshares Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HCA",
+		"name": "HCA Healthcare, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Care Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HIG",
+		"name": "The Hartford Insurance Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HII",
+		"name": "Huntington Ingalls Industries, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HLT",
+		"name": "Hilton Worldwide Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Lodging",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HOOD",
+		"name": "Robinhood Markets, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Capital Markets",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HPE",
+		"name": "Hewlett Packard Enterprise Company",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HPQ",
+		"name": "HP Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HRL",
+		"name": "Hormel Foods Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HSIC",
+		"name": "Henry Schein, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HST",
+		"name": "Host Hotels & Resorts, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Hotel & Motel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HSY",
+		"name": "The Hershey Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Confectioners",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HUBB",
+		"name": "Hubbell Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Electrical Equipment & Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HUM",
+		"name": "Humana Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Healthcare Plans",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HWM",
+		"name": "Howmet Aerospace Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IBKR",
+		"name": "Interactive Brokers Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Capital Markets",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ICE",
+		"name": "Intercontinental Exchange, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IEX",
+		"name": "IDEX Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IFF",
+		"name": "International Flavors & Fragrances Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "INCY",
+		"name": "Incyte Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "INVH",
+		"name": "Invitation Homes Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IP",
+		"name": "International Paper Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IQV",
+		"name": "IQVIA Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IR",
+		"name": "Ingersoll Rand Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IRM",
+		"name": "Iron Mountain Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IT",
+		"name": "Gartner, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ITW",
+		"name": "Illinois Tool Works Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IVZ",
+		"name": "Invesco Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "J",
+		"name": "Jacobs Solutions Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Engineering & Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JBHT",
+		"name": "J.B. Hunt Transport Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Integrated Freight & Logistics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JBL",
+		"name": "Jabil Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Electronic Components",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JCI",
+		"name": "Johnson Controls International plc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "JKHY",
+		"name": "Jack Henry & Associates, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KEY",
+		"name": "KeyCorp",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KEYS",
+		"name": "Keysight Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KIM",
+		"name": "Kimco Realty Corporation",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KKR",
+		"name": "KKR & Co. Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KMB",
+		"name": "Kimberly-Clark Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KMI",
+		"name": "Kinder Morgan, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Midstream",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KR",
+		"name": "The Kroger Co.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Grocery Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KVUE",
+		"name": "Kenvue Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Household & Personal Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "L",
+		"name": "Loews Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LDOS",
+		"name": "Leidos Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Information Technology Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LEN",
+		"name": "Lennar Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Residential Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LH",
+		"name": "Labcorp Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LHX",
+		"name": "L3Harris Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LII",
+		"name": "Lennox International Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LITE",
+		"name": "Lumentum Holdings Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LLY",
+		"name": "Eli Lilly and Company",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LMT",
+		"name": "Lockheed Martin Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LNT",
+		"name": "Alliant Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LOW",
+		"name": "Lowe's Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Home Improvement Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LULU",
+		"name": "lululemon athletica inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Apparel Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LUV",
+		"name": "Southwest Airlines Co.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Airlines",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LVS",
+		"name": "Las Vegas Sands Corp.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Resorts & Casinos",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LYB",
+		"name": "LyondellBasell Industries N.V.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LYV",
+		"name": "Live Nation Entertainment, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MA",
+		"name": "Mastercard Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MAA",
+		"name": "Mid-America Apartment Communities, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MAS",
+		"name": "Masco Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MCK",
+		"name": "McKesson Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MCO",
+		"name": "Moody's Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MDT",
+		"name": "Medtronic plc",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MET",
+		"name": "MetLife, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Life",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MGM",
+		"name": "MGM Resorts International",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Resorts & Casinos",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MKC",
+		"name": "McCormick & Company, Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MLM",
+		"name": "Martin Marietta Materials, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Building Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MO",
+		"name": "Altria Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Tobacco",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MOS",
+		"name": "The Mosaic Company",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Agricultural Inputs",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MPC",
+		"name": "Marathon Petroleum Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Refining & Marketing",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MRNA",
+		"name": "Moderna, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MMC",
+		"name": "Marsh & McLennan Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": "NYSE",
+		"currency": "USD"
+	},
+	{
+		"symbol": "MS",
+		"name": "Morgan Stanley",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Capital Markets",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MSCI",
+		"name": "MSCI Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MSI",
+		"name": "Motorola Solutions, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MTB",
+		"name": "M&T Bank Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MTD",
+		"name": "Mettler-Toledo International Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NCLH",
+		"name": "Norwegian Cruise Line Holdings Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NDAQ",
+		"name": "Nasdaq, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NDSN",
+		"name": "Nordson Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NEE",
+		"name": "NextEra Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NEM",
+		"name": "Newmont Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NI",
+		"name": "NiSource Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Gas",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NOC",
+		"name": "Northrop Grumman Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NOW",
+		"name": "ServiceNow, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NRG",
+		"name": "NRG Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Independent Power Producers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NSC",
+		"name": "Norfolk Southern Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Railroads",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NTAP",
+		"name": "NetApp, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NTRS",
+		"name": "Northern Trust Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NUE",
+		"name": "Nucor Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NVR",
+		"name": "NVR, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Residential Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NWS",
+		"name": "News Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "NWSA",
+		"name": "News Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "O",
+		"name": "Realty Income Corporation",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "OKE",
+		"name": "ONEOK, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Midstream",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "OMC",
+		"name": "Omnicom Group Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Advertising Agencies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ON",
+		"name": "ON Semiconductor Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ORCL",
+		"name": "Oracle Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "OTIS",
+		"name": "Otis Worldwide Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "OXY",
+		"name": "Occidental Petroleum Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PCG",
+		"name": "PG&E Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PEG",
+		"name": "Public Service Enterprise Group Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PFE",
+		"name": "Pfizer Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - General",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PFG",
+		"name": "Principal Financial Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PGR",
+		"name": "The Progressive Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PH",
+		"name": "Parker-Hannifin Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PHM",
+		"name": "PulteGroup, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Residential Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PKG",
+		"name": "Packaging Corporation of America",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PLD",
+		"name": "Prologis, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Industrial",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PM",
+		"name": "Philip Morris International Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Tobacco",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PNC",
+		"name": "The PNC Financial Services Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PNR",
+		"name": "Pentair plc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PNW",
+		"name": "Pinnacle West Capital Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PODD",
+		"name": "Insulet Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "POOL",
+		"name": "Pool Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Industrial Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PPG",
+		"name": "PPG Industries, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Specialty Chemicals",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PPL",
+		"name": "PPL Corporation",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PRU",
+		"name": "Prudential Financial, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Life",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PSA",
+		"name": "Public Storage",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Industrial",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PSKY",
+		"name": "Paramount Skydance Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PSX",
+		"name": "Phillips 66",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Refining & Marketing",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PTC",
+		"name": "PTC Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "PWR",
+		"name": "Quanta Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Engineering & Construction",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "Q",
+		"name": "Qnity Electronics, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RCL",
+		"name": "Royal Caribbean Cruises Ltd.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Travel Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "REG",
+		"name": "Regency Centers Corporation",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RF",
+		"name": "Regions Financial Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RJF",
+		"name": "Raymond James Financial, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RL",
+		"name": "Ralph Lauren Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Apparel Manufacturing",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RMD",
+		"name": "ResMed Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ROK",
+		"name": "Rockwell Automation, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ROL",
+		"name": "Rollins, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Personal Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RSG",
+		"name": "Republic Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Waste Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RTX",
+		"name": "RTX Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RVTY",
+		"name": "Revvity, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SATS",
+		"name": "EchoStar Corporation",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SBAC",
+		"name": "SBA Communications Corporation",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SCHW",
+		"name": "The Charles Schwab Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Capital Markets",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SJM",
+		"name": "The J. M. Smucker Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Packaged Foods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SLB",
+		"name": "SLB N.V.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Equipment & Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SMCI",
+		"name": "Super Micro Computer, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Computer Hardware",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SNA",
+		"name": "Snap-on Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Tools & Accessories",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SO",
+		"name": "The Southern Company",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SOLV",
+		"name": "Solventum Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SPG",
+		"name": "Simon Property Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SPGI",
+		"name": "S&P Global Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Financial Data & Stock Exchanges",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SRE",
+		"name": "Sempra",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "STE",
+		"name": "STERIS plc",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "STLD",
+		"name": "Steel Dynamics, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "STT",
+		"name": "State Street Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "STZ",
+		"name": "Constellation Brands, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Brewers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SW",
+		"name": "Smurfit Westrock Plc",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Packaging & Containers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SWK",
+		"name": "Stanley Black & Decker, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Tools & Accessories",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SWKS",
+		"name": "Skyworks Solutions, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductors",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SYF",
+		"name": "Synchrony Financial",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Credit Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SYK",
+		"name": "Stryker Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SYY",
+		"name": "Sysco Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Food Distribution",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "T",
+		"name": "AT&T Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Telecom Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TAP",
+		"name": "Molson Coors Beverage Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Beverages - Brewers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TDG",
+		"name": "TransDigm Group Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TDY",
+		"name": "Teledyne Technologies Incorporated",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TECH",
+		"name": "Bio-Techne Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Biotechnology",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TEL",
+		"name": "TE Connectivity plc",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Electronic Components",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TER",
+		"name": "Teradyne, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Semiconductor Equipment & Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TFC",
+		"name": "Truist Financial Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TGT",
+		"name": "Target Corporation",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Discount Stores",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TJX",
+		"name": "The TJX Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Apparel Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TKO",
+		"name": "TKO Group Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Entertainment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TMO",
+		"name": "Thermo Fisher Scientific Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TPL",
+		"name": "Texas Pacific Land Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas E&P",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TPR",
+		"name": "Tapestry, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Luxury Goods",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TRGP",
+		"name": "Targa Resources Corp.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Midstream",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TRMB",
+		"name": "Trimble Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Scientific & Technical Instruments",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TROW",
+		"name": "T. Rowe Price Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Asset Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TSCO",
+		"name": "Tractor Supply Company",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Specialty Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TSN",
+		"name": "Tyson Foods, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Defensive",
+		"industry": "Farm Products",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TT",
+		"name": "Trane Technologies plc",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Building Products & Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TTD",
+		"name": "The Trade Desk, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Communication Services",
+		"industry": "Advertising Agencies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TXT",
+		"name": "Textron Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Aerospace & Defense",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "TYL",
+		"name": "Tyler Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UAL",
+		"name": "United Airlines Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Airlines",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UBER",
+		"name": "Uber Technologies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Application",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UDR",
+		"name": "UDR, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Residential",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UHS",
+		"name": "Universal Health Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Care Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ULTA",
+		"name": "Ulta Beauty, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Specialty Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UNP",
+		"name": "Union Pacific Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Railroads",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UPS",
+		"name": "United Parcel Service, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Integrated Freight & Logistics",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "URI",
+		"name": "United Rentals, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Rental & Leasing Services",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "USB",
+		"name": "U.S. Bancorp",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Regional",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VICI",
+		"name": "VICI Properties Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VLO",
+		"name": "Valero Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Refining & Marketing",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VLTO",
+		"name": "Veralto Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Pollution & Treatment Controls",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VMC",
+		"name": "Vulcan Materials Company",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Building Materials",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VRSN",
+		"name": "VeriSign, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VRT",
+		"name": "Vertiv Holdings Co",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Electrical Equipment & Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VST",
+		"name": "Vistra Corp.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Independent Power Producers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VTR",
+		"name": "Ventas, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Healthcare Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "VTRS",
+		"name": "Viatris Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - Specialty & Generic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WAB",
+		"name": "Westinghouse Air Brake Technologies Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Railroads",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WAT",
+		"name": "Waters Corporation",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Diagnostics & Research",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WEC",
+		"name": "WEC Energy Group, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Utilities",
+		"industry": "Utilities - Regulated Electric",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WELL",
+		"name": "Welltower Inc.",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Healthcare Facilities",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WFC",
+		"name": "Wells Fargo & Company",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Banks - Diversified",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WM",
+		"name": "Waste Management, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Waste Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WMB",
+		"name": "The Williams Companies, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Midstream",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WRB",
+		"name": "W. R. Berkley Corporation",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance - Property & Casualty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WSM",
+		"name": "Williams-Sonoma, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Specialty Retail",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WST",
+		"name": "West Pharmaceutical Services, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Instruments & Supplies",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WTW",
+		"name": "Willis Towers Watson Public Limited Company",
+		"asset_type": "STOCK",
+		"sector": "Financial Services",
+		"industry": "Insurance Brokers",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WY",
+		"name": "Weyerhaeuser Company",
+		"asset_type": "STOCK",
+		"sector": "Real Estate",
+		"industry": "REIT - Specialty",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WYNN",
+		"name": "Wynn Resorts, Limited",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Resorts & Casinos",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "XOM",
+		"name": "Exxon Mobil Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Oil & Gas Integrated",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "XYL",
+		"name": "Xylem Inc.",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Specialty Industrial Machinery",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "XYZ",
+		"name": "Block, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software - Infrastructure",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "YUM",
+		"name": "Yum! Brands, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Restaurants",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ZBH",
+		"name": "Zimmer Biomet Holdings, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Medical Devices",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ZBRA",
+		"name": "Zebra Technologies Corporation",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Communication Equipment",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ZTS",
+		"name": "Zoetis Inc.",
+		"asset_type": "STOCK",
+		"sector": "Healthcare",
+		"industry": "Drug Manufacturers - Specialty & Generic",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "XME",
+		"name": "State Street SPDR S&P Metals & Mining ETF",
+		"asset_type": "ETF",
+		"sector": null,
+		"industry": null,
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RS",
+		"name": "Reliance, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CLF",
+		"name": "Cleveland-Cliffs Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MP",
+		"name": "MP Materials Corp.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Industrial Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "USAR",
+		"name": "USA Rare Earth, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Industrial Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LEU",
+		"name": "Centrus Energy Corp.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Uranium",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UEC",
+		"name": "Uranium Energy Corp.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Uranium",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMC",
+		"name": "Commercial Metals Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Metal Fabrication",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HCC",
+		"name": "Warrior Met Coal, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Coking Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AA",
+		"name": "Alcoa Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Aluminum",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CNR",
+		"name": "Core Natural Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Thermal Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RGLD",
+		"name": "Royal Gold, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HL",
+		"name": "Hecla Mining Company",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Precious Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "HYMC",
+		"name": "Hycroft Mining Holding Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CDE",
+		"name": "Coeur Mining, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CENX",
+		"name": "Century Aluminum Company",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Aluminum",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BTU",
+		"name": "Peabody Energy Corporation",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Thermal Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "KALU",
+		"name": "Kaiser Aluminum Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Aluminum",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MTRN",
+		"name": "Materion Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Industrial Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "AMR",
+		"name": "Alpha Metallurgical Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Coking Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IE",
+		"name": "Ivanhoe Electric Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Copper",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MUX",
+		"name": "McEwen Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Precious Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "UAMY",
+		"name": "United States Antimony Corporation",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Industrial Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "WS",
+		"name": "Worthington Steel, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "IDR",
+		"name": "Idaho Strategic Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "RYZ",
+		"name": "Ryerson Holding Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Metal Fabrication",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "CMP",
+		"name": "Compass Minerals International, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Other Industrial Metals & Mining",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "URG",
+		"name": "Ur-Energy Inc.",
+		"asset_type": "STOCK",
+		"sector": "Energy",
+		"industry": "Uranium",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "METC",
+		"name": "Ramaco Resources, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Coking Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "SXC",
+		"name": "SunCoke Energy, Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Coking Coal",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "LTBR",
+		"name": "Lightbridge Corporation",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Electrical Equipment & Parts",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "MTUS",
+		"name": "Metallus Inc.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Steel",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "DC",
+		"name": "Dakota Gold Corp.",
+		"asset_type": "STOCK",
+		"sector": "Basic Materials",
+		"industry": "Gold",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "ABAT",
+		"name": "American Battery Technology Company",
+		"asset_type": "STOCK",
+		"sector": "Industrials",
+		"industry": "Waste Management",
+		"exchange": null,
+		"currency": null
+	},
+	{
+		"symbol": "BABA",
+		"name": "Alibaba Group Holding Limited",
+		"asset_type": "STOCK",
+		"sector": "Consumer Cyclical",
+		"industry": "Internet Retail",
+		"exchange": null,
+		"currency": null
+	}
+]

@@ -43,6 +43,12 @@ class DatabaseManager:
 		seeder = DatabaseSeeder(repo)
 		cursor = self.conn.cursor()
 
+		cursor.execute("SELECT COUNT(*) FROM assets")
+		if cursor.fetchone()[0] == 0:
+			logger.info("Seeding assets and indices...")
+			seeder.seed_assets()
+			seeder.seed_indices()
+
 		cursor.execute("SELECT COUNT(*) FROM investor_profiles")
 		if cursor.fetchone()[0] == 0:
 			logger.info("Seeding benchmarks and profiles...")
@@ -249,6 +255,9 @@ class DatabaseManager:
 				metrics_json TEXT
 			)
 		""")
+
+		# Migration: drop legacy profile_weights (superseded by profile_metric_settings)
+		cursor.execute("DROP TABLE IF EXISTS profile_weights")
 
 		self.conn.commit()
 

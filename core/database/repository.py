@@ -20,6 +20,8 @@ class DatabaseRepository:
 		asset_type: Optional[str] = None,
 		sector: Optional[str] = None,
 		industry: Optional[str] = None,
+		exchange: Optional[str] = None,
+		currency: Optional[str] = None,
 	):
 		"""Insert or update an asset."""
 		with self._lock:
@@ -27,16 +29,18 @@ class DatabaseRepository:
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO assets (symbol, name, asset_type, sector, industry, last_updated)
-				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				INSERT INTO assets (symbol, name, asset_type, sector, industry, exchange, currency, last_updated)
+				VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 				ON CONFLICT(symbol) DO UPDATE SET
 					name = COALESCE(excluded.name, assets.name),
 					asset_type = COALESCE(excluded.asset_type, assets.asset_type),
 					sector = COALESCE(excluded.sector, assets.sector),
 					industry = COALESCE(excluded.industry, assets.industry),
+					exchange = COALESCE(excluded.exchange, assets.exchange),
+					currency = COALESCE(excluded.currency, assets.currency),
 					last_updated = CURRENT_TIMESTAMP
 			""",
-				(symbol, name, asset_type, sector, industry),
+				(symbol, name, asset_type, sector, industry, exchange, currency),
 			)
 			conn.commit()
 
@@ -117,7 +121,7 @@ class DatabaseRepository:
 	def upsert_group(
 		self, name: str, description: Optional[str] = None, is_system: bool = False
 	):
-		"""Insert or update a group. Raises ValueError if the name belongs to a system group."""
+		"""Insert or update a user group. Raises ValueError if targeting an existing system group."""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
@@ -133,6 +137,23 @@ class DatabaseRepository:
 					description = COALESCE(excluded.description, groups.description)
 			""",
 				(name, description, is_system),
+			)
+			conn.commit()
+
+	def _upsert_system_group(self, name: str, description: Optional[str] = None):
+		"""Insert or update a system group. Only called by DatabaseSeeder."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO groups (name, description, is_system)
+				VALUES (?, ?, 1)
+				ON CONFLICT(name) DO UPDATE SET
+					description = COALESCE(excluded.description, groups.description),
+					is_system = 1
+			""",
+				(name, description),
 			)
 			conn.commit()
 
