@@ -1,0 +1,162 @@
+.sheatmap {
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	background: var(--bg-secondary, #0f1117);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.sheatmap-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	flex-shrink: 0;
+	gap: 12px;
+}
+
+.sheatmap-legend {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sheatmap-legend-label {
+	font-size: 10px;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.4);
+	white-space: nowrap;
+}
+
+.sheatmap-legend-bar {
+	width: 80px;
+	height: 6px;
+	border-radius: 3px;
+	background: linear-gradient(to right, #ef4444, #eab308, #22c55e);
+	flex-shrink: 0;
+}
+
+.sheatmap-weight-toggle {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.45);
+	white-space: nowrap;
+	user-select: none;
+}
+
+.sheatmap-weight-toggle input[type='checkbox'] {
+	accent-color: #818cf8;
+	cursor: pointer;
+	width: 12px;
+	height: 12px;
+}
+
+.sheatmap-weight-toggle:hover {
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.sheatmap-expand-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border: none;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.35);
+	cursor: pointer;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.sheatmap-expand-btn:hover {
+	color: rgba(255, 255, 255, 0.8);
+	background: rgba(255, 255, 255, 0.07);
+}
+
+.sheatmap-canvas-wrap {
+	position: relative;
+	height: calc(100vh - 220px);
+	min-height: 400px;
+	overflow: hidden;
+}
+
+.sheatmap--fullscreen {
+	position: fixed;
+	inset: 0;
+	z-index: 500;
+	border-radius: 0;
+	background: #0d1117;
+	display: flex;
+	flex-direction: column;
+}
+
+.sheatmap--fullscreen .sheatmap-canvas-wrap {
+	height: auto;
+	flex: 1;
+	min-height: 0;
+}
+
+.sheatmap-canvas {
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* Tooltip — fixed so it's never clipped by overflow:hidden */
+.sheatmap-tooltip {
+	position: fixed;
+	z-index: 9999;
+	pointer-events: none;
+	background: rgba(15, 17, 23, 0.96);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	padding: 8px 10px;
+	min-width: 160px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(8px);
+}
+
+.sheatmap-tt-symbol {
+	font-size: 13px;
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.9);
+	margin-bottom: 2px;
+	font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.sheatmap-tt-name {
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.4);
+	margin-bottom: 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 200px;
+}
+
+.sheatmap-tt-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 16px;
+	font-size: 11px;
+	padding: 1px 0;
+}
+
+.sheatmap-tt-row span:first-child {
+	color: rgba(255, 255, 255, 0.4);
+}
+
+.sheatmap-tt-row span:last-child {
+	color: rgba(255, 255, 255, 0.85);
+	font-weight: 500;
+	text-align: right;
+}

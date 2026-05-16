@@ -3,8 +3,9 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { API_BASE_URL } from '../config'
 import ResultsGrid from './ResultsGrid'
 import CorrelationMap from './CorrelationMap'
+import SmartHeatmap from './SmartHeatmap'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -48,7 +49,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 	const [provider, setProvider] = useState('openbb')
 	const [showSettings, setShowSettings] = useState(false)
-	const [viewMode, setViewMode] = useState<'grid' | 'explorer'>('grid')
+	const [viewMode, setViewMode] = useState<'grid' | 'explorer' | 'heatmap'>('grid')
+	const [heatmapFilter, setHeatmapFilter] = useState('')
 
 	const loadGroups = useCallback(async () => {
 		try {
@@ -527,6 +529,14 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 								Grid
 							</button>
 							<button
+								className={`view-toggle-btn${viewMode === 'heatmap' ? ' active' : ''}`}
+								onClick={() => setViewMode('heatmap')}
+								title="Sector Heatmap"
+							>
+								<LayoutDashboard size={13} />
+								Heatmap
+							</button>
+							<button
 								className={`view-toggle-btn${viewMode === 'explorer' ? ' active' : ''}`}
 								onClick={() => setViewMode('explorer')}
 								title="Cluster Map"
@@ -536,9 +546,17 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</button>
 						</div>
 					)}
-					{viewMode === 'grid' || results.length === 0
-						? <ResultsGrid data={results} profile={profile} />
-						: <CorrelationMap data={results} />
+					{results.length === 0 || viewMode === 'grid'
+						? <ResultsGrid data={results} profile={profile} externalFilter={heatmapFilter} />
+						: viewMode === 'explorer'
+							? <CorrelationMap data={results} />
+							: <SmartHeatmap
+								data={results}
+								onSelectSymbol={(sym) => {
+									setHeatmapFilter(sym)
+									setViewMode('grid')
+								}}
+							/>
 					}
 				</div>
 			</div>

@@ -81,6 +81,8 @@ def analyze_asset(
 		"score": final_pct,
 		"asset_type": asset.asset_type,
 		"raw_metrics": asset.raw_data,
+		"market_cap": asset.raw_data.get("market_cap")
+		or asset.raw_data.get("marketCap"),
 	}
 
 

@@ -17,6 +17,7 @@ import './ResultsGrid.css'
 interface ResultsGridProps {
 	data: AssetAnalysis[]
 	profile?: string
+	externalFilter?: string
 }
 
 interface ProfileData {
@@ -37,11 +38,15 @@ const COL_SIZES = {
 // ~7px per char at 0.75rem uppercase + 24px padding, capped at 160.
 const metricValSize = (name: string) => Math.min(Math.max(name.length * 7 + 24, 70), 160)
 
-const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
+const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter }) => {
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
-	const [globalFilter, setGlobalFilter] = useState('')
+	const [globalFilter, setGlobalFilter] = useState(externalFilter ?? '')
+
+	useEffect(() => {
+		if (externalFilter !== undefined) setGlobalFilter(externalFilter)
+	}, [externalFilter])
 	const [showSettings, setShowSettings] = useState(false)
 	const [fullscreen, setFullscreen] = useState(false)
 	const [profileMetricKeys, setProfileMetricKeys] = useState<string[]>([])

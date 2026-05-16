@@ -135,6 +135,7 @@ class AssetAnalysis(BaseModel):
 	score: float
 	results: List[MetricResult]
 	raw_metrics: Optional[Dict[str, Any]] = None
+	market_cap: Optional[float] = None
 
 
 @app.get("/health")
