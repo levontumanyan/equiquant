@@ -7,6 +7,11 @@ import ScoringExplorer from './ScoringExplorer'
 import MetricHistory from './MetricHistory'
 import './ScoringStudio.css'
 
+const parseNum = (v: string): number | undefined => {
+	const n = parseFloat(v)
+	return isNaN(n) ? undefined : n
+}
+
 const FORMULA_LABELS: Record<string, string> = {
 	sigmoid: 'Sigmoid',
 	linear: 'Linear',
@@ -441,7 +446,7 @@ const ScoringStudio: React.FC = () => {
 										<input type="number" step="any"
 											value={selectedMetric.best ?? ''}
 											placeholder="e.g. 15"
-											onChange={e => updateMetric(selectedMetric.metric, { best: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { best: parseNum(e.target.value) })}
 										/>
 									</div>
 									<div className="studio-override-group">
@@ -449,7 +454,7 @@ const ScoringStudio: React.FC = () => {
 										<input type="number" step="any"
 											value={selectedMetric.worst ?? ''}
 											placeholder="e.g. 50"
-											onChange={e => updateMetric(selectedMetric.metric, { worst: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { worst: parseNum(e.target.value) })}
 										/>
 									</div>
 								</>)}
@@ -460,7 +465,7 @@ const ScoringStudio: React.FC = () => {
 										<input type="number" step="any"
 											value={selectedMetric.target ?? ''}
 											placeholder="e.g. 1.0"
-											onChange={e => updateMetric(selectedMetric.metric, { target: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { target: parseNum(e.target.value) })}
 										/>
 									</div>
 									<div className="studio-override-group">
@@ -468,7 +473,7 @@ const ScoringStudio: React.FC = () => {
 										<input type="number" step="any" min={0.01}
 											value={selectedMetric.width ?? ''}
 											placeholder="e.g. 0.5"
-											onChange={e => updateMetric(selectedMetric.metric, { width: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { width: parseNum(e.target.value) })}
 										/>
 									</div>
 								</>)}
@@ -478,21 +483,21 @@ const ScoringStudio: React.FC = () => {
 										<label>Target Min</label>
 										<input type="number" step="any"
 											value={selectedMetric.target_min ?? ''}
-											onChange={e => updateMetric(selectedMetric.metric, { target_min: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { target_min: parseNum(e.target.value) })}
 										/>
 									</div>
 									<div className="studio-override-group">
 										<label>Target Max</label>
 										<input type="number" step="any"
 											value={selectedMetric.target_max ?? ''}
-											onChange={e => updateMetric(selectedMetric.metric, { target_max: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { target_max: parseNum(e.target.value) })}
 										/>
 									</div>
 									<div className="studio-override-group">
 										<label>Decay Width</label>
 										<input type="number" step="any" min={0.01}
 											value={selectedMetric.width ?? ''}
-											onChange={e => updateMetric(selectedMetric.metric, { width: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { width: parseNum(e.target.value) })}
 										/>
 									</div>
 								</>)}
@@ -502,7 +507,7 @@ const ScoringStudio: React.FC = () => {
 										<label>Threshold</label>
 										<input type="number" step="any"
 											value={selectedMetric.threshold ?? ''}
-											onChange={e => updateMetric(selectedMetric.metric, { threshold: parseFloat(e.target.value) })}
+											onChange={e => updateMetric(selectedMetric.metric, { threshold: parseNum(e.target.value) })}
 										/>
 									</div>
 								)}

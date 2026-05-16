@@ -13,7 +13,6 @@ from core.orchestrator import fetch_data as orchestrator_fetch_data
 from core.orchestrator import run_bulk_analysis
 from core.scorers import SCORERS
 
-setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 logger = get_logger(__name__)
 
 _openbb_ready = False
@@ -21,8 +20,9 @@ _openbb_ready = False
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-	"""Warm up OpenBB synchronously on startup so it runs in the main thread."""
+	"""Configure logging, then warm up OpenBB synchronously in the main thread."""
 	global _openbb_ready
+	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 	try:
 		logger.info("Warming up OpenBB...")
 		from openbb import obb  # noqa: F401
