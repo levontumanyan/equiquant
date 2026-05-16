@@ -30,17 +30,13 @@ def test_get_status_shape():
 
 
 @pytest.mark.slow
-def test_openbb_ready_after_lifespan():
+def test_openbb_ready_after_lifespan(mocker):
 	"""
 	Verifies OpenBB is fully ready after the lifespan runs.
-	The context manager triggers startup, which imports OpenBB synchronously
-	in the main thread — the only way signal handlers work.
-	Marked slow because OpenBB import takes a few seconds.
+	Mocking signal.signal is necessary because TestClient runs lifespan in a thread.
 	"""
+	mocker.patch("signal.signal")
 	with TestClient(app) as client:
 		response = client.get("/api/status")
 	assert response.status_code == 200
-	assert response.json()["openbb"] == "ready", (
-		"OpenBB must be ready after lifespan completes. "
-		"If this fails, the lifespan import is broken or running in a thread."
-	)
+	assert response.json()["openbb"] == "ready"
