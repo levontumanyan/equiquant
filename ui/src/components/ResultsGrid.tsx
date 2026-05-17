@@ -202,9 +202,8 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 
 	const virtualRows = rowVirtualizer.getVirtualItems()
 	const totalSize = rowVirtualizer.getTotalSize()
-	const paddingTop = virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0
-	const paddingBottom = virtualRows.length > 0 ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0) : 0
-
+	const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0
+	const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0
 	return (
 		<>
 		<div className={`results-grid-container${fullscreen ? ' fullscreen' : ''}`}>
@@ -375,7 +374,10 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 					<tbody>
 						{paddingTop > 0 && (
 							<tr>
-								<td style={{ height: `${paddingTop}px` }} />
+								<td 
+									colSpan={table.getVisibleFlatColumns().length} 
+									style={{ height: `${paddingTop}px` }} 
+								/>
 							</tr>
 						)}
 						{virtualRows.map(virtualRow => {
@@ -399,7 +401,10 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile }) => {
 						})}
 						{paddingBottom > 0 && (
 							<tr>
-								<td style={{ height: `${paddingBottom}px` }} />
+								<td 
+									colSpan={table.getVisibleFlatColumns().length} 
+									style={{ height: `${paddingBottom}px` }} 
+								/>
 							</tr>
 						)}
 					</tbody>
