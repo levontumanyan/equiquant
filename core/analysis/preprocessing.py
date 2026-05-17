@@ -1,3 +1,4 @@
+import math
 from typing import Any, Optional
 
 from core.schema import AssetData
@@ -30,7 +31,11 @@ def preprocess_metric_value(
 					val = float(alt_val)
 					break
 
-	if val is None or not isinstance(val, (int, float)):
+	if (
+		val is None
+		or not isinstance(val, (int, float))
+		or (isinstance(val, float) and math.isnan(val))
+	):
 		return None
 
 	# Convert to float

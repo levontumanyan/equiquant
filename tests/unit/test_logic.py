@@ -39,6 +39,9 @@ def test_preprocess_metric_value():
 	# Invalid data
 	assert preprocess_metric_value("test", "not a number", asset) is None
 
+	# NaN handling (Fix for #164)
+	assert preprocess_metric_value("test", float("nan"), asset) is None
+
 
 def test_postprocess_score():
 	# Negative P/E should result in 0 score
