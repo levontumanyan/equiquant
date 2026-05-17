@@ -36,4 +36,5 @@ export interface AssetAnalysis {
 	score: number;
 	results: MetricResult[];
 	raw_metrics?: Record<string, unknown> | null;
+	market_cap?: number | null;
 }
