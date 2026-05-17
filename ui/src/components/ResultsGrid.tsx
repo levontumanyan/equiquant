@@ -8,6 +8,7 @@ import {
 	getFilteredRowModel,
 } from '@tanstack/react-table'
 import type { ColumnSizingState, SortingState, VisibilityState } from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import type { AssetAnalysis } from '../types'
 import { ChevronDown, ChevronUp, Settings2, Search, Maximize2, Minimize2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
@@ -53,6 +54,8 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 	const [profileFilterActive, setProfileFilterActive] = useState(false)
 	const [preset, setPreset] = useState<'all' | 'none' | 'values' | 'strength'>('all')
 	const [selectedAsset, setSelectedAsset] = useState<AssetAnalysis | null>(null)
+
+	const tableContainerRef = useRef<HTMLDivElement>(null)
 
 	// Apply a column preset imperatively — avoids a reactive effect that would
 	// overwrite per-metric checkbox state whenever profileMetricKeys loads.
@@ -195,6 +198,15 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		getFilteredRowModel: getFilteredRowModel(),
 	})
 
+	const { rows } = table.getRowModel()
+
+	const rowVirtualizer = useVirtualizer({
+		count: rows.length,
+		getScrollElement: () => tableContainerRef.current,
+		estimateSize: () => 45, // Estimated row height in pixels
+		overscan: 10,
+	})
+
 	if (data.length === 0) {
 		return (
 			<div className="empty-state">
@@ -203,6 +215,10 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		)
 	}
 
+	const virtualRows = rowVirtualizer.getVirtualItems()
+	const totalSize = rowVirtualizer.getTotalSize()
+	const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0
+	const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0
 	return (
 		<>
 		<div className={`results-grid-container${fullscreen ? ' fullscreen' : ''}`}>
@@ -336,7 +352,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 				</div>
 			)}
 
-			<div className="table-wrapper">
+			<div className="table-wrapper" ref={tableContainerRef}>
 				<table
 					className="results-table"
 					style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}
@@ -371,22 +387,41 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 						))}
 					</thead>
 					<tbody>
-						{table.getRowModel().rows.map(row => (
-							<tr
-								key={row.id}
-								className={`clickable-row${selectedAsset?.symbol === row.original.symbol ? ' row-selected' : ''}`}
-								onClick={() => setSelectedAsset(prev =>
-									prev?.symbol === row.original.symbol ? null : row.original
-								)}
-								title="Click to view raw provider data"
-							>
-								{row.getVisibleCells().map(cell => (
-									<td key={cell.id}>
-										{flexRender(cell.column.columnDef.cell, cell.getContext())}
-									</td>
-								))}
+						{paddingTop > 0 && (
+							<tr>
+								<td 
+									colSpan={table.getVisibleFlatColumns().length} 
+									style={{ height: `${paddingTop}px` }} 
+								/>
 							</tr>
-						))}
+						)}
+						{virtualRows.map(virtualRow => {
+							const row = rows[virtualRow.index]
+							return (
+								<tr
+									key={row.id}
+									className={`clickable-row${selectedAsset?.symbol === row.original.symbol ? ' row-selected' : ''}`}
+									onClick={() => setSelectedAsset(prev =>
+										prev?.symbol === row.original.symbol ? null : row.original
+									)}
+									title="Click to view raw provider data"
+								>
+									{row.getVisibleCells().map(cell => (
+										<td key={cell.id}>
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+										</td>
+									))}
+								</tr>
+							)
+						})}
+						{paddingBottom > 0 && (
+							<tr>
+								<td 
+									colSpan={table.getVisibleFlatColumns().length} 
+									style={{ height: `${paddingBottom}px` }} 
+								/>
+							</tr>
+						)}
 					</tbody>
 				</table>
 			</div>
@@ -402,4 +437,3 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 
 
 export default ResultsGrid
-
