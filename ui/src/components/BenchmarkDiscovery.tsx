@@ -38,7 +38,7 @@ const BenchmarkDiscovery: React.FC<Props> = ({ onPreview }) => {
 	}, [selectedSector]);
 
 	const filteredBenchmarks = benchmarks.filter(b => {
-		const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase()) || 
+		const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase()) ||
 							  b.metric.toLowerCase().includes(search.toLowerCase());
 		return matchesSearch;
 	});

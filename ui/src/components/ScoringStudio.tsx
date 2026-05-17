@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { Plus, X, Search, BarChart2, BookOpen, Download, ArrowLeft } from 'lucide-react'
 import { API_BASE_URL } from '../config'
+import { useBenchmarks } from '../hooks/useBenchmarks'
+import { useProfiles } from '../hooks/useProfiles'
+import { useFormulas } from '../hooks/useFormulas'
 import type { Benchmark, ScorerType } from '../types'
 import type { StudioMetric } from '../types/studio'
 import ScoringExplorer from './ScoringExplorer'
@@ -23,10 +26,10 @@ const FORMULA_LABELS: Record<string, string> = {
 type StudioMode = 'landing' | 'importing' | 'active'
 
 const ScoringStudio: React.FC = () => {
-	const [allBenchmarks, setAllBenchmarks] = useState<Benchmark[]>([])
-	const [profileNames, setProfileNames] = useState<string[]>([])
-	const [availableFormulas, setAvailableFormulas] = useState<string[]>([])
-	const [loading, setLoading] = useState(true)
+	const { benchmarks: allBenchmarks, loading: benchmarksLoading } = useBenchmarks()
+	const { profiles: profileNames, refetch: refetchProfiles } = useProfiles()
+	const { formulas: availableFormulas } = useFormulas()
+	const loading = benchmarksLoading
 
 	const [mode, setMode] = useState<StudioMode>('landing')
 	const [activeMetrics, setActiveMetrics] = useState<StudioMetric[]>([])
@@ -71,26 +74,6 @@ const ScoringStudio: React.FC = () => {
 			b => b.name.toLowerCase().includes(q) || b.metric.toLowerCase().includes(q)
 		)
 	}, [allBenchmarks, drawerSearch])
-
-	useEffect(() => {
-		const init = async () => {
-			setLoading(true)
-			try {
-				const [benchRes, profileListRes, formulaRes] = await Promise.all([
-					fetch(`${API_BASE_URL}/api/benchmarks?asset_type=STOCK`),
-					fetch(`${API_BASE_URL}/api/profiles/list`),
-					fetch(`${API_BASE_URL}/api/formulas`),
-				])
-				const benchmarks: Benchmark[] = benchRes.ok ? await benchRes.json() : []
-				setAllBenchmarks(benchmarks)
-				setProfileNames(profileListRes.ok ? await profileListRes.json() : [])
-				setAvailableFormulas(formulaRes.ok ? await formulaRes.json() : [])
-			} finally {
-				setLoading(false)
-			}
-		}
-		init()
-	}, [])
 
 	const loadProfileData = async (name: string, benchmarks: Benchmark[]) => {
 		const requestId = ++profileLoadRef.current
@@ -223,9 +206,7 @@ const ScoringStudio: React.FC = () => {
 			if (res.ok) {
 				setSaveStatus('saved')
 				setSourceProfileName(name)
-				if (!profileNames.includes(name)) {
-					setProfileNames(prev => [...prev, name].sort())
-				}
+				refetchProfiles()
 			} else {
 				setSaveStatus('error')
 			}

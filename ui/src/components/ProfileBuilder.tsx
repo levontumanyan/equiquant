@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { API_BASE_URL } from '../config';
+import { useFormulas } from '../hooks/useFormulas';
 import './ProfileBuilder.css';
 import type { Profile } from '../types/profile';
 import MetricSearch from './MetricSearch';
@@ -27,7 +28,7 @@ const AVAILABLE_METRICS = [
 ];
 
 const ProfileBuilder: React.FC = () => {
-	const [availableFormulas, setAvailableFormulas] = useState<string[]>([]);
+	const { formulas: availableFormulas } = useFormulas();
 	const [profile, setProfile] = useState<Profile>({
 		name: 'Default Profile',
 		weights: {
@@ -44,13 +45,6 @@ const ProfileBuilder: React.FC = () => {
 		},
 	});
 	const [statusMessage, setStatusMessage] = useState<string>('');
-
-	useEffect(() => {
-		fetch(`${API_BASE_URL}/api/formulas`)
-			.then(res => res.json())
-			.then(data => setAvailableFormulas(data))
-			.catch(err => console.error('Failed to fetch formulas:', err));
-	}, []);
 
 	const handleWeightChange = (metric: string, value: number) => {
 		setProfile((prevProfile) => ({
