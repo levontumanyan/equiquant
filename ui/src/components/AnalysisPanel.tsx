@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { API_BASE_URL } from '../config'
+import { useProfiles } from '../hooks/useProfiles'
 import ResultsGrid from './ResultsGrid'
 import CorrelationMap from './CorrelationMap'
 import SmartHeatmap from './SmartHeatmap'
@@ -31,7 +32,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [availableAssets, setAvailableAssets] = useState<Asset[]>([])
 	const [assetSearch, setAssetSearch] = useState('')
 	const [profile, setProfile] = useState('balanced')
-	const [profiles, setProfiles] = useState<string[]>([])
+	const { profiles } = useProfiles()
 	const [groups, setGroups] = useState<Group[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [results, setResults] = useState<AssetAnalysis[]>([])
@@ -65,12 +66,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	useEffect(() => {
 		const fetchInitial = async () => {
 			try {
-				const [assetsRes, profilesRes] = await Promise.all([
-					fetch(`${API_BASE_URL}/api/assets`),
-					fetch(`${API_BASE_URL}/api/profiles/list`),
-				])
+				const assetsRes = await fetch(`${API_BASE_URL}/api/assets`)
 				if (assetsRes.ok) setAvailableAssets(await assetsRes.json())
-				if (profilesRes.ok) setProfiles(await profilesRes.json())
 			} catch (err) {
 				console.error('Failed to fetch initial data', err)
 			}
