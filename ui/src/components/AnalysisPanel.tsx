@@ -191,6 +191,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setIsLoading(true)
 		setError(null)
 		setResults([])
+		setHeatmapFilter('')
 		setProgress({ done: 0, total: tickers.length })
 
 		// Buffer incoming results and flush in batches per animation frame to

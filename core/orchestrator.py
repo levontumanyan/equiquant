@@ -82,7 +82,8 @@ def analyze_asset(
 		"asset_type": asset.asset_type,
 		"raw_metrics": asset.raw_data,
 		"market_cap": asset.raw_data.get("market_cap")
-		or asset.raw_data.get("marketCap"),
+		if asset.raw_data.get("market_cap") is not None
+		else asset.raw_data.get("marketCap"),
 	}
 
 

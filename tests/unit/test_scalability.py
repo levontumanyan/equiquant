@@ -95,6 +95,70 @@ def test_openbb_provider_routing_logic(mocker):
 	assert asset.asset_type == AssetType.ETF
 
 
+def _mock_analyze_setup(mocker):
+	"""Shared mock setup for analyze_asset tests."""
+	mocker.patch(
+		"core.orchestrator.load_benchmarks",
+		return_value=[
+			{"metric": "test", "weight": 1.0, "type": "threshold", "threshold": 0}
+		],
+	)
+	mocker.patch(
+		"core.orchestrator.get_profile_config",
+		return_value={
+			"test": {"weight": 1.0, "best": None, "worst": None, "formula": "threshold"}
+		},
+	)
+	mocker.patch(
+		"core.orchestrator.evaluate_metric",
+		return_value={"score": 1.0, "weight": 1.0},
+	)
+
+
+def test_analyze_asset_market_cap_snake_case(mocker):
+	"""market_cap from the snake_case key is passed through to the result."""
+	_mock_analyze_setup(mocker)
+	asset = AssetData(
+		symbol="AAPL",
+		asset_type=AssetType.STOCK,
+		raw_data={"market_cap": 3_000_000_000_000},
+	)
+	result = analyze_asset(asset, "balanced")
+	assert result["market_cap"] == 3_000_000_000_000
+
+
+def test_analyze_asset_market_cap_camel_case_fallback(mocker):
+	"""Falls back to marketCap when market_cap key is absent."""
+	_mock_analyze_setup(mocker)
+	asset = AssetData(
+		symbol="MSFT",
+		asset_type=AssetType.STOCK,
+		raw_data={"marketCap": 2_500_000_000_000},
+	)
+	result = analyze_asset(asset, "balanced")
+	assert result["market_cap"] == 2_500_000_000_000
+
+
+def test_analyze_asset_market_cap_zero_not_masked(mocker):
+	"""A legitimate market_cap of 0 is not treated as missing."""
+	_mock_analyze_setup(mocker)
+	asset = AssetData(
+		symbol="TEST",
+		asset_type=AssetType.STOCK,
+		raw_data={"market_cap": 0, "marketCap": 999},
+	)
+	result = analyze_asset(asset, "balanced")
+	assert result["market_cap"] == 0
+
+
+def test_analyze_asset_market_cap_absent(mocker):
+	"""Returns None when neither key is present in raw_data."""
+	_mock_analyze_setup(mocker)
+	asset = AssetData(symbol="TEST", asset_type=AssetType.STOCK, raw_data={})
+	result = analyze_asset(asset, "balanced")
+	assert result["market_cap"] is None
+
+
 def test_parse_ticker_file_txt(tmp_path):
 	d = tmp_path / "subdir"
 	d.mkdir()

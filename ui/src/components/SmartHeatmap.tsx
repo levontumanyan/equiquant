@@ -52,7 +52,7 @@ interface HierarchyLeaf {
 	value: number
 }
 
-const SmartHeatmap: React.FC<SmartHeatmapProps> = ({ data, onSelectSymbol }) => {
+function SmartHeatmap({ data, onSelectSymbol }: SmartHeatmapProps) {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const [equalWeight, setEqualWeight] = useState(false)
@@ -114,7 +114,7 @@ const SmartHeatmap: React.FC<SmartHeatmapProps> = ({ data, onSelectSymbol }) => 
 			.size([width, height])
 			.paddingOuter(3)
 			.paddingInner(1)
-			.paddingTop(18)
+			.paddingTop((d) => (d.depth === 1 ? 18 : 0))
 			.round(true)(root)
 
 		const leaves: LeafNode[] = []
@@ -243,7 +243,10 @@ const SmartHeatmap: React.FC<SmartHeatmapProps> = ({ data, onSelectSymbol }) => 
 			{tooltip && (
 				<div
 					className="sheatmap-tooltip"
-					style={{ left: tooltip.clientX + 14, top: tooltip.clientY - 10 }}
+					style={{
+					left: Math.min(tooltip.clientX + 14, window.innerWidth - 200),
+					top: Math.min(tooltip.clientY - 10, window.innerHeight - 160),
+				}}
 				>
 					<div className="sheatmap-tt-symbol">{tooltip.leaf.symbol}</div>
 					<div className="sheatmap-tt-name">{tooltip.leaf.name}</div>
