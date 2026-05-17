@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import {
 	createColumnHelper,
 	flexRender,
@@ -86,17 +86,27 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		return () => controller.abort()
 	}, [profile])
 
-	// 1. Identify all unique metrics across all assets to build dynamic columns
-	const allMetrics = useMemo(() => {
-		const metrics = new Map<string, string>()
+	// 1. Identify all unique metrics across all assets to build dynamic columns.
+	// Stored in a ref so the Map survives re-renders without triggering effects;
+	// allMetrics state (and thus columns) only updates when a genuinely new metric key arrives.
+	const metricsMapRef = useRef<Map<string, string>>(new Map())
+	const [allMetrics, setAllMetrics] = useState<{ key: string; name: string }[]>([])
+
+	useEffect(() => {
+		let changed = false
 		data.forEach(asset => {
 			asset.results.forEach(m => {
-				if (!metrics.has(m.metric)) {
-					metrics.set(m.metric, m.name)
+				if (!metricsMapRef.current.has(m.metric)) {
+					metricsMapRef.current.set(m.metric, m.name)
+					changed = true
 				}
 			})
 		})
-		return Array.from(metrics.entries()).map(([key, name]) => ({ key, name }))
+		if (changed) {
+			setAllMetrics(
+				Array.from(metricsMapRef.current.entries()).map(([key, name]) => ({ key, name }))
+			)
+		}
 	}, [data])
 
 
