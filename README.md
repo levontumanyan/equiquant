@@ -72,3 +72,11 @@ For more detailed information, see the `docs/` directory:
 - `make check`: Run linting, formatting, and tests.
 - `make test`: Run unit, integration, and acceptance tests.
 - `make db-shell`: Direct SQLite access.
+
+## Containerized Development (Podman)
+
+For a fully isolated environment (recommended for PR verification):
+1. **Initialize Podman**: `make podman-init` (sets up a rootless machine on macOS).
+2. **Run Tests in Container**: `make test-container`.
+
+This project includes a `.devcontainer` configuration for VS Code, optimized for rootless Podman.

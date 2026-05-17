@@ -36,7 +36,10 @@ If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
 - **Identify** the worktree root as WORKTREE_ROOT. Use this path as the cwd (Current Working Directory) for all tool calls and shell commands to avoid repetitive cd operations.
 - **Perform research**, implementation, and testing within the worktree.
 - **Send periodic** issue updates and a final summary upon completion as comments on the issue.
-- Perform a **Mandatory Functional Check** with `./analyze.py`. Use `make check` only for final end-to-end validation before PR.- If the user is satisfied with the changes(ask), from $WORKTREE_ROOT, push the branch (`git push -u origin HEAD`) and create a PR using explicit flags: `gh pr create --title "..." --body "..."`. Ensure the PR body contains "Closes #<issue_number>" to automate issue closure.
+- **Perform UI/API Validation**: Verify changes via the Web Dashboard (`make start`) or API endpoints. CLI checks via `./analyze.py` are secondary and being phased out.
+- If the user is satisfied with the changes (ask), from $WORKTREE_ROOT, use the PR target:
+  `make pr TITLE="feat: your title (#issue)" BODY="Description. Closes #issue"`
+- This target automatically validates the code in the rootless Podman environment, pushes the branch with `--no-verify` (bypassing local hooks as validation is handled by the container), and creates the PR.
 - Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 - After the branch is merged and the session is closed, remove the worktree and the branch.
 
@@ -52,8 +55,10 @@ NEVER run the full test suite speculatively. Follow this strict sequence:
    uv run python -m pytest tests/unit/test_<module>.py -v
 3. If that passes, run the unit suite:
    uv run python -m pytest tests/unit -q --disable-warnings
-4. Commit → pre-commit runs unit suite automatically (no need to re-run it)
-5. Push → pre-push runs integration + acceptance + security scans automatically
+4. Optional: Run full suite in container for final verification:
+   make test-container
+5. Commit → pre-commit runs unit suite automatically (no need to re-run it)
+6. Push → pre-push runs integration + acceptance + security scans automatically
 ```
 
 - NEVER run `make check` or the integration suite during development iteration.
