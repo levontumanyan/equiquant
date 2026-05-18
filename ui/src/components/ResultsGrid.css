@@ -417,6 +417,15 @@
 	background: rgba(59, 130, 246, 0.1);
 }
 
+/* Reset <button> defaults when score-container is rendered as a button */
+button.score-container {
+	background: none;
+	border: none;
+	font: inherit;
+	color: inherit;
+	text-align: left;
+}
+
 .score-bar-bg {
 	width: 3rem;
 	background-color: #374151;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { AssetAnalysis } from '../types'
 import WaterfallChart from './WaterfallChart'
@@ -9,9 +9,37 @@ interface ScoreWaterfallModalProps {
 	onClose: () => void
 }
 
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
 const ScoreWaterfallModal: React.FC<ScoreWaterfallModalProps> = ({ asset, onClose }) => {
+	const modalRef = useRef<HTMLDivElement>(null)
+	const closeBtnRef = useRef<HTMLButtonElement>(null)
+
+	// Fix 4: auto-focus close button when modal opens
 	useEffect(() => {
-		const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+		if (asset) closeBtnRef.current?.focus()
+	}, [asset])
+
+	// Fix 4: Escape to close + focus trap (Tab cycles within modal)
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') { onClose(); return }
+			if (e.key !== 'Tab' || !modalRef.current) return
+
+			const focusable = Array.from(
+				modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+			).filter(el => !el.hasAttribute('disabled'))
+
+			if (focusable.length === 0) return
+			const first = focusable[0]
+			const last = focusable[focusable.length - 1]
+
+			if (e.shiftKey) {
+				if (document.activeElement === first) { e.preventDefault(); last.focus() }
+			} else {
+				if (document.activeElement === last) { e.preventDefault(); first.focus() }
+			}
+		}
 		window.addEventListener('keydown', handler)
 		return () => window.removeEventListener('keydown', handler)
 	}, [onClose])
@@ -22,14 +50,14 @@ const ScoreWaterfallModal: React.FC<ScoreWaterfallModalProps> = ({ asset, onClos
 
 	return (
 		<div className="wf-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Score breakdown for ${asset.symbol}`}>
-			<div className="wf-modal" onClick={e => e.stopPropagation()}>
+			<div className="wf-modal" ref={modalRef} onClick={e => e.stopPropagation()}>
 				<div className="wf-modal-header">
 					<div className="wf-modal-title">
 						<span className="wf-symbol">{asset.symbol}</span>
 						<span className="wf-asset-name">{asset.name}</span>
 						<span className={`wf-score-badge ${scoreClass}`}>{asset.score.toFixed(1)} / 100</span>
 					</div>
-					<button className="wf-close-btn" onClick={onClose} aria-label="Close breakdown">
+					<button ref={closeBtnRef} className="wf-close-btn" onClick={onClose} aria-label="Close breakdown">
 						<X size={16} />
 					</button>
 				</div>

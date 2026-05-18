@@ -154,10 +154,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 					const textClass = score >= 70 ? "status-high" : score >= 40 ? "status-medium" : "status-low"
 
 					return (
-						<div
+						<button
+							type="button"
 							className="score-container score-container--clickable"
 							onClick={e => { e.stopPropagation(); setWaterfallAsset(asset) }}
 							title="Click to see score breakdown"
+							aria-label={`${asset.symbol} score ${score.toFixed(1)}%, click to see breakdown`}
 						>
 							<div className="score-bar-bg">
 								<div
@@ -168,7 +170,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 							<span className={`score-text ${textClass}`}>
 								{score.toFixed(1)}%
 							</span>
-						</div>
+						</button>
 					)
 				},
 			}),
