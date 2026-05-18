@@ -41,7 +41,7 @@ class CSVReporter(BaseReporter):
 					asset_type_str = (
 						str(asset_type.value)
 						if hasattr(asset_type, "value")
-						else str(asset_type)
+						else (str(asset_type) if asset_type is not None else "")
 					)
 
 					row = {

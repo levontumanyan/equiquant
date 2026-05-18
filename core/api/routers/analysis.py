@@ -160,7 +160,8 @@ async def analyze_assets(request: AnalysisRequest):
 		raise HTTPException(status_code=400, detail="No tickers provided")
 
 	db_path = _initialize_stats(tickers)
-	_, missing_tickers = _split_tickers(tickers)
+	# _split_tickers also records cache_hits / api_attempts on stats as a side effect
+	_cached_tickers, missing_tickers = _split_tickers(tickers)
 
 	if missing_tickers:
 		stats.start_stage("Data Acquisition")

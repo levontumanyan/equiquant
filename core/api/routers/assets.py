@@ -61,7 +61,7 @@ async def create_group(request: GroupRequest):
 		raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/groups/{name}")
+@router.delete("/groups/{name}")
 async def delete_group(name: str):
 	"""Delete a custom stock group."""
 	try:

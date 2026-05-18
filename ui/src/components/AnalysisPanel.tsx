@@ -320,7 +320,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 				const a = document.createElement('a')
 				a.href = url
 				const contentDisposition = response.headers.get('content-disposition')
-				a.download = contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || `export.${format}`
+				a.download = contentDisposition?.split('filename=')[1]?.split(';')[0]?.replace(/"/g, '').trim() || `export.${format}`
 				document.body.appendChild(a)
 				a.click()
 				a.remove()

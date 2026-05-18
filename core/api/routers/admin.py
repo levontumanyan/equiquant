@@ -1,6 +1,6 @@
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 from core.api.deps import repo
@@ -11,8 +11,8 @@ router = APIRouter(prefix="/api")
 
 
 @router.post("/export")
-async def export_results(request: ExportRequest):
-	"""Generate and return a report file."""
+async def export_results(request: ExportRequest, background_tasks: BackgroundTasks):
+	"""Generate and return a report file, removing it from disk after the response is sent."""
 	try:
 		path = generate_report(
 			results=request.results,
@@ -21,11 +21,21 @@ async def export_results(request: ExportRequest):
 			index_name=request.index_name,
 			profile=request.profile,
 		)
+		background_tasks.add_task(os.unlink, path)
 		return FileResponse(
 			path,
 			filename=os.path.basename(path),
 			media_type="application/octet-stream",
 		)
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/stats")
+async def get_admin_stats():
+	"""Aggregate statistics across all sessions and the asset cache."""
+	try:
+		return repo.get_aggregate_stats()
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 

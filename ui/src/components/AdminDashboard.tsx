@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { API_BASE_URL } from '../config'
 import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText } from 'lucide-react'
 import './AdminDashboard.css'
+
+interface AggregateStats {
+	total_sessions: number;
+	total_analyzed: number;
+	total_cache_hits: number;
+	total_api_attempts: number;
+	total_errors: number;
+	avg_duration_s: number;
+	asset_counts: Record<string, number>;
+}
 
 interface TelemetryEntry {
 	id: number;
@@ -17,6 +27,7 @@ interface TelemetryEntry {
 
 const AdminDashboard: React.FC = () => {
 	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database'>('telemetry')
+	const [aggStats, setAggStats] = useState<AggregateStats | null>(null)
 	const [telemetry, setTelemetry] = useState<TelemetryEntry[]>([])
 	const [selectedEntry, setSelectedEntry] = useState<TelemetryEntry | null>(null)
 	const [dbTable, setDbTable] = useState<string>('assets')
@@ -25,6 +36,15 @@ const AdminDashboard: React.FC = () => {
 	const [error, setError] = useState<string | null>(null)
 
 	const tables = ['assets', 'indices', 'analysis_snapshots', 'global_benchmarks', 'sector_benchmarks', 'investor_profiles', 'groups', 'session_telemetry']
+
+	const fetchAggStats = async () => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/stats`)
+			if (res.ok) setAggStats(await res.json())
+		} catch {
+			// non-critical — silently skip if stats unavailable
+		}
+	}
 
 	const fetchTelemetry = async () => {
 		setIsLoading(true)
@@ -53,8 +73,15 @@ const AdminDashboard: React.FC = () => {
 	}
 
 	useEffect(() => {
+		fetchAggStats()
+	}, [])
+
+	useEffect(() => {
 		if (activeSubTab === 'telemetry') fetchTelemetry()
-		else fetchDbData(dbTable)
+	}, [activeSubTab])
+
+	useEffect(() => {
+		if (activeSubTab === 'database') fetchDbData(dbTable)
 	}, [activeSubTab, dbTable])
 
 	return (
@@ -64,8 +91,42 @@ const AdminDashboard: React.FC = () => {
 					<Server size={24} className="admin-icon" />
 					<h1>System Administration</h1>
 				</div>
-				<p className="admin-desc">Monitor system performance and inspect raw database records.</p>
-			</div>
+				</div>
+
+			{aggStats && (
+				<div className="stats-cards">
+					<div className="stat-card">
+						<label>Sessions</label>
+						<span>{aggStats.total_sessions}</span>
+					</div>
+					<div className="stat-card">
+						<label>Tickers Analyzed</label>
+						<span>{aggStats.total_analyzed.toLocaleString()}</span>
+					</div>
+					<div className="stat-card">
+						<label>Cache Hits</label>
+						<span className="text-green">{aggStats.total_cache_hits.toLocaleString()}</span>
+					</div>
+					<div className="stat-card">
+						<label>API Calls</label>
+						<span className="text-cyan">{aggStats.total_api_attempts.toLocaleString()}</span>
+					</div>
+					<div className="stat-card">
+						<label>Avg Duration</label>
+						<span>{aggStats.avg_duration_s}s</span>
+					</div>
+					<div className="stat-card">
+						<label>Errors</label>
+						<span className={aggStats.total_errors > 0 ? 'text-red' : ''}>{aggStats.total_errors}</span>
+					</div>
+					{Object.entries(aggStats.asset_counts).map(([type, count]) => (
+						<div key={type} className="stat-card">
+							<label>{type || 'Unknown'}</label>
+							<span>{count}</span>
+						</div>
+					))}
+				</div>
+			)}
 
 			<div className="admin-nav">
 				<button 
@@ -125,6 +186,7 @@ const AdminDashboard: React.FC = () => {
 											title="Click to view detailed metrics"
 										>
 											<td className="dim">{entry.id}</td>
+											{/* SQLite CURRENT_TIMESTAMP is UTC — appending Z is correct */}
 											<td>{new Date(entry.timestamp + 'Z').toLocaleString()}</td>
 											<td>{entry.duration_s.toFixed(2)}s</td>
 											<td>{entry.total_tickers}</td>
@@ -214,7 +276,13 @@ const AdminDashboard: React.FC = () => {
 									<span>Raw Metrics Payload</span>
 								</div>
 								<pre>
-									{JSON.stringify(JSON.parse(selectedEntry.metrics_json), null, 2)}
+									{(() => {
+										try {
+											return JSON.stringify(JSON.parse(selectedEntry.metrics_json), null, 2)
+										} catch {
+											return selectedEntry.metrics_json ?? '(no metrics)'
+										}
+									})()}
 								</pre>
 							</div>
 						</div>

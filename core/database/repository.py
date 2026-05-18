@@ -501,6 +501,32 @@ class DatabaseRepository:
 			)
 			return [row["version"] for row in cursor.fetchall()]
 
+	def get_aggregate_stats(self) -> dict:
+		"""Return aggregate statistics across all sessions and the asset cache."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT
+					COUNT(*)                    AS total_sessions,
+					COALESCE(SUM(analyzed_tickers), 0) AS total_analyzed,
+					COALESCE(SUM(cache_hits), 0)       AS total_cache_hits,
+					COALESCE(SUM(api_attempts), 0)     AS total_api_attempts,
+					COALESCE(SUM(errors), 0)           AS total_errors,
+					COALESCE(ROUND(AVG(duration_s), 2), 0) AS avg_duration_s
+				FROM session_telemetry
+				"""
+			)
+			telemetry = dict(cursor.fetchone())
+			cursor.execute(
+				"SELECT asset_type, COUNT(*) AS count FROM assets GROUP BY asset_type"
+			)
+			asset_counts = {
+				row["asset_type"]: row["count"] for row in cursor.fetchall()
+			}
+			return {**telemetry, "asset_counts": asset_counts}
+
 	def get_telemetry_history(self, limit: int = 50) -> List[dict]:
 		"""Get historical session telemetry."""
 		with self._lock:
@@ -533,6 +559,9 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			assert table_name in allowed_tables, (
+				f"Table '{table_name}' is not in the allowlist"
+			)  # nosec B101
 			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
 			return [dict(row) for row in cursor.fetchall()]
 
