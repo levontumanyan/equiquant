@@ -127,6 +127,44 @@ class SessionStats:
 		self.mutex_wait_times: Dict[str, float] = {}
 		self.session_fetches: Set[str] = set()
 
+	def reset(self):
+		"""Reset all counters and maps for a new execution session."""
+		with self._lock:
+			self.cache_hits = 0
+			self.api_attempts = 0
+			self.api_successes = 0
+			self.http_requests = 0
+			self.errors = 0
+			self.stage_times = {}
+			self._stage_starts = {}
+			self.total_start_time = time.time()
+			self.endpoint_counts = {}
+			self.endpoint_latencies = {}
+			self.io_time_total = 0.0
+			self.scoring_time_total = 0.0
+			self.cooldown_time_total = 0.0
+			self.rate_limit_errors = 0
+			self.artifacts = set()
+			self.data_coverage = {}
+			self.error_types = {}
+			self.retry_attempts = 0
+			self.retry_successes = 0
+			self.bulk_fetch_symbols = 0
+			self.fallback_fetch_symbols = 0
+			self.initial_db_size = 0
+			self.final_db_size = 0
+			self.db_snapshots = 0
+			self.total_tickers = 0
+			self.analyzed_tickers = 0
+			self.pool_active_workers = 0
+			self.pool_peak_workers = 0
+			self.pool_tasks_submitted = 0
+			self.pool_tasks_completed = 0
+			self.pool_queued_time_total = 0.0
+			self.pool_worker_time_total = 0.0
+			self.mutex_wait_times = {}
+			self.session_fetches = set()
+
 	@property
 	def api_calls(self) -> int:
 		"""Legacy support for api_calls property, maps to attempts."""

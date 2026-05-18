@@ -23,15 +23,17 @@ def generate_report(
 
 	# Determine the identifier
 	if index_name:
-		identifier = index_name.upper()
+		identifier = index_name.lower()
 	elif len(tickers) == 1:
-		identifier = tickers[0].upper()
+		identifier = tickers[0].lower()
 	else:
-		identifier = f"portfolio_{len(tickers)}"
+		identifier = f"portfolio-{len(tickers)}"
 
-	timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+	timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 	extension = fmt.lower()
-	filename = f"{identifier}_{timestamp}.{extension}"
+	filename = (
+		f"equiquant-analysis-{identifier}-{profile.lower()}-{timestamp}.{extension}"
+	)
 	output_path = os.path.join(base_dir, filename)
 
 	if extension == "csv":

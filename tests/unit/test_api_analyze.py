@@ -12,8 +12,8 @@ client = TestClient(app)
 def mock_orchestrator():
 	"""Fixture providing mocked orchestrator dependencies."""
 	with (
-		patch("core.api.orchestrator_fetch_data") as mock_fetch,
-		patch("core.api.run_bulk_analysis") as mock_analyze,
+		patch("core.api.routers.analysis.orchestrator_fetch_data") as mock_fetch,
+		patch("core.api.routers.analysis.run_bulk_analysis") as mock_analyze,
 		patch(
 			"core.database.repository.DatabaseRepository.should_use_db_cache"
 		) as mock_cache,
@@ -34,7 +34,13 @@ def test_analyze_tickers_all_cached(mock_orchestrator):
 	mock_fetch, mock_analyze, mock_cache = mock_orchestrator
 	mock_cache.return_value = True
 	mock_analyze.return_value = [
-		{"symbol": "AAPL", "name": "Apple Inc.", "score": 85.0, "results": []}
+		{
+			"symbol": "AAPL",
+			"name": "Apple Inc.",
+			"score": 85.0,
+			"asset_type": "STOCK",
+			"results": [],
+		}
 	]
 
 	payload = {"tickers": ["AAPL"], "profile": "growth", "benchmark_version": "1.0.0"}
@@ -59,7 +65,13 @@ def test_analyze_tickers_needs_fetching(mock_orchestrator):
 	mock_fetch, mock_analyze, mock_cache = mock_orchestrator
 	mock_cache.return_value = False  # All need fetching
 	mock_analyze.return_value = [
-		{"symbol": "MSFT", "name": "Microsoft Corp.", "score": 75.0, "results": []}
+		{
+			"symbol": "MSFT",
+			"name": "Microsoft Corp.",
+			"score": 75.0,
+			"asset_type": "STOCK",
+			"results": [],
+		}
 	]
 
 	payload = {"tickers": ["MSFT"], "profile": "balanced"}
@@ -101,6 +113,7 @@ _MOCK_RESULT = {
 	"sector": "Technology",
 	"industry": "Consumer Electronics",
 	"score": 85.0,
+	"asset_type": "STOCK",
 	"results": [],
 }
 
@@ -119,8 +132,8 @@ def mock_stream_orchestrator():
 			yield _MOCK_RESULT
 
 	with (
-		patch("core.api.orchestrator_fetch_data") as mock_fetch,
-		patch("core.api.stream_bulk_analysis") as mock_stream,
+		patch("core.api.routers.analysis.orchestrator_fetch_data") as mock_fetch,
+		patch("core.api.routers.analysis.stream_bulk_analysis") as mock_stream,
 		patch(
 			"core.database.repository.DatabaseRepository.should_use_db_cache"
 		) as mock_cache,
@@ -136,9 +149,9 @@ def _parse_sse_lines(text: str) -> list[dict]:
 	current: dict = {}
 	for line in text.splitlines():
 		if line.startswith("event:"):
-			current["event"] = line[len("event:"):].strip()
+			current["event"] = line[len("event:") :].strip()
 		elif line.startswith("data:"):
-			current["data"] = line[len("data:"):].strip()
+			current["data"] = line[len("data:") :].strip()
 		elif line == "" and current:
 			events.append(current)
 			current = {}

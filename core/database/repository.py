@@ -475,6 +475,67 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
+	def get_latest_analysis(self, symbol: str) -> Optional[dict]:
+		"""Get the most recent analysis snapshot for a symbol."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT * FROM analysis_snapshots 
+				WHERE symbol = ? 
+				ORDER BY timestamp DESC LIMIT 1
+				""",
+				(symbol.upper(),),
+			)
+			row = cursor.fetchone()
+			return dict(row) if row else None
+
+	def get_benchmark_versions(self) -> List[str]:
+		"""Get all unique benchmark versions from the database."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT DISTINCT version FROM global_benchmarks ORDER BY version DESC"
+			)
+			return [row["version"] for row in cursor.fetchall()]
+
+	def get_telemetry_history(self, limit: int = 50) -> List[dict]:
+		"""Get historical session telemetry."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT * FROM session_telemetry 
+				ORDER BY timestamp DESC LIMIT ?
+				""",
+				(limit,),
+			)
+			return [dict(row) for row in cursor.fetchall()]
+
+	def get_table_data(self, table_name: str, limit: int = 100) -> List[dict]:
+		"""Get raw data from a specified table (sanitized table names only)."""
+		allowed_tables = {
+			"assets",
+			"indices",
+			"analysis_snapshots",
+			"sector_benchmarks",
+			"global_benchmarks",
+			"investor_profiles",
+			"session_telemetry",
+			"groups",
+		}
+		if table_name not in allowed_tables:
+			raise ValueError(f"Access to table '{table_name}' is not allowed.")
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+			return [dict(row) for row in cursor.fetchall()]
+
 	def upsert_sector_benchmark(
 		self,
 		sector: str,

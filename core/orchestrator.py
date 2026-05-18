@@ -162,6 +162,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 				batch, current_cooldown
 			)
 			if success:
+				stats.api_successes += len(data)
 				if repo:
 					for symbol, payload in data.items():
 						try:
@@ -195,6 +196,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 				try:
 					success, _, data = task.result()
 					if success:
+						stats.api_successes += len(data)
 						if repo:
 							for symbol, payload in data.items():
 								try:

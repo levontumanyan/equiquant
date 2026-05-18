@@ -5,7 +5,7 @@ import ResultsGrid from './ResultsGrid'
 import CorrelationMap from './CorrelationMap'
 import SmartHeatmap from './SmartHeatmap'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard, FileText } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -43,7 +43,8 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 	const [showNewGroup, setShowNewGroup] = useState(false)
 	const [newGroupName, setNewGroupName] = useState('')
-	const [newGroupTickers, setNewGroupTickers] = useState('')
+	const [newGroupTickers, setNewGroupTickers] = useState<string[]>([])
+	const [newGroupSearch, setNewGroupSearch] = useState('')
 	const [newGroupDesc, setNewGroupDesc] = useState('')
 	const [groupSaveStatus, setGroupSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
 
@@ -51,6 +52,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [showSettings, setShowSettings] = useState(false)
 	const [viewMode, setViewMode] = useState<'grid' | 'explorer' | 'heatmap'>('grid')
 	const [heatmapFilter, setHeatmapFilter] = useState('')
+	const [isExporting, setIsExporting] = useState<string | null>(null)
 
 	const loadGroups = useCallback(async () => {
 		try {
@@ -119,19 +121,19 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 
 	const handleSaveGroup = async () => {
 		const name = newGroupName.trim()
-		const tickerList = newGroupTickers.split(',').map(t => t.trim()).filter(Boolean)
-		if (!name || tickerList.length === 0) return
+		if (!name || newGroupTickers.length === 0) return
 
 		setGroupSaveStatus('saving')
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/groups`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, tickers: tickerList, description: newGroupDesc.trim() || null }),
+				body: JSON.stringify({ name, tickers: newGroupTickers, description: newGroupDesc.trim() || null }),
 			})
 			if (res.ok) {
 				setNewGroupName('')
-				setNewGroupTickers('')
+				setNewGroupTickers([])
+				setNewGroupSearch('')
 				setNewGroupDesc('')
 				setShowNewGroup(false)
 				setGroupSaveStatus('idle')
@@ -144,6 +146,34 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 			console.error('Network error saving group:', err)
 			setGroupSaveStatus('error')
 		}
+	}
+
+	const newGroupFilteredAssets = useMemo(() => {
+		if (!newGroupSearch) return []
+		const search = newGroupSearch.toUpperCase()
+		return availableAssets
+			.filter(a => {
+				const symbol = a.symbol?.toUpperCase() || ''
+				const name = a.name?.toUpperCase() || ''
+				return (symbol.includes(search) || name.includes(search)) &&
+					!newGroupTickers.includes(a.symbol)
+			})
+			.slice(0, 8)
+	}, [newGroupSearch, availableAssets, newGroupTickers])
+
+	const addNewGroupTicker = (symbol: string) => {
+		const input = symbol.toUpperCase().trim()
+		if (!input) return
+
+		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !newGroupTickers.includes(s))
+		if (newSymbols.length > 0) {
+			setNewGroupTickers([...newGroupTickers, ...newSymbols])
+		}
+		setNewGroupSearch('')
+	}
+
+	const removeNewGroupTicker = (symbol: string) => {
+		setNewGroupTickers(newGroupTickers.filter(t => t !== symbol))
 	}
 
 	const filteredAssets = useMemo(() => {
@@ -160,9 +190,12 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	}, [assetSearch, availableAssets, tickers])
 
 	const addTicker = (symbol: string) => {
-		const s = symbol.toUpperCase().trim()
-		if (s && !tickers.includes(s)) {
-			setTickers([...tickers, s])
+		const input = symbol.toUpperCase().trim()
+		if (!input) return
+
+		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !tickers.includes(s))
+		if (newSymbols.length > 0) {
+			setTickers([...tickers, ...newSymbols])
 		}
 		setAssetSearch('')
 		setManualInput('')
@@ -266,6 +299,42 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setProgress(null)
 	}
 
+	const handleExport = async (format: 'csv' | 'txt') => {
+		if (results.length === 0) return
+		setIsExporting(format)
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/export`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					results,
+					format,
+					profile,
+					tickers,
+					index_name: selectedGroups.size === 1 ? Array.from(selectedGroups)[0] : null
+				}),
+			})
+			if (response.ok) {
+				const blob = await response.blob()
+				const url = window.URL.createObjectURL(blob)
+				const a = document.createElement('a')
+				a.href = url
+				const contentDisposition = response.headers.get('content-disposition')
+				a.download = contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || `export.${format}`
+				document.body.appendChild(a)
+				a.click()
+				a.remove()
+				window.URL.revokeObjectURL(url)
+			} else {
+				console.error('Export failed:', await response.text())
+			}
+		} catch (err) {
+			console.error('Export error:', err)
+		} finally {
+			setIsExporting(null)
+		}
+	}
+
 	const systemGroups = groups.filter(g => g.is_system)
 	const customGroups = groups.filter(g => !g.is_system)
 
@@ -308,19 +377,66 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 												onChange={e => setNewGroupDesc(e.target.value)}
 												className="group-input"
 											/>
-											<input
-												type="text"
-												placeholder="Tickers: AAPL, MSFT, GOOGL…"
-												value={newGroupTickers}
-												onChange={e => setNewGroupTickers(e.target.value)}
-												className="group-input group-input--mono"
-											/>
+											
+											{/* Unified Ticker Picker for New Group */}
+											<div className="ticker-picker ticker-picker--compact">
+												<div className="search-bar">
+													<Search size={14} className="search-icon" />
+													<input
+														type="text"
+														value={newGroupSearch}
+														onChange={(e) => setNewGroupSearch(e.target.value)}
+														onKeyDown={(e) => {
+															if (e.key === 'Enter') {
+																e.preventDefault()
+																addNewGroupTicker(newGroupSearch)
+															}
+														}}
+														placeholder="Add tickers to group"
+														className="ticker-input"
+													/>
+													{newGroupSearch && (
+														<button className="add-manual-btn" onClick={() => addNewGroupTicker(newGroupSearch)}>
+															<Plus size={14} />
+														</button>
+													)}
+												</div>
+
+												{newGroupFilteredAssets.length > 0 && (
+													<div className="asset-dropdown">
+														{newGroupFilteredAssets.map(asset => (
+															<button
+																key={asset.symbol}
+																className="dropdown-item"
+																onClick={() => addNewGroupTicker(asset.symbol)}
+															>
+																<span className="item-symbol">{asset.symbol}</span>
+																<span className="item-name">{asset.name}</span>
+															</button>
+														))}
+													</div>
+												)}
+
+												<div className="ticker-chips">
+													{newGroupTickers.map(t => (
+														<div key={t} className="ticker-chip">
+															<span>{t}</span>
+															<button onClick={() => removeNewGroupTicker(t)} className="remove-chip">
+																<X size={10} />
+															</button>
+														</div>
+													))}
+													{newGroupTickers.length === 0 && (
+														<p className="empty-chips-text">No tickers added</p>
+													)}
+												</div>
+											</div>
 										</div>
 										<div className="new-group-actions">
 											<button
 												className="save-group-btn"
 												onClick={handleSaveGroup}
-												disabled={groupSaveStatus === 'saving' || !newGroupName.trim() || !newGroupTickers.trim()}
+												disabled={groupSaveStatus === 'saving' || !newGroupName.trim() || newGroupTickers.length === 0}
 											>
 												{groupSaveStatus === 'saving' ? 'Saving…' : 'Save Group'}
 											</button>
@@ -520,31 +636,52 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 				{/* Results Column */}
 				<div className="results-column">
 					{results.length > 0 && (
-						<div className="view-toggle">
-							<button
-								className={`view-toggle-btn${viewMode === 'grid' ? ' active' : ''}`}
-								onClick={() => setViewMode('grid')}
-								title="Data Grid"
-							>
-								<LayoutGrid size={13} />
-								Grid
-							</button>
-							<button
-								className={`view-toggle-btn${viewMode === 'heatmap' ? ' active' : ''}`}
-								onClick={() => setViewMode('heatmap')}
-								title="Sector Heatmap"
-							>
-								<LayoutDashboard size={13} />
-								Heatmap
-							</button>
-							<button
-								className={`view-toggle-btn${viewMode === 'explorer' ? ' active' : ''}`}
-								onClick={() => setViewMode('explorer')}
-								title="Cluster Map"
-							>
-								<Network size={13} />
-								Cluster Map
-							</button>
+						<div className="results-header-actions">
+							<div className="view-toggle">
+								<button
+									className={`view-toggle-btn${viewMode === 'grid' ? ' active' : ''}`}
+									onClick={() => setViewMode('grid')}
+									title="Data Grid"
+								>
+									<LayoutGrid size={13} />
+									Grid
+								</button>
+								<button
+									className={`view-toggle-btn${viewMode === 'heatmap' ? ' active' : ''}`}
+									onClick={() => setViewMode('heatmap')}
+									title="Sector Heatmap"
+								>
+									<LayoutDashboard size={13} />
+									Heatmap
+								</button>
+								<button
+									className={`view-toggle-btn${viewMode === 'explorer' ? ' active' : ''}`}
+									onClick={() => setViewMode('explorer')}
+									title="Cluster Map"
+								>
+									<Network size={13} />
+									Cluster Map
+								</button>
+							</div>
+
+							<div className="export-actions">
+								<button 
+									className="export-btn" 
+									onClick={() => handleExport('csv')}
+									disabled={isExporting !== null}
+								>
+									{isExporting === 'csv' ? <Loader2 size={13} className="spin" /> : <FileText size={13} />}
+									Export CSV
+								</button>
+								<button 
+									className="export-btn" 
+									onClick={() => handleExport('txt')}
+									disabled={isExporting !== null}
+								>
+									{isExporting === 'txt' ? <Loader2 size={13} className="spin" /> : <FileText size={13} />}
+									Export TXT
+								</button>
+							</div>
 						</div>
 					)}
 					{results.length === 0 || viewMode === 'grid'

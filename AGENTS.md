@@ -11,7 +11,8 @@
 - **Location**: Adopt the Encapsulated Sibling Pattern. Create worktrees as siblings to the main/ directory, contained within the master project folder.
 
 ## Architecture Mandates
-- **Modularity**: All logic belongs in `core/`. `analyze.py` is for CLI orchestration only.
+- **Modularity**: All logic belongs in `core/`.
+- **DEPRECATION WARNING**: `analyze.py` is being **decommissioned** (Epic #159). Do NOT add new logic to it, and ensure no new functionality relies on it. All orchestration should flow through `core/api.py`.
 - **Functional Style**: Prefer pure functions. Every new logic component must be its own function.
 - **Scalability**: New data sources inherit `BaseProvider`; new metrics update `mappings.py` and `AssetData`.
 - **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
