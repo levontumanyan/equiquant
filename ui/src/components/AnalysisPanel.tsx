@@ -13,6 +13,7 @@ interface Asset {
 	symbol: string;
 	name: string;
 	sector: string | null;
+	asset_type: string | null;
 }
 
 interface Group {
@@ -49,6 +50,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [newGroupDesc, setNewGroupDesc] = useState('')
 	const [groupSaveStatus, setGroupSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
 
+	const [indexExpansion, setIndexExpansion] = useState<string | null>(null)
 	const [provider, setProvider] = useState('openbb')
 	const [showSettings, setShowSettings] = useState(false)
 	const [viewMode, setViewMode] = useState<'grid' | 'explorer' | 'heatmap'>('grid')
@@ -202,11 +204,36 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setTickers(tickers.filter(t => t !== symbol))
 	}
 
-	const handleManualSubmit = (e: React.KeyboardEvent) => {
-		if (e.key === 'Enter') {
-			e.preventDefault()
-			addTicker(manualInput)
+	const commitTicker = async (raw: string) => {
+		const s = raw.toUpperCase().trim()
+		if (!s) return
+		setManualInput('')
+		setAssetSearch('')
+		setIndexExpansion(null)
+		const assetType = availableAssets.find(a => a.symbol === s)?.asset_type?.toUpperCase()
+		const knownStock = assetType === 'STOCK' || assetType === 'EQUITY'
+		if (!knownStock) {
+			try {
+				const res = await fetch(`${API_BASE_URL}/api/indices/${encodeURIComponent(s)}/constituents`)
+				if (res.ok) {
+					const constituents: string[] = await res.json()
+					if (constituents.length > 1) {
+						const fresh = constituents.filter(t => !tickers.includes(t))
+						setTickers(prev => [...prev, ...fresh])
+						setIndexExpansion(`${s} → ${constituents.length} tickers`)
+						setTimeout(() => setIndexExpansion(null), 3000)
+						return
+					}
+				}
+			} catch { /* fall through to add as single ticker */ }
 		}
+		addTicker(s)
+	}
+
+	const handleManualSubmit = (e: React.KeyboardEvent) => {
+		if (e.key !== 'Enter') return
+		e.preventDefault()
+		commitTicker(manualInput)
 	}
 
 	const handleRunAnalysis = async () => {
@@ -495,15 +522,20 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 											setManualInput(e.target.value)
 										}}
 										onKeyDown={handleManualSubmit}
-										placeholder="Search or type ticker"
+										placeholder="Search or type ticker / index"
 										className="ticker-input"
 									/>
 									{manualInput && (
-										<button className="add-manual-btn" onClick={() => addTicker(manualInput)}>
+										<button className="add-manual-btn" onClick={() => commitTicker(manualInput)}>
 											<Plus size={14} />
 										</button>
 									)}
 								</div>
+								{indexExpansion && (
+									<div className="index-expansion-toast">
+										⚡ Expanded {indexExpansion}
+									</div>
+								)}
 
 								{filteredAssets.length > 0 && (
 									<div className="asset-dropdown">
