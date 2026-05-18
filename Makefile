@@ -128,7 +128,7 @@ setup: ensure-uv
 # UI & API Management
 ui-server: ensure-uv
 	@echo "Starting EquiQuant API Server on http://0.0.0.0:$(API_PORT)"
-	@uv run uvicorn core.api:app --reload --host 0.0.0.0 --port $(API_PORT)
+	@uv run uvicorn core.api:app --reload --reload-exclude ".venv" --host 0.0.0.0 --port $(API_PORT)
 
 ui-dev: ensure-uv
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"

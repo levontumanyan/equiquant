@@ -13,6 +13,7 @@ import type { AssetAnalysis } from '../types'
 import { ChevronDown, ChevronUp, Settings2, Search, Maximize2, Minimize2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 import RawMetricsDrawer from './RawMetricsDrawer'
+import ScoreWaterfallModal from './ScoreWaterfallModal'
 import './ResultsGrid.css'
 
 interface ResultsGridProps {
@@ -54,6 +55,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 	const [profileFilterActive, setProfileFilterActive] = useState(false)
 	const [preset, setPreset] = useState<'all' | 'none' | 'values' | 'strength'>('all')
 	const [selectedAsset, setSelectedAsset] = useState<AssetAnalysis | null>(null)
+	const [waterfallAsset, setWaterfallAsset] = useState<AssetAnalysis | null>(null)
 
 	const tableContainerRef = useRef<HTMLDivElement>(null)
 
@@ -147,13 +149,20 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 				size: COL_SIZES.score,
 				cell: info => {
 					const score = info.getValue()
+					const asset = info.row.original
 					const statusClass = score >= 70 ? "bg-high" : score >= 40 ? "bg-medium" : "bg-low"
 					const textClass = score >= 70 ? "status-high" : score >= 40 ? "status-medium" : "status-low"
-					
+
 					return (
-						<div className="score-container">
+						<button
+							type="button"
+							className="score-container score-container--clickable"
+							onClick={e => { e.stopPropagation(); setWaterfallAsset(asset) }}
+							title="Click to see score breakdown"
+							aria-label={`${asset.symbol} score ${score.toFixed(1)}%, click to see breakdown`}
+						>
 							<div className="score-bar-bg">
-								<div 
+								<div
 									className={`score-bar-fill ${statusClass}`}
 									style={{ width: `${score}%` }}
 								/>
@@ -161,7 +170,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 							<span className={`score-text ${textClass}`}>
 								{score.toFixed(1)}%
 							</span>
-						</div>
+						</button>
 					)
 				},
 			}),
@@ -453,6 +462,10 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		<RawMetricsDrawer
 			asset={selectedAsset}
 			onClose={() => setSelectedAsset(null)}
+		/>
+		<ScoreWaterfallModal
+			asset={waterfallAsset}
+			onClose={() => setWaterfallAsset(null)}
 		/>
 		</>
 	)
