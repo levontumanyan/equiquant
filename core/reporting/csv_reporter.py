@@ -36,11 +36,19 @@ class CSVReporter(BaseReporter):
 				writer.writeheader()
 
 				for res in all_results:
+					# Handle asset_type as Enum or string
+					asset_type = res.get("asset_type")
+					asset_type_str = (
+						str(asset_type.value)
+						if hasattr(asset_type, "value")
+						else (str(asset_type) if asset_type is not None else "")
+					)
+
 					row = {
 						"Symbol": res["symbol"],
 						"Name": res["name"],
 						"Profile": profile.upper(),
-						"Asset Type": str(res["asset_type"].value),
+						"Asset Type": asset_type_str,
 						"Total Score (%)": f"{res['score']:.2f}",
 					}
 
@@ -58,6 +66,5 @@ class CSVReporter(BaseReporter):
 
 					writer.writerow(row)
 
-			console.print(f"[bold green]Results exported to {output_path}[/bold green]")
 		except Exception as e:
-			console.print(f"[bold red]Failed to export CSV: {e}[/bold red]")
+			raise RuntimeError(f"Failed to export CSV: {e}")

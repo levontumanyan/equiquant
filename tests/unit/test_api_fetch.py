@@ -11,7 +11,7 @@ client = TestClient(app)
 @pytest.fixture
 def mock_fetch():
 	"""Fixture providing a mocked orchestrator_fetch_data function."""
-	with patch("core.api.orchestrator_fetch_data") as mock_fetch:
+	with patch("core.api.routers.assets.orchestrator_fetch_data") as mock_fetch:
 		# Setup mock_fetch as an async generator
 		async def mock_fetch_gen(tickers, repo=None):
 			# Yield in batches to simulate real behavior

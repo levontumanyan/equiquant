@@ -20,7 +20,7 @@ def test_generate_report_single_ticker(tmp_path):
 	output_path = generate_report(results, "csv", ["AAPL"], base_dir=str(reports_dir))
 
 	assert os.path.exists(output_path)
-	assert "AAPL_" in os.path.basename(output_path)
+	assert "equiquant-analysis-aapl-balanced" in os.path.basename(output_path)
 	assert output_path.endswith(".csv")
 
 
@@ -42,7 +42,7 @@ def test_generate_report_index(tmp_path):
 	)
 
 	assert os.path.exists(output_path)
-	assert "VOO_" in os.path.basename(output_path)
+	assert "equiquant-analysis-voo-balanced" in os.path.basename(output_path)
 	assert output_path.endswith(".txt")
 
 
@@ -64,5 +64,5 @@ def test_generate_report_portfolio(tmp_path):
 	)
 
 	assert os.path.exists(output_path)
-	assert "portfolio_3_" in os.path.basename(output_path)
+	assert "equiquant-analysis-portfolio-3-balanced" in os.path.basename(output_path)
 	assert output_path.endswith(".csv")

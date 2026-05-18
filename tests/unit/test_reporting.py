@@ -30,6 +30,32 @@ def test_csv_reporter_export(tmp_path):
 	assert "P/E Ratio" in content
 
 
+def test_csv_reporter_string_asset_type(tmp_path):
+	"""Verify that the CSV reporter handles string asset types (common in UI payloads)."""
+	output_path = tmp_path / "ui_report.csv"
+	reporter = CSVReporter()
+
+	results = [
+		{
+			"symbol": "TSLA",
+			"name": "Tesla",
+			"asset_type": "equity",  # String instead of Enum
+			"score": 42.0,
+			"results": [
+				{"name": "Volatility", "value": "50%", "status": "20%"},
+			],
+		}
+	]
+
+	reporter.export(results, str(output_path))
+
+	assert output_path.exists()
+	content = output_path.read_text()
+	assert "TSLA" in content
+	assert "equity" in content
+	assert "42.00" in content
+
+
 def test_txt_reporter_export(tmp_path):
 	output_path = tmp_path / "report.txt"
 	reporter = TXTReporter()

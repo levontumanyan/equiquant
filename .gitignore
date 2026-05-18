@@ -6,6 +6,7 @@ test-results/
 ui/test-results/
 reports-analyst/
 dump*.json
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

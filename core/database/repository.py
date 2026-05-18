@@ -475,6 +475,95 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
+	def get_latest_analysis(self, symbol: str) -> Optional[dict]:
+		"""Get the most recent analysis snapshot for a symbol."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT * FROM analysis_snapshots 
+				WHERE symbol = ? 
+				ORDER BY timestamp DESC LIMIT 1
+				""",
+				(symbol.upper(),),
+			)
+			row = cursor.fetchone()
+			return dict(row) if row else None
+
+	def get_benchmark_versions(self) -> List[str]:
+		"""Get all unique benchmark versions from the database."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT DISTINCT version FROM global_benchmarks ORDER BY version DESC"
+			)
+			return [row["version"] for row in cursor.fetchall()]
+
+	def get_aggregate_stats(self) -> dict:
+		"""Return aggregate statistics across all sessions and the asset cache."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT
+					COUNT(*)                    AS total_sessions,
+					COALESCE(SUM(analyzed_tickers), 0) AS total_analyzed,
+					COALESCE(SUM(cache_hits), 0)       AS total_cache_hits,
+					COALESCE(SUM(api_attempts), 0)     AS total_api_attempts,
+					COALESCE(SUM(errors), 0)           AS total_errors,
+					COALESCE(ROUND(AVG(duration_s), 2), 0) AS avg_duration_s
+				FROM session_telemetry
+				"""
+			)
+			telemetry = dict(cursor.fetchone())
+			cursor.execute(
+				"SELECT asset_type, COUNT(*) AS count FROM assets WHERE asset_type IS NOT NULL GROUP BY asset_type"
+			)
+			asset_counts = {
+				row["asset_type"]: row["count"] for row in cursor.fetchall()
+			}
+			return {**telemetry, "asset_counts": asset_counts}
+
+	def get_telemetry_history(self, limit: int = 50) -> List[dict]:
+		"""Get historical session telemetry."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT * FROM session_telemetry 
+				ORDER BY timestamp DESC LIMIT ?
+				""",
+				(limit,),
+			)
+			return [dict(row) for row in cursor.fetchall()]
+
+	_TABLE_QUERIES: dict[str, str] = {
+		"assets": "SELECT * FROM assets LIMIT ?",
+		"indices": "SELECT * FROM indices LIMIT ?",
+		"analysis_snapshots": "SELECT * FROM analysis_snapshots LIMIT ?",
+		"sector_benchmarks": "SELECT * FROM sector_benchmarks LIMIT ?",
+		"global_benchmarks": "SELECT * FROM global_benchmarks LIMIT ?",
+		"investor_profiles": "SELECT * FROM investor_profiles LIMIT ?",
+		"session_telemetry": "SELECT * FROM session_telemetry LIMIT ?",
+		"groups": "SELECT * FROM groups LIMIT ?",
+	}
+
+	def get_table_data(self, table_name: str, limit: int = 100) -> List[dict]:
+		"""Get raw data from a specified table (sanitized table names only)."""
+		query = self._TABLE_QUERIES.get(table_name)
+		if query is None:
+			raise ValueError(f"Access to table '{table_name}' is not allowed.")
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(query, (limit,))
+			return [dict(row) for row in cursor.fetchall()]
+
 	def upsert_sector_benchmark(
 		self,
 		sector: str,

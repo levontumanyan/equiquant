@@ -4,11 +4,12 @@ import './App.css'
 import ScoringExplorer from './components/ScoringExplorer'
 import ScoringStudio from './components/ScoringStudio'
 import AnalysisPanel from './components/AnalysisPanel'
+import AdminDashboard from './components/AdminDashboard'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
 	const [openbbReady, setOpenbbReady] = useState<boolean | null>(null)
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis' | 'admin'>('status')
 
 	useEffect(() => {
 		const handleNavigate = (e: any) => setActiveTab(e.detail)
@@ -80,6 +81,12 @@ function App() {
 					>
 						Functions
 					</button>
+					<button
+						className={activeTab === 'admin' ? 'active' : ''}
+						onClick={() => setActiveTab('admin')}
+					>
+						Admin
+					</button>
 				</nav>
 
 				<div className="header-right-slot" />
@@ -122,6 +129,12 @@ function App() {
 				{activeTab === 'analysis' && (
 					<section className="analysis-section">
 						<AnalysisPanel openbbReady={openbbReady} />
+					</section>
+				)}
+
+				{activeTab === 'admin' && (
+					<section className="admin-section">
+						<AdminDashboard />
 					</section>
 				)}
 
