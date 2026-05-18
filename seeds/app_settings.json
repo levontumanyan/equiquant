@@ -1,0 +1,26 @@
+[
+  {
+    "key": "market_open_ttl_s",
+    "value": "900",
+    "category": "data_caching",
+    "description": "Cache TTL in seconds when the market is open (default 15m)."
+  },
+  {
+    "key": "market_closed_ttl_s",
+    "value": "43200",
+    "category": "data_caching",
+    "description": "Cache TTL in seconds when the market is closed (default 12h)."
+  },
+  {
+    "key": "proxies",
+    "value": "",
+    "category": "network",
+    "description": "Comma-separated list of proxies (e.g., http://user:pass@host:port)."
+  },
+  {
+    "key": "log_level",
+    "value": "INFO",
+    "category": "logging",
+    "description": "Global logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)."
+  }
+]

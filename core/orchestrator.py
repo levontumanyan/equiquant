@@ -112,12 +112,14 @@ def _tracked_analyze_asset(
 
 
 def _fetch_batch_process_worker(
-	batch_tickers: List[str], current_cooldown: float = 5.0
+	batch_tickers: List[str],
+	current_cooldown: float = 5.0,
+	db_path: Optional[str] = None,
 ) -> Tuple[bool, float, Dict[str, Any]]:
 	"""Worker function for ProcessPoolExecutor to fetch data."""
 	from core.openbb_client import fetch_batch_with_backoff
 
-	return fetch_batch_with_backoff(batch_tickers, current_cooldown)
+	return fetch_batch_with_backoff(batch_tickers, current_cooldown, db_path=db_path)
 
 
 async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inherent to error-handling branches
@@ -141,6 +143,8 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 	if not batches:
 		return
 
+	db_path_str = str(repo.db.db_path) if repo else None
+
 	if use_processes:
 		# Pre-initialize OpenBB in main process to avoid concurrent build locks in workers.
 		# This ensures extensions are built and locked once before spawning parallel processes.
@@ -158,7 +162,7 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 		for batch in batches:
 			# PR Feedback: Correctly propagate cooldown between batches in sequential mode
 			success, current_cooldown, data = _fetch_batch_process_worker(
-				batch, current_cooldown
+				batch, current_cooldown, db_path=db_path_str
 			)
 			if success:
 				stats.api_successes += len(data)
@@ -179,7 +183,9 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
 		task_to_batch: Dict[asyncio.Future, List[str]] = {}
 		for batch in batches:
-			task = loop.run_in_executor(pool, _fetch_batch_process_worker, batch, 5.0)
+			task = loop.run_in_executor(
+				pool, _fetch_batch_process_worker, batch, 5.0, db_path_str
+			)
 			task_to_batch[task] = batch
 			# Stagger submission slightly for better responsiveness
 			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311

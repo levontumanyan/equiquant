@@ -28,7 +28,30 @@ class DatabaseSeeder:
 		self.seed_sector_benchmarks()
 		self.seed_profiles()
 		self.seed_groups()
+		self.seed_app_settings()
 		logger.info("Database seeding complete.")
+
+	def seed_app_settings(self):
+		"""Seed application settings."""
+		seed_file = SEEDS_DIR / "app_settings.json"
+		if not seed_file.exists():
+			logger.warning(f"Seed file not found: {seed_file}")
+			return
+
+		try:
+			with open(seed_file, "r") as f:
+				data = json.load(f)
+
+			for row in data:
+				self.repo.upsert_app_setting(
+					key=row["key"],
+					value=row["value"],
+					category=row.get("category", "general"),
+					description=row.get("description"),
+				)
+			logger.info(f"Seeded {len(data)} application settings.")
+		except Exception as e:
+			logger.error(f"Failed to seed application settings: {e}")
 
 	def seed_assets(self):
 		"""Seed the asset registry (ticker universe)."""

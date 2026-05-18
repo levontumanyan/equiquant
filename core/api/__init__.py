@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.api.routers import admin, analysis, assets, config
-from core.logger import SERVER_LOG_FILE, get_logger, setup_logging
+from core.logger import SERVER_LOG_FILE, get_logger, set_log_level, setup_logging
 
 logger = get_logger(__name__)
 _openbb_ready = False
@@ -16,6 +16,18 @@ async def lifespan(_app: FastAPI):
 	"""Configure logging, then warm up OpenBB synchronously in the main thread."""
 	global _openbb_ready
 	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
+
+	# Restore persisted log level from DB so restarts/reloads honour the saved setting
+	try:
+		from core.api.deps import repo
+
+		saved = repo.get_setting("log_level")
+		if saved:
+			set_log_level(saved)
+			logger.info("Restored log level from DB: %s", saved)
+	except Exception as e:
+		logger.warning("Could not restore log level from DB: %s", e)
+
 	try:
 		logger.info("Warming up OpenBB...")
 		from openbb import obb  # noqa: F401

@@ -61,6 +61,11 @@ class DatabaseManager:
 			logger.info("Seeding stock groups...")
 			seeder.seed_groups()
 
+		cursor.execute("SELECT COUNT(*) FROM app_settings")
+		if cursor.fetchone()[0] == 0:
+			logger.info("Seeding application settings...")
+			seeder.seed_app_settings()
+
 	def _create_tables(self):
 		"""Create schema tables."""
 		cursor = self.conn.cursor()
@@ -241,6 +246,17 @@ class DatabaseManager:
 				PRIMARY KEY (group_name, symbol),
 				FOREIGN KEY (group_name) REFERENCES groups(name) ON DELETE CASCADE,
 				FOREIGN KEY (symbol) REFERENCES assets(symbol)
+			)
+		""")
+
+		# Application Settings table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS app_settings (
+				key TEXT PRIMARY KEY,
+				value TEXT,
+				category TEXT,
+				description TEXT,
+				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
 			)
 		""")
 
