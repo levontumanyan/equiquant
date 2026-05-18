@@ -171,6 +171,19 @@
 	color: #4b5563;
 	font-size: 0.78rem;
 	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+}
+
+.raw-drawer-spinner {
+	animation: raw-spin 0.8s linear infinite;
+}
+
+@keyframes raw-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }
 
 .raw-drawer-table {
