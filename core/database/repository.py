@@ -562,7 +562,7 @@ class DatabaseRepository:
 			assert table_name in allowed_tables, (
 				f"Table '{table_name}' is not in the allowlist"
 			)  # nosec B101
-			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))  # nosec B608 — table_name validated against allowlist above
 			return [dict(row) for row in cursor.fetchall()]
 
 	def upsert_sector_benchmark(
