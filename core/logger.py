@@ -60,8 +60,8 @@ def setup_logging(
 		verbose: Enable DEBUG-level console output.
 		force_console: Always attach a console handler.
 		log_file: Override the log file path. Defaults to the per-run timestamped
-		          file (LOG_FILE). Pass SERVER_LOG_FILE for the API server so CLI
-		          and server logs stay separate.
+			file (LOG_FILE). Pass SERVER_LOG_FILE for the API server so CLI
+			and server logs stay separate.
 	"""
 	root_logger = logging.getLogger()
 	root_logger.setLevel(LOG_LEVEL)
@@ -101,3 +101,27 @@ def setup_logging(
 def get_logger(name: str) -> logging.Logger:
 	"""Return a logger with the specified name."""
 	return logging.getLogger(name)
+
+
+def set_log_level(level: str) -> str:
+	"""
+	Dynamically update the log level for the root logger and all its handlers.
+
+	Args:
+		level: One of DEBUG, INFO, WARNING, ERROR, CRITICAL (case-insensitive).
+
+	Returns:
+		The normalized level name that was applied.
+
+	Raises:
+		ValueError: If the level string is not recognized.
+	"""
+	normalized = level.upper().strip()
+	numeric = level_map.get(normalized)
+	if numeric is None:
+		raise ValueError(f"Unknown log level: {level!r}. Valid: {list(level_map)}")
+	root = logging.getLogger()
+	root.setLevel(numeric)
+	for handler in root.handlers:
+		handler.setLevel(numeric)
+	return normalized

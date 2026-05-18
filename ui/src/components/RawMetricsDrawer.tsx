@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Search, Copy, Check, X } from 'lucide-react'
+import { Search, Copy, Check, X, Loader2 } from 'lucide-react'
 import type { AssetAnalysis } from '../types'
 import './RawMetricsDrawer.css'
 
@@ -32,10 +32,32 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 	const [copied, setCopied] = useState(false)
 	const [expanded, setExpanded] = useState<Set<string>>(new Set())
 	const [hideNulls, setHideNulls] = useState(true)
+	const [rawData, setRawData] = useState<Record<string, unknown> | null>(null)
+	const [loading, setLoading] = useState(false)
+	const [fetchError, setFetchError] = useState<string | null>(null)
 
 	useEffect(() => {
 		setSearch('')
 		setExpanded(new Set())
+		setRawData(null)
+		setFetchError(null)
+
+		if (!asset) return
+
+		setLoading(true)
+		fetch(`/api/assets/${encodeURIComponent(asset.symbol)}/raw`)
+			.then(res => {
+				if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+				return res.json() as Promise<Record<string, unknown>>
+			})
+			.then(data => {
+				setRawData(data)
+				setLoading(false)
+			})
+			.catch(err => {
+				setFetchError((err as Error).message)
+				setLoading(false)
+			})
 	}, [asset?.symbol])
 
 	const toggleExpand = (key: string) =>
@@ -52,9 +74,9 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 	}, [onClose])
 
 	const allEntries = useMemo(() => {
-		if (!asset?.raw_metrics) return []
-		return Object.entries(asset.raw_metrics).sort(([a], [b]) => a.localeCompare(b))
-	}, [asset?.raw_metrics])
+		if (!rawData) return []
+		return Object.entries(rawData).sort(([a], [b]) => a.localeCompare(b))
+	}, [rawData])
 
 	const entries = useMemo(() => {
 		let result = allEntries
@@ -67,8 +89,8 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 	}, [allEntries, search, hideNulls])
 
 	const handleCopy = () => {
-		if (!asset?.raw_metrics) return
-		navigator.clipboard.writeText(JSON.stringify(asset.raw_metrics, null, 2))
+		if (!rawData) return
+		navigator.clipboard.writeText(JSON.stringify(rawData, null, 2))
 		setCopied(true)
 		setTimeout(() => setCopied(false), 2000)
 	}
@@ -91,6 +113,7 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 									className="raw-drawer-icon-btn"
 									onClick={handleCopy}
 									title="Copy raw JSON"
+									disabled={!rawData}
 								>
 									{copied ? <Check size={14} /> : <Copy size={14} />}
 								</button>
@@ -111,6 +134,7 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 								value={search}
 								onChange={e => setSearch(e.target.value)}
 								autoFocus
+								disabled={loading || !rawData}
 							/>
 							<span className="raw-drawer-count">
 								{entries.length} / {allEntries.length}
@@ -125,7 +149,15 @@ const RawMetricsDrawer: React.FC<RawMetricsDrawerProps> = ({ asset, onClose }) =
 						</div>
 
 						<div className="raw-drawer-body">
-							{!asset.raw_metrics ? (
+							{loading ? (
+								<p className="raw-drawer-empty">
+									<Loader2 size={14} className="raw-drawer-spinner" /> Loading…
+								</p>
+							) : fetchError ? (
+								<p className="raw-drawer-empty">
+									Failed to load: {fetchError}
+								</p>
+							) : !rawData ? (
 								<p className="raw-drawer-empty">
 									No raw data — re-run analysis to populate.
 								</p>

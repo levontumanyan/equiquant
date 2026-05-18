@@ -1,13 +1,22 @@
+import logging
 import os
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from core.api.deps import repo
 from core.api.models import ExportRequest
+from core.logger import set_log_level
 from core.reporting.factory import generate_report
 
 router = APIRouter(prefix="/api")
+
+
+class LogLevelRequest(BaseModel):
+	"""Request model for changing the server log level."""
+
+	level: str
 
 
 @router.post("/export")
@@ -47,6 +56,22 @@ async def get_telemetry_admin(limit: int = 50):
 		return repo.get_telemetry_history(limit)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/log-level")
+async def get_log_level():
+	"""Return the current effective log level of the root logger."""
+	return {"level": logging.getLevelName(logging.getLogger().level)}
+
+
+@router.post("/admin/log-level")
+async def update_log_level(request: LogLevelRequest):
+	"""Dynamically change the server log level without a restart."""
+	try:
+		applied = set_log_level(request.level)
+		return {"level": applied}
+	except ValueError as e:
+		raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/admin/db/{table}")

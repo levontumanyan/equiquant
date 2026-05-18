@@ -3,7 +3,10 @@ from fastapi import APIRouter, HTTPException
 from core.analysis.indices import get_index_components
 from core.api.deps import db_manager, repo
 from core.api.models import FetchRequest, GroupRequest
+from core.logger import get_logger
 from core.orchestrator import fetch_data as orchestrator_fetch_data
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api")
 
@@ -78,6 +81,18 @@ async def delete_group(name: str):
 		raise
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/assets/{symbol}/raw")
+async def get_asset_raw_metrics(symbol: str):
+	"""Fetch the raw provider payload for a single symbol on demand."""
+	logger.info(f"Raw metrics requested for {symbol.upper()}")
+	result = repo.get_raw_provider_data(symbol.upper())
+	if result is None:
+		raise HTTPException(
+			status_code=404, detail=f"No raw data found for {symbol.upper()}"
+		)
+	return result["data"]
 
 
 @router.post("/fetch")
