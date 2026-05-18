@@ -63,8 +63,7 @@ export function computeEdges(nodes: SimilarityNode[], threshold = 0.72): Similar
 	return edges
 }
 
-export function isHiddenGem(node: SimilarityNode, assets: AssetAnalysis[]): boolean {
-	const asset = assets.find(a => a.symbol === node.id)
+export function isHiddenGem(_node: SimilarityNode, asset: AssetAnalysis | undefined): boolean {
 	if (!asset) return false
 	if (asset.score < 62) return false
 	const peMetric = asset.results.find(r => r.metric === 'pe_ratio' || r.metric === 'forward_pe')
