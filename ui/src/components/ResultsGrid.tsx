@@ -57,6 +57,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 
 	const tableContainerRef = useRef<HTMLDivElement>(null)
 
+	// Refs mirror the corresponding state so effects can read current values without
+	// being listed as dependencies (avoids re-running effects on every render).
+	const presetRef = useRef<typeof preset>('all')
+	const profileFilterActiveRef = useRef(true)
+	const profileMetricKeysRef = useRef<string[]>([])
+
 	// Apply a column preset imperatively — avoids a reactive effect that would
 	// overwrite per-metric checkbox state whenever profileMetricKeys loads.
 	const applyPreset = useCallback((
@@ -79,13 +85,20 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 	useEffect(() => {
 		if (!profile) return
 		const controller = new AbortController()
+		profileFilterActiveRef.current = true
+		setProfileFilterActive(true)
 		fetch(`${API_BASE_URL}/api/profiles/${encodeURIComponent(profile)}`, { signal: controller.signal })
 			.then(r => r.ok ? r.json() : null)
 			.then((p: ProfileData | null) => {
-				setProfileMetricKeys(p ? Object.keys(p.weights) : [])
+				const keys = p ? Object.keys(p.weights) : []
+				profileMetricKeysRef.current = keys
+				setProfileMetricKeys(keys)
+				// If metrics are already present (e.g. re-selecting profile), apply filter now.
+				if (allMetrics.length > 0) {
+					applyPreset(presetRef.current, true, allMetrics, keys)
+				}
 			})
 			.catch(err => { if (err.name !== 'AbortError') setProfileMetricKeys([]) })
-		setProfileFilterActive(false)
 		return () => controller.abort()
 	}, [profile])
 
@@ -106,9 +119,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 			})
 		})
 		if (changed) {
-			setAllMetrics(
-				Array.from(metricsMapRef.current.entries()).map(([key, name]) => ({ key, name }))
-			)
+			const newMetrics = Array.from(metricsMapRef.current.entries()).map(([key, name]) => ({ key, name }))
+			setAllMetrics(newMetrics)
+			// Keep non-profile metrics hidden as they stream in while the filter is active.
+			if (profileFilterActiveRef.current && profileMetricKeysRef.current.length > 0) {
+				applyPreset(presetRef.current, true, newMetrics, profileMetricKeysRef.current)
+			}
 		}
 	}, [data])
 
@@ -264,6 +280,8 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 						<button
 							className={`col-action-btn${preset === 'all' && !profileFilterActive ? ' col-action-btn--on' : ''}`}
 							onClick={() => {
+								presetRef.current = 'all'
+								profileFilterActiveRef.current = false
 								setPreset('all')
 								setProfileFilterActive(false)
 								applyPreset('all', false, allMetrics, profileMetricKeys)
@@ -274,6 +292,8 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 						<button
 							className={`col-action-btn${preset === 'none' ? ' col-action-btn--on' : ''}`}
 							onClick={() => {
+								presetRef.current = 'none'
+								profileFilterActiveRef.current = false
 								setPreset('none')
 								setProfileFilterActive(false)
 								applyPreset('none', false, allMetrics, profileMetricKeys)
@@ -284,6 +304,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 						<button
 							className={`col-action-btn${preset === 'values' ? ' col-action-btn--on' : ''}`}
 							onClick={() => {
+								presetRef.current = 'values'
 								setPreset('values')
 								applyPreset('values', profileFilterActive, allMetrics, profileMetricKeys)
 							}}
@@ -294,6 +315,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 						<button
 							className={`col-action-btn${preset === 'strength' ? ' col-action-btn--on' : ''}`}
 							onClick={() => {
+								presetRef.current = 'strength'
 								setPreset('strength')
 								applyPreset('strength', profileFilterActive, allMetrics, profileMetricKeys)
 							}}
@@ -306,6 +328,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 								className={`col-action-btn col-action-btn--profile${profileFilterActive ? ' col-action-btn--on' : ''}`}
 								onClick={() => {
 									const next = !profileFilterActive
+									profileFilterActiveRef.current = next
 									setProfileFilterActive(next)
 									applyPreset(preset, next, allMetrics, profileMetricKeys)
 								}}

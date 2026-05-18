@@ -53,9 +53,11 @@ def _initialize_stats(tickers: List[str]):
 	return db_path
 
 
-def _finalize_stats(analyzed_count: int, db_path):
+def _finalize_stats(analyzed_count: int, db_path, tickers: List[str] | None = None):
 	"""Finalize stats and save telemetry."""
 	stats.analyzed_tickers = analyzed_count
+	if tickers is not None:
+		stats.analyzed_symbols = list(tickers)
 	if db_path.exists():
 		stats.final_db_size = db_path.stat().st_size
 		repo.save_telemetry(stats.get_total_time(), stats.to_dict())
@@ -130,7 +132,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 			stats.end_stage("Data Acquisition & Scoring")
 
 		executor.shutdown(wait=False)
-		_finalize_stats(analyzed_count, db_path)
+		_finalize_stats(analyzed_count, db_path, tickers)
 
 	except (asyncio.CancelledError, GeneratorExit):
 		cancel_event.set()
@@ -178,7 +180,7 @@ async def analyze_assets(request: AnalysisRequest):
 			benchmark_version=request.benchmark_version,
 		)
 		stats.end_stage("Analysis & Scoring")
-		_finalize_stats(len(results), db_path)
+		_finalize_stats(len(results), db_path, tickers)
 		return results
 	except Exception as e:
 		import traceback

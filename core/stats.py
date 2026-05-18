@@ -114,6 +114,7 @@ class SessionStats:
 		self.db_snapshots = 0
 		self.total_tickers = 0
 		self.analyzed_tickers = 0
+		self.analyzed_symbols: List[str] = []
 
 		# Threading & Pooling
 		self.pool_active_workers = 0
@@ -156,6 +157,7 @@ class SessionStats:
 			self.db_snapshots = 0
 			self.total_tickers = 0
 			self.analyzed_tickers = 0
+			self.analyzed_symbols = []
 			self.pool_active_workers = 0
 			self.pool_peak_workers = 0
 			self.pool_tasks_submitted = 0
@@ -376,6 +378,7 @@ class SessionStats:
 			return {
 				"total_tickers": self.total_tickers,
 				"analyzed_tickers": self.analyzed_tickers,
+				"analyzed_symbols": sorted(self.analyzed_symbols),
 				"threading": {
 					"active_workers": self.pool_active_workers,
 					"peak_workers": self.pool_peak_workers,

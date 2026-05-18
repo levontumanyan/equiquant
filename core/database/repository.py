@@ -520,7 +520,7 @@ class DatabaseRepository:
 			)
 			telemetry = dict(cursor.fetchone())
 			cursor.execute(
-				"SELECT asset_type, COUNT(*) AS count FROM assets GROUP BY asset_type"
+				"SELECT asset_type, COUNT(*) AS count FROM assets WHERE asset_type IS NOT NULL GROUP BY asset_type"
 			)
 			asset_counts = {
 				row["asset_type"]: row["count"] for row in cursor.fetchall()

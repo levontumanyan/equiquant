@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE_URL } from '../config'
-import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText } from 'lucide-react'
+import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText, Copy, Check } from 'lucide-react'
 import './AdminDashboard.css'
 
 interface AggregateStats {
@@ -27,6 +27,15 @@ interface TelemetryEntry {
 
 const AdminDashboard: React.FC = () => {
 	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database'>('telemetry')
+	const [tickersExpanded, setTickersExpanded] = useState(false)
+	const [jsonCopied, setJsonCopied] = useState(false)
+
+	const copyJson = (text: string) => {
+		navigator.clipboard.writeText(text).then(() => {
+			setJsonCopied(true)
+			setTimeout(() => setJsonCopied(false), 2000)
+		})
+	}
 	const [aggStats, setAggStats] = useState<AggregateStats | null>(null)
 	const [telemetry, setTelemetry] = useState<TelemetryEntry[]>([])
 	const [selectedEntry, setSelectedEntry] = useState<TelemetryEntry | null>(null)
@@ -108,7 +117,7 @@ const AdminDashboard: React.FC = () => {
 						<span className="text-green">{aggStats.total_cache_hits.toLocaleString()}</span>
 					</div>
 					<div className="stat-card">
-						<label>API Calls</label>
+						<label>API Fetches</label>
 						<span className="text-cyan">{aggStats.total_api_attempts.toLocaleString()}</span>
 					</div>
 					<div className="stat-card">
@@ -181,7 +190,7 @@ const AdminDashboard: React.FC = () => {
 									{telemetry.map(entry => (
 										<tr 
 											key={entry.id} 
-											onClick={() => setSelectedEntry(entry)}
+											onClick={() => { setSelectedEntry(entry); setTickersExpanded(false); setJsonCopied(false) }}
 											className="clickable-row"
 											title="Click to view detailed metrics"
 										>
@@ -270,21 +279,53 @@ const AdminDashboard: React.FC = () => {
 									<span>{((selectedEntry.cache_hits / (selectedEntry.cache_hits + selectedEntry.api_attempts || 1)) * 100).toFixed(1)}%</span>
 								</div>
 							</div>
-							<div className="json-viewer">
-								<div className="json-header">
-									<FileText size={14} />
-									<span>Raw Metrics Payload</span>
-								</div>
-								<pre>
-									{(() => {
-										try {
-											return JSON.stringify(JSON.parse(selectedEntry.metrics_json), null, 2)
-										} catch {
-											return selectedEntry.metrics_json ?? '(no metrics)'
-										}
-									})()}
-								</pre>
-							</div>
+							{(() => {
+							try {
+								const parsed = JSON.parse(selectedEntry.metrics_json)
+								const symbols: string[] = parsed.analyzed_symbols ?? []
+								const rest = { ...parsed }
+								delete rest.analyzed_symbols
+								return (
+									<>
+										{symbols.length > 0 && (
+											<div className="tickers-section">
+												<button
+													className="tickers-toggle"
+													onClick={() => setTickersExpanded(e => !e)}
+												>
+													<span>Tickers Analyzed ({symbols.length})</span>
+													<span className="tickers-chevron">{tickersExpanded ? '▲' : '▼'}</span>
+												</button>
+												{tickersExpanded && (
+													<div className="tickers-chips">
+														{symbols.map(s => (
+															<span key={s} className="ticker-chip">{s}</span>
+														))}
+													</div>
+												)}
+											</div>
+										)}
+										<div className="json-viewer">
+											<div className="json-header">
+												<FileText size={14} />
+												<span>Raw Metrics Payload</span>
+												<button className="copy-json-btn" onClick={() => copyJson(JSON.stringify(rest, null, 2))} title="Copy to clipboard">
+													{jsonCopied ? <Check size={13} className="text-green" /> : <Copy size={13} />}
+												</button>
+											</div>
+											<pre>{JSON.stringify(rest, null, 2)}</pre>
+										</div>
+									</>
+								)
+							} catch {
+								return (
+									<div className="json-viewer">
+										<div className="json-header"><FileText size={14} /><span>Raw Metrics Payload</span></div>
+										<pre>{selectedEntry.metrics_json ?? '(no metrics)'}</pre>
+									</div>
+								)
+							}
+						})()}
 						</div>
 					</div>
 				</div>
