@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as d3 from 'd3'
 import { Search } from 'lucide-react'
 import type { AssetAnalysis, MetricResult } from '../types'
@@ -212,6 +212,12 @@ export default function CorrelationMap({ data }: Props) {
 	const [edgeCount, setEdgeCount] = useState(0)
 	const simRef = useRef<d3.Simulation<SimilarityNode, SimilarityEdge> | null>(null)
 
+	const assetMap = useMemo(() => {
+		const map = new Map<string, AssetAnalysis>()
+		data.forEach(a => map.set(a.symbol, a))
+		return map
+	}, [data])
+
 	useEffect(() => {
 		const el = wrapRef.current
 		if (!el) return
@@ -230,10 +236,9 @@ export default function CorrelationMap({ data }: Props) {
 	const handleNodeHover = useCallback((
 		event: MouseEvent,
 		node: SimilarityNode | null,
-		assets: AssetAnalysis[],
 	) => {
 		if (!node) { setTooltip(null); return }
-		const asset = assets.find(a => a.symbol === node.id)
+		const asset = assetMap.get(node.id)
 		if (!asset) return
 		const rect = wrapRef.current?.getBoundingClientRect()
 		if (!rect) return
@@ -242,21 +247,21 @@ export default function CorrelationMap({ data }: Props) {
 			y: event.clientY - rect.top - 10,
 			node,
 			asset,
-			isGem: isHiddenGem(node, assets),
+			isGem: isHiddenGem(node, asset),
 		})
-	}, [])
+	}, [assetMap])
 
 	// ── FORCE CLUSTER ──────────────────────────────────────────────────────────
 	const renderForce = useCallback((
 		svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 		nodes: SimilarityNode[],
 		edges: SimilarityEdge[],
-		assets: AssetAnalysis[],
 		w: number,
 		h: number,
 	) => {
 		svg.selectAll('*').remove()
 
+		const nodeMap = new Map(nodes.map(n => [n.id, n]))
 		const sectors = [...new Set(nodes.map(n => n.sector ?? 'Unknown'))]
 		const defs = svg.append('defs')
 		setupGlassDefs(defs, sectors)
@@ -274,7 +279,7 @@ export default function CorrelationMap({ data }: Props) {
 			.join('line')
 			.attr('stroke', d => {
 				const srcId = typeof d.source === 'object' ? (d.source as any).id : d.source
-				const src = nodes.find(n => n.id === srcId)
+				const src = nodeMap.get(srcId)
 				return sectorColor(src?.sector ?? null)
 			})
 			.attr('stroke-width', d => d.strength * 1.5)
@@ -290,13 +295,13 @@ export default function CorrelationMap({ data }: Props) {
 		nodeGs.each(function(d) {
 			const g = d3.select<SVGGElement, SimilarityNode>(this)
 			const color = sectorColor(d.sector)
-			const gem = isHiddenGem(d, assets)
+			const gem = isHiddenGem(d, assetMap.get(d.id))
 			const r = nodeRadius(d.score)
 			applyGlass(g as any, r, color, d.sector, gem, d.id)
 		})
 
 		nodeGs
-			.on('mousemove', (event, d) => handleNodeHover(event, d, assets))
+			.on('mousemove', (event, d) => handleNodeHover(event, d))
 			.on('mouseleave', () => setTooltip(null))
 
 		let sim: d3.Simulation<SimilarityNode, SimilarityEdge>
@@ -333,18 +338,18 @@ export default function CorrelationMap({ data }: Props) {
 				.attr('y2', d => ((d.target as unknown) as SimilarityNode).y ?? 0)
 			nodeGs.attr('transform', d => `translate(${d.x ?? 0},${d.y ?? 0})`)
 		})
-	}, [handleNodeHover])
+	}, [handleNodeHover, assetMap])
 
 	// ── SECTOR PACK ────────────────────────────────────────────────────────────
 	const renderPack = useCallback((
 		svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 		nodes: SimilarityNode[],
-		assets: AssetAnalysis[],
 		w: number,
 		h: number,
 	) => {
 		svg.selectAll('*').remove()
 
+		const nodeMap = new Map(nodes.map(n => [n.id, n]))
 		const sectors = [...new Set(nodes.map(n => n.sector ?? 'Unknown'))]
 		const defs = svg.append('defs')
 		setupGlassDefs(defs, sectors)
@@ -403,28 +408,27 @@ export default function CorrelationMap({ data }: Props) {
 		leafGs.each(function(d) {
 			const g = d3.select<SVGGElement, d3.HierarchyCircularNode<object>>(this)
 			const symbol = (d.data as any).name
-			const node = nodes.find(n => n.id === symbol)
+			const node = nodeMap.get(symbol)
 			if (!node) return
 			const sectorName = (d.parent?.parent?.data as any)?.name ?? null
 			const color = sectorColor(sectorName)
 			const r = (d as any).r
-			const gem = isHiddenGem(node, assets)
+			const gem = isHiddenGem(node, assetMap.get(symbol))
 			applyGlass(g as any, r, color, sectorName, gem, symbol)
 		})
 
 		leafGs
 			.on('mousemove', (event, d) => {
-				const n = nodes.find(n => n.id === (d.data as any).name)
-				if (n) handleNodeHover(event, n, assets)
+				const n = nodeMap.get((d.data as any).name)
+				if (n) handleNodeHover(event, n)
 			})
 			.on('mouseleave', () => setTooltip(null))
-	}, [handleNodeHover])
+	}, [handleNodeHover, assetMap])
 
 	// ── RADIAL ORBIT ───────────────────────────────────────────────────────────
 	const renderRadial = useCallback((
 		svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
 		nodes: SimilarityNode[],
-		assets: AssetAnalysis[],
 		w: number,
 		h: number,
 	) => {
@@ -496,7 +500,7 @@ export default function CorrelationMap({ data }: Props) {
 				const nx = hx + Math.cos(na) * R_ORBIT
 				const ny = hy + Math.sin(na) * R_ORBIT
 				const r = nodeRadius(node.score)
-				const gem = isHiddenGem(node, assets)
+				const gem = isHiddenGem(node, assetMap.get(node.id))
 
 				const g = zg.append('g')
 					.attr('transform', `translate(${nx},${ny})`)
@@ -504,7 +508,7 @@ export default function CorrelationMap({ data }: Props) {
 
 				applyGlass(g as any, r, color, sector, gem, node.id)
 
-				g.on('mousemove', (event) => handleNodeHover(event, node, assets))
+				g.on('mousemove', (event) => handleNodeHover(event, node))
 					.on('mouseleave', () => setTooltip(null))
 			})
 		})
@@ -512,7 +516,7 @@ export default function CorrelationMap({ data }: Props) {
 		// Center point
 		zg.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 3)
 			.attr('fill', 'rgba(255,255,255,0.15)')
-	}, [handleNodeHover])
+	}, [handleNodeHover, assetMap])
 
 	// ── Main effect ────────────────────────────────────────────────────────────
 	useEffect(() => {
@@ -528,9 +532,9 @@ export default function CorrelationMap({ data }: Props) {
 		const edges = computeEdges(nodes)
 		setEdgeCount(edges.length)
 
-		if (mode === 'force') renderForce(svg, nodes, edges, data, w, h)
-		else if (mode === 'pack') renderPack(svg, nodes, data, w, h)
-		else renderRadial(svg, nodes, data, w, h)
+		if (mode === 'force') renderForce(svg, nodes, edges, w, h)
+		else if (mode === 'pack') renderPack(svg, nodes, w, h)
+		else renderRadial(svg, nodes, w, h)
 
 		return () => { if (simRef.current) { simRef.current.stop(); simRef.current = null } }
 	// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -554,7 +558,7 @@ export default function CorrelationMap({ data }: Props) {
 	const uniqueSectors = [...new Set(data.map(a => a.sector ?? 'Unknown'))].slice(0, 10)
 	const gemCount = data.filter(a => {
 		const n = buildSimilarityNodes([a])
-		return isHiddenGem(n[0], [a])
+		return isHiddenGem(n[0], a)
 	}).length
 
 	const topMetrics = (asset: AssetAnalysis): MetricResult[] =>

@@ -147,24 +147,41 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		}
 	}
 
+	const assetMap = useMemo(() => {
+		const map = new Map<string, Asset>()
+		availableAssets.forEach(a => map.set(a.symbol, a))
+		return map
+	}, [availableAssets])
+
+	const processedAssets = useMemo(() =>
+		availableAssets.map(a => ({
+			asset: a,
+			upperSymbol: a.symbol?.toUpperCase() || '',
+			upperName: a.name?.toUpperCase() || '',
+		})),
+		[availableAssets]
+	)
+
+	const tickerSet = useMemo(() => new Set(tickers), [tickers])
+	const newGroupTickerSet = useMemo(() => new Set(newGroupTickers), [newGroupTickers])
+
 	const newGroupFilteredAssets = useMemo(() => {
 		if (!newGroupSearch) return []
 		const search = newGroupSearch.toUpperCase()
-		return availableAssets
-			.filter(a => {
-				const symbol = a.symbol?.toUpperCase() || ''
-				const name = a.name?.toUpperCase() || ''
-				return (symbol.includes(search) || name.includes(search)) &&
-					!newGroupTickers.includes(a.symbol)
-			})
+		return processedAssets
+			.filter(({ upperSymbol, upperName, asset }) =>
+				(upperSymbol.includes(search) || upperName.includes(search)) &&
+				!newGroupTickerSet.has(asset.symbol)
+			)
+			.map(({ asset }) => asset)
 			.slice(0, 8)
-	}, [newGroupSearch, availableAssets, newGroupTickers])
+	}, [newGroupSearch, processedAssets, newGroupTickerSet])
 
 	const addNewGroupTicker = (symbol: string) => {
 		const input = symbol.toUpperCase().trim()
 		if (!input) return
 
-		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !newGroupTickers.includes(s))
+		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !newGroupTickerSet.has(s))
 		if (newSymbols.length > 0) {
 			setNewGroupTickers([...newGroupTickers, ...newSymbols])
 		}
@@ -178,21 +195,20 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const filteredAssets = useMemo(() => {
 		if (!assetSearch) return []
 		const search = assetSearch.toUpperCase()
-		return availableAssets
-			.filter(a => {
-				const symbol = a.symbol?.toUpperCase() || ''
-				const name = a.name?.toUpperCase() || ''
-				return (symbol.includes(search) || name.includes(search)) &&
-					!tickers.includes(a.symbol)
-			})
+		return processedAssets
+			.filter(({ upperSymbol, upperName, asset }) =>
+				(upperSymbol.includes(search) || upperName.includes(search)) &&
+				!tickerSet.has(asset.symbol)
+			)
+			.map(({ asset }) => asset)
 			.slice(0, 8)
-	}, [assetSearch, availableAssets, tickers])
+	}, [assetSearch, processedAssets, tickerSet])
 
 	const addTicker = (symbol: string) => {
 		const input = symbol.toUpperCase().trim()
 		if (!input) return
 
-		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !tickers.includes(s))
+		const newSymbols = input.split(/[,\s]+/).map(s => s.trim()).filter(s => s && !tickerSet.has(s))
 		if (newSymbols.length > 0) {
 			setTickers([...tickers, ...newSymbols])
 		}
@@ -210,7 +226,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setManualInput('')
 		setAssetSearch('')
 		setIndexExpansion(null)
-		const assetType = availableAssets.find(a => a.symbol === s)?.asset_type?.toUpperCase()
+		const assetType = assetMap.get(s)?.asset_type?.toUpperCase()
 		const knownStock = assetType === 'STOCK' || assetType === 'EQUITY'
 		if (!knownStock) {
 			try {
