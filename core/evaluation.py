@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
 from core.analysis.preprocessing import postprocess_score, preprocess_metric_value
-from core.ui.formatters import format_display_value
+from core.utils.formatters import format_display_value
 
 from .schema import AssetData
 from .scorers import SCORERS
