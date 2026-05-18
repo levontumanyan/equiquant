@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 *)",
+      "Bash(pnpm tsc *)",
+      "Bash(uv run ruff *)",
+      "Bash(gh api graphql *)",
+      "Bash(uv run semgrep *)"
+    ]
+  }
+}
