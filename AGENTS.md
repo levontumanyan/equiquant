@@ -14,7 +14,7 @@
 - **Modularity**: All logic belongs in `core/`. `analyze.py` is for CLI orchestration only.
 - **Functional Style**: Prefer pure functions. Every new logic component must be its own function.
 - **Scalability**: New data sources inherit `BaseProvider`; new metrics update `mappings.py` and `AssetData`.
-- **Lean Config**: Keep `benchmarks/` and `profiles/` focused. Use `sectors.json` for valuation overrides.
+- **Lean Config**: Keep `seeds/` benchmarks and profiles focused.
 
 ## UI Commands
 
@@ -117,7 +117,3 @@ analysis_snapshots(symbol, profile, total_score, benchmark_version, timestamp)
 `global_benchmarks`, `sector_benchmarks`, `investor_profiles`, `profile_metric_settings`, `groups`, `group_constituents`
 
 Auto-seeded on every `DatabaseManager` init via `_auto_seed()`. Each table checked independently — seeded only if empty. Seed data in `seeds/*.json`, logic in `core/database/seeder.py`.
-
-## Known gaps
-- `profile_metric_settings` is intentionally empty → profile weights fall back to benchmark defaults. Scoring works but profiles have no effect. Fix tracked in #64.
-- `market_analysis.db` is gitignored but still in git history. BFG cleanup tracked in #64.
