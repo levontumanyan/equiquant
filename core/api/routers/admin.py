@@ -1,12 +1,13 @@
 import logging
 import os
+from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.api.deps import repo
-from core.api.models import ExportRequest
+from core.api.models import AppSetting, ExportRequest, SettingUpdate
 from core.logger import set_log_level
 from core.reporting.factory import generate_report
 
@@ -69,9 +70,49 @@ async def update_log_level(request: LogLevelRequest):
 	"""Dynamically change the server log level without a restart."""
 	try:
 		applied = set_log_level(request.level)
+		# Also update the setting in the DB for persistence
+		repo.upsert_app_setting("log_level", applied, category="logging")
 		return {"level": applied}
 	except ValueError as e:
 		raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/admin/settings", response_model=List[AppSetting])
+async def get_all_settings_admin():
+	"""Get all application settings."""
+	try:
+		return repo.get_all_settings()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/admin/settings/{key}")
+async def update_setting_admin(key: str, update: SettingUpdate):
+	"""Update a specific application setting."""
+	try:
+		repo.upsert_app_setting(key, update.value)
+
+		# Apply certain settings immediately
+		if key == "log_level":
+			try:
+				set_log_level(update.value)
+			except ValueError as e:
+				raise HTTPException(status_code=400, detail=str(e))
+
+		return {"status": "success", "message": f"Setting '{key}' updated."}
+	except HTTPException:
+		raise
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/db/tables", response_model=List[str])
+async def get_db_tables_admin():
+	"""List all database tables."""
+	try:
+		return repo.get_db_tables()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/admin/db/{table}")

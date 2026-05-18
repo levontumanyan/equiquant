@@ -65,6 +65,22 @@ class ProfileRequest(BaseModel):
 	formulas: dict
 
 
+class AppSetting(BaseModel):
+	"""Model for application settings."""
+
+	key: str
+	value: str
+	category: str
+	description: Optional[str] = None
+	last_updated: str
+
+
+class SettingUpdate(BaseModel):
+	"""Request model for updating an application setting."""
+
+	value: str
+
+
 class MetricResult(BaseModel):
 	"""Result model for individual metrics."""
 

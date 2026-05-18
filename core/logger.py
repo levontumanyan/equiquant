@@ -124,4 +124,9 @@ def set_log_level(level: str) -> str:
 	root.setLevel(numeric)
 	for handler in root.handlers:
 		handler.setLevel(numeric)
+	for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+		lg = logging.getLogger(name)
+		lg.setLevel(numeric)
+		for handler in lg.handlers:
+			handler.setLevel(numeric)
 	return normalized

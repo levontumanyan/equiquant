@@ -25,6 +25,20 @@ class ProxyManager:
 		self.current_idx = -1
 		self._lock = threading.Lock()
 
+	def refresh_proxies(self, proxies: List[str]):
+		"""Update the internal proxy list."""
+		with self._lock:
+			self.proxies = proxies
+			if self.current_idx >= len(proxies):
+				self.current_idx = 0 if proxies else -1
+			logger.info(f"Refreshed proxy list. Count: {len(proxies)}")
+
+	def refresh_from_db(self, repo: Any) -> None:
+		"""Refresh proxies using settings from the database."""
+		proxies_str = repo.get_setting("proxies", "")
+		new_proxies = [p.strip() for p in proxies_str.split(",") if p.strip()]
+		self.refresh_proxies(new_proxies)
+
 	def get_proxy(self) -> Optional[str]:
 		if not self.proxies:
 			return None
@@ -331,7 +345,7 @@ def probe_api(ticker: str) -> bool:
 
 
 def fetch_batch_with_backoff(
-	batch_tickers: List[str], current_cooldown: float
+	batch_tickers: List[str], current_cooldown: float, db_path: Optional[str] = None
 ) -> Tuple[bool, float, Dict[str, Dict[str, Any]]]:
 	"""
 	Attempt to fetch a batch of tickers with retry and backoff using adaptive probing.
@@ -339,11 +353,25 @@ def fetch_batch_with_backoff(
 	Args:
 		batch_tickers: List of ticker symbols to fetch.
 		current_cooldown: Current cooldown duration in seconds.
+		db_path: Optional path to the database for dynamic settings refresh.
 
 	Returns:
 		Tuple of (success, new_cooldown, data_dict) where data_dict maps symbol to raw payload.
 	"""
 	import time
+
+	# Refresh proxies if DB path provided (useful for worker processes)
+	if db_path:
+		try:
+			from core.database.manager import DatabaseManager
+			from core.database.repository import DatabaseRepository
+
+			db = DatabaseManager(db_path, skip_auto_seed=True)
+			repo = DatabaseRepository(db)
+			proxy_manager.refresh_from_db(repo)
+			db.close()
+		except Exception as e:
+			logger.warning(f"Failed to refresh proxies from DB in worker: {e}")
 
 	base_cooldown = 5.0
 	max_cooldown = 60.0

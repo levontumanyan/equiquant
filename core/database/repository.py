@@ -295,8 +295,17 @@ class DatabaseRepository:
 		# SQLite CURRENT_TIMESTAMP is UTC; compare as naive UTC to avoid local-time skew
 		elapsed = (datetime.utcnow() - ts).total_seconds()
 		if is_market_open():
-			return elapsed < 900  # 15 min
-		return elapsed < 43200  # 12 h
+			try:
+				ttl = int(self.get_setting("market_open_ttl_s", "900"))
+			except (ValueError, TypeError):
+				ttl = 900
+			return elapsed < ttl
+
+		try:
+			ttl = int(self.get_setting("market_closed_ttl_s", "43200"))
+		except (ValueError, TypeError):
+			ttl = 43200
+		return elapsed < ttl
 
 	def upsert_raw_provider_data(self, symbol: str, provider: str, data: dict) -> None:
 		"""
@@ -541,27 +550,91 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
-	_TABLE_QUERIES: dict[str, str] = {
-		"assets": "SELECT * FROM assets LIMIT ?",
-		"indices": "SELECT * FROM indices LIMIT ?",
-		"analysis_snapshots": "SELECT * FROM analysis_snapshots LIMIT ?",
-		"sector_benchmarks": "SELECT * FROM sector_benchmarks LIMIT ?",
-		"global_benchmarks": "SELECT * FROM global_benchmarks LIMIT ?",
-		"investor_profiles": "SELECT * FROM investor_profiles LIMIT ?",
-		"session_telemetry": "SELECT * FROM session_telemetry LIMIT ?",
-		"groups": "SELECT * FROM groups LIMIT ?",
-	}
+	_settings_cache: dict[str, str] = {}
+	_settings_cache_timestamp: float = 0
+	_SETTINGS_CACHE_TTL = 60  # 1 minute cache for performance
+
+	def upsert_app_setting(
+		self,
+		key: str,
+		value: str,
+		category: str = "general",
+		description: Optional[str] = None,
+	):
+		"""Insert or update an application setting."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO app_settings (key, value, category, description, last_updated)
+				VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(key) DO UPDATE SET
+					value = excluded.value,
+					category = COALESCE(excluded.category, app_settings.category),
+					description = COALESCE(excluded.description, app_settings.description),
+					last_updated = CURRENT_TIMESTAMP
+			""",
+				(key, value, category, description),
+			)
+			conn.commit()
+			# Invalidate cache
+			self._settings_cache = {}
+
+	def get_all_settings(self) -> List[dict]:
+		"""Get all application settings."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT * FROM app_settings ORDER BY category, key")
+			return [dict(row) for row in cursor.fetchall()]
+
+	def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
+		"""Get a specific setting value, using in-memory cache for speed."""
+		import time
+
+		now = time.time()
+
+		# Refresh cache if needed
+		if (
+			not self._settings_cache
+			or (now - self._settings_cache_timestamp) > self._SETTINGS_CACHE_TTL
+		):
+			with self._lock:
+				conn = self.db.get_connection()
+				cursor = conn.cursor()
+				cursor.execute("SELECT key, value FROM app_settings")
+				self._settings_cache = {
+					row["key"]: row["value"] for row in cursor.fetchall()
+				}
+				self._settings_cache_timestamp = now
+
+		return self._settings_cache.get(key, default)
+
+	def get_db_tables(self) -> List[str]:
+		"""List all user-defined tables in the database."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+			)
+			return [row["name"] for row in cursor.fetchall()]
 
 	def get_table_data(self, table_name: str, limit: int = 100) -> List[dict]:
-		"""Get raw data from a specified table (sanitized table names only)."""
-		query = self._TABLE_QUERIES.get(table_name)
-		if query is None:
-			raise ValueError(f"Access to table '{table_name}' is not allowed.")
+		"""Get raw data from a specified table (dynamically validated)."""
+		# Validate table name against sqlite_master to prevent injection
+		allowed_tables = self.get_db_tables()
+		if table_name not in allowed_tables:
+			raise ValueError(
+				f"Access to table '{table_name}' is not allowed or it does not exist."
+			)
 
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute(query, (limit,))
+			# Safe to use f-string here because table_name is validated against allowed_tables
+			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
 			return [dict(row) for row in cursor.fetchall()]
 
 	def upsert_sector_benchmark(

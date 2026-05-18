@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE_URL } from '../config'
-import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText, Copy, Check } from 'lucide-react'
+import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText, Copy, Check, Settings, Save } from 'lucide-react'
 import './AdminDashboard.css'
 
 interface AggregateStats {
@@ -25,8 +25,16 @@ interface TelemetryEntry {
 	metrics_json: string;
 }
 
+interface AppSetting {
+	key: string;
+	value: string;
+	category: string;
+	description?: string;
+	last_updated: string;
+}
+
 const AdminDashboard: React.FC = () => {
-	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database'>('telemetry')
+	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database' | 'settings'>('telemetry')
 	const [tickersExpanded, setTickersExpanded] = useState(false)
 	const [jsonCopied, setJsonCopied] = useState(false)
 
@@ -41,10 +49,16 @@ const AdminDashboard: React.FC = () => {
 	const [selectedEntry, setSelectedEntry] = useState<TelemetryEntry | null>(null)
 	const [dbTable, setDbTable] = useState<string>('assets')
 	const [dbData, setDbData] = useState<any[]>([])
+	const [tables, setTables] = useState<string[]>([])
+	const [settings, setSettings] = useState<AppSetting[]>([])
+	const [editingSettings, setEditingSettings] = useState<Record<string, string>>({})
+	const [currentLogLevel, setCurrentLogLevel] = useState<string>('INFO')
 	const [isLoading, setIsLoading] = useState(false)
+	const [savingKey, setSavingKey] = useState<string | null>(null)
 	const [error, setError] = useState<string | null>(null)
 
-	const tables = ['assets', 'indices', 'analysis_snapshots', 'global_benchmarks', 'sector_benchmarks', 'investor_profiles', 'groups', 'session_telemetry']
+	const isModified = (key: string) => editingSettings[key] !== settings.find(s => s.key === key)?.value
+	const hasChanges = settings.some(s => isModified(s.key))
 
 	const fetchAggStats = async () => {
 		try {
@@ -52,6 +66,22 @@ const AdminDashboard: React.FC = () => {
 			if (res.ok) setAggStats(await res.json())
 		} catch {
 			// non-critical — silently skip if stats unavailable
+		}
+	}
+
+	const fetchTables = async () => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/db/tables`)
+			if (res.ok) {
+				const data = await res.json()
+				setTables(data)
+				if (data.length > 0 && !data.includes(dbTable)) {
+					setDbTable(data[0])
+				}
+			}
+		} catch {
+			// fallback to hardcoded if API fails
+			setTables(['assets', 'indices', 'analysis_snapshots', 'global_benchmarks', 'sector_benchmarks', 'investor_profiles', 'groups', 'session_telemetry'])
 		}
 	}
 
@@ -81,16 +111,86 @@ const AdminDashboard: React.FC = () => {
 		setIsLoading(false)
 	}
 
+	const fetchSettings = async () => {
+		setIsLoading(true)
+		setError(null)
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/settings`)
+			if (res.ok) {
+				const data = await res.json()
+				setSettings(data)
+				// Initialize editing state
+				const editing: Record<string, string> = {}
+				data.forEach((s: AppSetting) => {
+					editing[s.key] = s.value
+				})
+				setEditingSettings(editing)
+			} else {
+				setError('Failed to load settings')
+			}
+		} catch (err) {
+			setError('Network error loading settings')
+		}
+		setIsLoading(false)
+	}
+
+	const saveAllSettings = async () => {
+		setSavingKey('all')
+		setError(null)
+		try {
+			const toUpdate = settings.filter(s => isModified(s.key))
+
+			for (const setting of toUpdate) {
+				const res = await fetch(`${API_BASE_URL}/api/admin/settings/${setting.key}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ value: editingSettings[setting.key] })
+				})
+				if (!res.ok) throw new Error(`Failed to save ${setting.key}`)
+			}
+
+			await fetchSettings()
+			await fetchLogLevel()
+		} catch (err) {
+			setError((err as Error).message || 'Failed to save some settings')
+		} finally {
+			setSavingKey(null)
+		}
+	}
+
+	const fetchLogLevel = async () => {
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/log-level`)
+			if (res.ok) {
+				const data = await res.json()
+				setCurrentLogLevel(data.level)
+			}
+		} catch {
+			// ignore non-critical errors
+		}
+	}
+
+	const selectLogLevel = (level: string) => {
+		setCurrentLogLevel(level)
+		setEditingSettings(prev => ({ ...prev, log_level: level }))
+	}
+
 	useEffect(() => {
 		fetchAggStats()
+		fetchTables()
+		fetchLogLevel()
 	}, [])
 
 	useEffect(() => {
 		if (activeSubTab === 'telemetry') fetchTelemetry()
+		else if (activeSubTab === 'settings') {
+			fetchSettings()
+			fetchLogLevel()
+		}
 	}, [activeSubTab])
 
 	useEffect(() => {
-		if (activeSubTab === 'database') fetchDbData(dbTable)
+		if (activeSubTab === 'database' && dbTable) fetchDbData(dbTable)
 	}, [activeSubTab, dbTable])
 
 	return (
@@ -149,6 +249,12 @@ const AdminDashboard: React.FC = () => {
 					onClick={() => setActiveSubTab('database')}
 				>
 					<Database size={16} /> Database Explorer
+				</button>
+				<button 
+					className={`admin-nav-btn ${activeSubTab === 'settings' ? 'active' : ''}`}
+					onClick={() => setActiveSubTab('settings')}
+				>
+					<Settings size={16} /> System Settings
 				</button>
 			</div>
 
@@ -209,7 +315,7 @@ const AdminDashboard: React.FC = () => {
 							</table>
 						</div>
 					</div>
-				) : (
+				) : activeSubTab === 'database' ? (
 					<div className="database-view">
 						<div className="section-header">
 							<div className="table-selector">
@@ -247,6 +353,74 @@ const AdminDashboard: React.FC = () => {
 							) : (
 								<div className="empty-state">No records found in this table.</div>
 							)}
+						</div>
+					</div>
+				) : (
+					<div className="settings-view">
+						<div className="section-header">
+							<h3>Application Settings</h3>
+							<button className="refresh-btn" onClick={() => { fetchSettings(); fetchLogLevel(); }}>
+								<RefreshCw size={14} /> Refresh
+							</button>
+						</div>
+
+						<div className="log-level-control">
+							<label>Server Log Level</label>
+							<div className="log-level-buttons">
+								{['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'].map(level => (
+									<button
+										key={level}
+										className={`log-level-btn ${currentLogLevel === level ? 'active' : ''}`}
+										onClick={() => selectLogLevel(level)}
+										disabled={savingKey === 'all'}
+									>
+										{level}
+									</button>
+								))}
+							</div>
+							<p className="dim small">Changes take effect immediately across the server process.</p>
+						</div>
+
+						<div className="admin-table-container">
+							<table className="admin-table settings-table">
+								<thead>
+									<tr>
+										<th>Category</th>
+										<th>Setting Key</th>
+										<th>Value</th>
+										<th>Description</th>
+									</tr>
+								</thead>
+								<tbody>
+									{settings.filter(s => s.key !== 'log_level').map(setting => (
+										<tr key={setting.key}>
+											<td className="dim">{setting.category}</td>
+											<td className="bold">{setting.key}</td>
+											<td>
+												<input 
+													type="text" 
+													className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
+													value={editingSettings[setting.key] || ''} 
+													onChange={(e) => setEditingSettings({...editingSettings, [setting.key]: e.target.value})}
+												/>
+											</td>
+											<td className="dim small">{setting.description}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+
+						<div className="settings-footer">
+							{hasChanges && <span className="changes-indicator">You have unsaved changes</span>}
+							<button 
+								className="save-all-btn" 
+								onClick={saveAllSettings}
+								disabled={!hasChanges || savingKey === 'all'}
+							>
+								{savingKey === 'all' ? <RefreshCw size={16} className="spin" /> : <Save size={16} />}
+								{savingKey === 'all' ? 'Saving Changes...' : 'Save All Changes'}
+							</button>
 						</div>
 					</div>
 				)}
