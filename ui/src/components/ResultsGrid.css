@@ -405,6 +405,18 @@
 	gap: 0.5rem;
 }
 
+.score-container--clickable {
+	cursor: pointer;
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.25rem;
+	margin: -0.125rem -0.25rem;
+	transition: background 0.15s;
+}
+
+.score-container--clickable:hover {
+	background: rgba(59, 130, 246, 0.1);
+}
+
 .score-bar-bg {
 	width: 3rem;
 	background-color: #374151;
