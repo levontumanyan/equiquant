@@ -6,8 +6,6 @@ from rich.table import Table
 
 from .base import BaseReporter
 
-console = Console()
-
 
 class TXTReporter(BaseReporter):
 	def export(
@@ -52,9 +50,5 @@ class TXTReporter(BaseReporter):
 			capture_console.print(table)
 			capture_console.print(f"FINAL SCORE: {res['score']:.2f}%")
 
-		try:
-			with open(output_path, "w") as f:
-				f.write(capture_console.file.getvalue())
-			console.print(f"[bold green]Results exported to {output_path}[/bold green]")
-		except Exception as e:
-			console.print(f"[bold red]Failed to export TXT: {e}[/bold red]")
+		with open(output_path, "w") as f:
+			f.write(capture_console.file.getvalue())
