@@ -541,28 +541,27 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
+	_TABLE_QUERIES: dict[str, str] = {
+		"assets": "SELECT * FROM assets LIMIT ?",
+		"indices": "SELECT * FROM indices LIMIT ?",
+		"analysis_snapshots": "SELECT * FROM analysis_snapshots LIMIT ?",
+		"sector_benchmarks": "SELECT * FROM sector_benchmarks LIMIT ?",
+		"global_benchmarks": "SELECT * FROM global_benchmarks LIMIT ?",
+		"investor_profiles": "SELECT * FROM investor_profiles LIMIT ?",
+		"session_telemetry": "SELECT * FROM session_telemetry LIMIT ?",
+		"groups": "SELECT * FROM groups LIMIT ?",
+	}
+
 	def get_table_data(self, table_name: str, limit: int = 100) -> List[dict]:
 		"""Get raw data from a specified table (sanitized table names only)."""
-		allowed_tables = {
-			"assets",
-			"indices",
-			"analysis_snapshots",
-			"sector_benchmarks",
-			"global_benchmarks",
-			"investor_profiles",
-			"session_telemetry",
-			"groups",
-		}
-		if table_name not in allowed_tables:
+		query = self._TABLE_QUERIES.get(table_name)
+		if query is None:
 			raise ValueError(f"Access to table '{table_name}' is not allowed.")
 
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			assert table_name in allowed_tables, (
-				f"Table '{table_name}' is not in the allowlist"
-			)  # nosec B101
-			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))  # nosec B608 — table_name validated against allowlist above  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query — false positive, this is sqlite3 not SQLAlchemy; table_name is allowlist-validated
+			cursor.execute(query, (limit,))
 			return [dict(row) for row in cursor.fetchall()]
 
 	def upsert_sector_benchmark(
