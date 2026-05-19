@@ -685,8 +685,8 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			# Safe to use f-string here because table_name is validated against allowed_tables
-			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+			# table_name is validated against sqlite_master allowlist above — f-string is safe
+			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))  # nosec B608
 			return [dict(row) for row in cursor.fetchall()]
 
 	def insert_metric_history(self, symbol: str, metric_key: str, value: float):
