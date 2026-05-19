@@ -124,6 +124,9 @@ def compute_relative_benchmarks(
 		elif formula == "plateau":
 			override["target_min"] = _percentile(values, 33)
 			override["target_max"] = _percentile(values, 67)
+			q75 = _percentile(values, 75)
+			q25 = _percentile(values, 25)
+			override["width"] = max((q75 - q25) / 2.0, 1e-6)
 
 		result.append(override)
 
