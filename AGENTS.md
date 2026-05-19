@@ -39,7 +39,7 @@ If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
 - **Send periodic** issue updates and a final summary upon completion as comments on the issue.
 - **Perform UI/API Validation**: Verify changes via the Web Dashboard (`make start`) or API endpoints.
 - If the user is satisfied with the changes (ask), from $WORKTREE_ROOT, use the PR target:
-  `make pr TITLE="feat: your title (#issue)" BODY="Description. Closes #issue"`
+  `make pr TITLE="feat: your title (#issue)" BODY="Description. Closes #issue"`. Always make sure the PR auto closes an issue!
 - This target automatically validates the code in the rootless Podman environment, pushes the branch with `--no-verify` (bypassing local hooks as validation is handled by the container), and creates the PR.
 - Once the PR is created, **STOP** and ask the user if you should merge it or if they will handle it via the GitHub GUI.
 - After the branch is merged and the session is closed, remove the worktree and the branch.
