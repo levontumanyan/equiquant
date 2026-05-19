@@ -294,12 +294,7 @@ const AdminDashboard: React.FC = () => {
 			)}
 
 			<div className="admin-content">
-				{isLoading ? (
-					<div className="admin-loading">
-						<RefreshCw size={24} className="spin" />
-						<span>Fetching system data...</span>
-					</div>
-				) : activeSubTab === 'telemetry' ? (
+				{activeSubTab === 'telemetry' ? (
 					<div className="telemetry-view">
 						<div className="section-header">
 							<h3>Recent Session Telemetry</h3>
