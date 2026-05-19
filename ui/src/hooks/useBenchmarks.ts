@@ -8,9 +8,9 @@ let pending: Promise<Benchmark[]> | null = null
 function fetchBenchmarks(): Promise<Benchmark[]> {
 	if (!pending) {
 		pending = fetch(`${API_BASE_URL}/api/benchmarks?asset_type=STOCK`)
-			.then(r => r.ok ? r.json() : [])
+			.then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load benchmarks')))
 			.then(data => { cache = data; return data as Benchmark[] })
-			.catch(() => { pending = null; return [] })
+			.catch(err => { pending = null; throw err })
 	}
 	return pending
 }
@@ -24,11 +24,13 @@ function fetchBenchmarks(): Promise<Benchmark[]> {
  *
  * @returns benchmarks - full list of Benchmark objects for asset_type=STOCK
  * @returns loading    - true while the initial fetch is in flight
+ * @returns error      - error message string if the fetch failed, otherwise null
  * @returns refetch    - invalidates the cache and re-fetches from the server
  */
 export function useBenchmarks() {
 	const [benchmarks, setBenchmarks] = useState<Benchmark[]>(cache ?? [])
 	const [loading, setLoading] = useState(cache === null)
+	const [error, setError] = useState<string | null>(null)
 
 	useEffect(() => {
 		if (cache !== null) {
@@ -37,21 +39,20 @@ export function useBenchmarks() {
 			return
 		}
 		setLoading(true)
-		fetchBenchmarks().then(data => {
-			setBenchmarks(data)
-			setLoading(false)
-		})
+		fetchBenchmarks()
+			.then(data => { setBenchmarks(data); setLoading(false) })
+			.catch(err => { setError(err instanceof Error ? err.message : 'Failed to load benchmarks'); setLoading(false) })
 	}, [])
 
 	const refetch = useCallback(() => {
 		cache = null
 		pending = null
+		setError(null)
 		setLoading(true)
-		fetchBenchmarks().then(data => {
-			setBenchmarks(data)
-			setLoading(false)
-		})
+		fetchBenchmarks()
+			.then(data => { setBenchmarks(data); setLoading(false) })
+			.catch(err => { setError(err instanceof Error ? err.message : 'Failed to load benchmarks'); setLoading(false) })
 	}, [])
 
-	return { benchmarks, loading, refetch }
+	return { benchmarks, loading, error, refetch }
 }

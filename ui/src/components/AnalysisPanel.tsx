@@ -6,7 +6,7 @@ import ResultsGrid from './ResultsGrid'
 import CorrelationMap from './CorrelationMap'
 import SmartHeatmap from './SmartHeatmap'
 import type { AssetAnalysis } from '../types'
-import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard, FileText } from 'lucide-react'
+import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard, FileText, Zap } from 'lucide-react'
 import './AnalysisPanel.css'
 
 interface Asset {
@@ -488,9 +488,11 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 									</div>
 								)}
 
-								{groups.length > 0 && (
-									<div className="group-chips">
-										{systemGroups.map(g => (
+								<div className="group-chips">
+									{groups.length === 0 && (
+										<span className="empty-chips-text">No groups yet — create one above</span>
+									)}
+									{systemGroups.map(g => (
 											<button
 												key={g.name}
 												className={`group-chip group-chip--system${selectedGroups.has(g.name) ? ' group-chip--active' : ''}`}
@@ -521,7 +523,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 											</div>
 										))}
 									</div>
-								)}
 							</div>
 
 							{/* Ticker Picker */}
@@ -550,7 +551,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 								</div>
 								{indexExpansion && (
 									<div className="index-expansion-toast">
-										⚡ Expanded {indexExpansion}
+										<Zap size={12} /> Expanded {indexExpansion}
 									</div>
 								)}
 

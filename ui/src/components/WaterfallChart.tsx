@@ -91,9 +91,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({ results, totalScore }) 
 				rawDisplay: r.value,
 				status: r.status,
 				isTotal: false,
-				// Fix 2: pre-compute label on the entry to avoid value-based collision lookup
-				// Fix 6: threshold only applies to metric bars — Total label is always shown
-				label: r.contribution >= 1 ? `+${r.contribution.toFixed(1)}` : '',
+				label: `+${r.contribution.toFixed(1)}`,
 			}
 			cumulative += r.contribution
 			return entry

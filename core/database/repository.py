@@ -622,10 +622,9 @@ class DatabaseRepository:
 				INSERT INTO app_settings (key, value, category, description, last_updated)
 				VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
 				ON CONFLICT(key) DO UPDATE SET
-					value = excluded.value,
 					category = COALESCE(excluded.category, app_settings.category),
 					description = COALESCE(excluded.description, app_settings.description),
-					last_updated = CURRENT_TIMESTAMP
+					last_updated = app_settings.last_updated
 			""",
 				(key, value, category, description),
 			)

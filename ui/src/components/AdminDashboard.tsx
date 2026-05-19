@@ -33,8 +33,37 @@ interface AppSetting {
 	last_updated: string;
 }
 
+const TTL_PRESETS: Record<string, { label: string; seconds: number }[]> = {
+	market_open_ttl_s: [
+		{ label: '15 min', seconds: 900 },
+		{ label: '30 min', seconds: 1800 },
+	],
+	market_closed_ttl_s: [
+		{ label: '12h', seconds: 43200 },
+		{ label: '24h', seconds: 86400 },
+	],
+}
+
+const TTL_LABELS: Record<string, string> = {
+	market_open_ttl_s: 'Market Open',
+	market_closed_ttl_s: 'Market Closed',
+}
+
+function toSeconds(value: number, unit: 's' | 'm' | 'h'): number {
+	if (unit === 'm') return Math.round(value * 60)
+	if (unit === 'h') return Math.round(value * 3600)
+	return Math.round(value)
+}
+
+function fromSeconds(seconds: number, unit: 's' | 'm' | 'h'): number {
+	if (unit === 'm') return seconds / 60
+	if (unit === 'h') return seconds / 3600
+	return seconds
+}
+
 const AdminDashboard: React.FC = () => {
 	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database' | 'settings'>('telemetry')
+	const [ttlUnit, setTtlUnit] = useState<'s' | 'm' | 'h'>('m')
 	const [tickersExpanded, setTickersExpanded] = useState(false)
 	const [jsonCopied, setJsonCopied] = useState(false)
 
@@ -265,17 +294,12 @@ const AdminDashboard: React.FC = () => {
 			)}
 
 			<div className="admin-content">
-				{isLoading ? (
-					<div className="admin-loading">
-						<RefreshCw size={24} className="spin" />
-						<span>Fetching system data...</span>
-					</div>
-				) : activeSubTab === 'telemetry' ? (
+				{activeSubTab === 'telemetry' ? (
 					<div className="telemetry-view">
 						<div className="section-header">
 							<h3>Recent Session Telemetry</h3>
-							<button className="refresh-btn" onClick={fetchTelemetry}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={fetchTelemetry} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 						<div className="admin-table-container">
@@ -324,8 +348,8 @@ const AdminDashboard: React.FC = () => {
 									{tables.map(t => <option key={t} value={t}>{t}</option>)}
 								</select>
 							</div>
-							<button className="refresh-btn" onClick={() => fetchDbData(dbTable)}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={() => fetchDbData(dbTable)} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 						<div className="admin-table-container">
@@ -359,8 +383,8 @@ const AdminDashboard: React.FC = () => {
 					<div className="settings-view">
 						<div className="section-header">
 							<h3>Application Settings</h3>
-							<button className="refresh-btn" onClick={() => { fetchSettings(); fetchLogLevel(); }}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={() => { fetchSettings(); fetchLogLevel(); }} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 
@@ -381,35 +405,111 @@ const AdminDashboard: React.FC = () => {
 							<p className="dim small">Changes take effect immediately across the server process.</p>
 						</div>
 
-						<div className="admin-table-container">
-							<table className="admin-table settings-table">
-								<thead>
-									<tr>
-										<th>Category</th>
-										<th>Setting Key</th>
-										<th>Value</th>
-										<th>Description</th>
-									</tr>
-								</thead>
-								<tbody>
-									{settings.filter(s => s.key !== 'log_level').map(setting => (
-										<tr key={setting.key}>
-											<td className="dim">{setting.category}</td>
-											<td className="bold">{setting.key}</td>
-											<td>
-												<input 
-													type="text" 
-													className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
-													value={editingSettings[setting.key] || ''} 
-													onChange={(e) => setEditingSettings({...editingSettings, [setting.key]: e.target.value})}
-												/>
-											</td>
-											<td className="dim small">{setting.description}</td>
-										</tr>
+						<div className="log-level-control">
+							<div className="ttl-control-header">
+								<label>Cache TTL</label>
+								<div className="ttl-unit-toggle">
+									{(['s', 'm', 'h'] as const).map(u => (
+										<button
+											key={u}
+											className={`ttl-unit-btn ${ttlUnit === u ? 'active' : ''}`}
+											onClick={() => setTtlUnit(u)}
+										>
+											{u}
+										</button>
 									))}
-								</tbody>
-							</table>
+								</div>
+							</div>
+							{(['market_open_ttl_s', 'market_closed_ttl_s'] as const).map(key => {
+								const presets = TTL_PRESETS[key]
+								const currentSeconds = parseInt(editingSettings[key] || '0')
+								const isPreset = presets.some(p => p.seconds === currentSeconds)
+								const customVal = !isPreset && currentSeconds > 0
+									? fromSeconds(currentSeconds, ttlUnit)
+									: ''
+								return (
+									<div key={key} className="ttl-row">
+										<span className="ttl-row-label">{TTL_LABELS[key]}</span>
+										<div className="ttl-row-controls">
+											{presets.map(p => (
+												<button
+													key={p.seconds}
+													className={`log-level-btn ${currentSeconds === p.seconds ? 'active' : ''}`}
+													onClick={() => setEditingSettings(prev => ({ ...prev, [key]: String(p.seconds) }))}
+													disabled={savingKey === 'all'}
+												>
+													{p.label}
+												</button>
+											))}
+											<input
+												type="number"
+												className={`ttl-custom-input ${!isPreset && currentSeconds > 0 ? 'active' : ''}`}
+												placeholder={`custom (${ttlUnit})`}
+												value={customVal}
+												min={1}
+												onChange={e => {
+													const val = parseFloat(e.target.value)
+													if (!isNaN(val) && val > 0) {
+														setEditingSettings(prev => ({ ...prev, [key]: String(toSeconds(val, ttlUnit)) }))
+													}
+												}}
+												disabled={savingKey === 'all'}
+											/>
+										</div>
+									</div>
+								)
+							})}
+							<p className="dim small">Changes take effect after saving.</p>
 						</div>
+
+						<div className="log-level-control">
+							<label>Proxies</label>
+							<input
+								type="text"
+								className={`proxy-input ${isModified('proxies') ? 'modified' : ''}`}
+								placeholder="http://user:pass@host:port, http://..."
+								value={editingSettings['proxies'] ?? ''}
+								onChange={e => setEditingSettings(prev => ({ ...prev, proxies: e.target.value }))}
+								disabled={savingKey === 'all'}
+							/>
+							<p className="dim small">Comma-separated list of proxies for outbound data requests. Leave blank to connect directly.</p>
+						</div>
+
+						{(() => {
+							const remaining = settings.filter(s => !['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies'].includes(s.key))
+							if (remaining.length === 0) return null
+							return (
+								<div className="admin-table-container">
+									<table className="admin-table settings-table">
+										<thead>
+											<tr>
+												<th>Category</th>
+												<th>Setting Key</th>
+												<th>Value</th>
+												<th>Description</th>
+											</tr>
+										</thead>
+										<tbody>
+											{remaining.map(setting => (
+												<tr key={setting.key}>
+													<td className="dim">{setting.category}</td>
+													<td className="bold">{setting.key}</td>
+													<td>
+														<input
+															type="text"
+															className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
+															value={editingSettings[setting.key] || ''}
+															onChange={e => setEditingSettings({ ...editingSettings, [setting.key]: e.target.value })}
+														/>
+													</td>
+													<td className="dim small">{setting.description}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)
+						})()}
 
 						<div className="settings-footer">
 							{hasChanges && <span className="changes-indicator">You have unsaved changes</span>}

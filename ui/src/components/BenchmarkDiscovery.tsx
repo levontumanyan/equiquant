@@ -15,11 +15,13 @@ const BenchmarkDiscovery: React.FC<Props> = ({ onPreview }) => {
 	const [search, setSearch] = useState('');
 	const [selectedSector, setSelectedSector] = useState('');
 	const [loading, setLoading] = useState(true);
+	const [fetchError, setFetchError] = useState<string | null>(null);
 	const [selectedMetric, setSelectedMetric] = useState<{key: string, name: string} | null>(null);
 
 	useEffect(() => {
 		const fetchData = async () => {
 			setLoading(true);
+			setFetchError(null);
 			try {
 				const sectorParam = selectedSector ? `&sector=${encodeURIComponent(selectedSector)}` : '';
 				const [benchRes, sectorRes] = await Promise.all([
@@ -27,9 +29,10 @@ const BenchmarkDiscovery: React.FC<Props> = ({ onPreview }) => {
 					fetch(`${API_BASE_URL}/api/sectors`)
 				]);
 				if (benchRes.ok) setBenchmarks(await benchRes.json());
+				else setFetchError('Failed to load benchmarks');
 				if (sectorRes.ok) setSectors(await sectorRes.json());
-			} catch (error) {
-				console.error('Error fetching data:', error);
+			} catch {
+				setFetchError('Network error — could not reach the server');
 			} finally {
 				setLoading(false);
 			}
@@ -44,6 +47,7 @@ const BenchmarkDiscovery: React.FC<Props> = ({ onPreview }) => {
 	});
 
 	if (loading) return <div className="loading">Loading Benchmarks...</div>;
+	if (fetchError) return <div className="loading error-state">{fetchError}</div>;
 
 	return (
 		<div className="discovery-container">
