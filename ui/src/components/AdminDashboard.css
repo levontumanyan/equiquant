@@ -665,6 +665,39 @@
 	cursor: wait;
 }
 
+.proxy-input {
+	width: 100%;
+	background: #0f172a;
+	border: 1px solid #334155;
+	color: #e2e8f0;
+	padding: 0.55rem 0.75rem;
+	border-radius: 0.4rem;
+	font-size: 0.85rem;
+	font-family: monospace;
+	box-sizing: border-box;
+	transition: border-color 0.2s;
+	margin-bottom: 0.75rem;
+}
+
+.proxy-input::placeholder {
+	color: #475569;
+}
+
+.proxy-input:focus {
+	outline: none;
+	border-color: #60a5fa;
+}
+
+.proxy-input.modified {
+	border-color: #f59e0b;
+	background: rgba(245, 158, 11, 0.05);
+}
+
+.proxy-input:disabled {
+	opacity: 0.7;
+	cursor: wait;
+}
+
 .settings-footer {
 	display: flex;
 	align-items: center;

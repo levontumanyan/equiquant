@@ -467,35 +467,54 @@ const AdminDashboard: React.FC = () => {
 							<p className="dim small">Changes take effect after saving.</p>
 						</div>
 
-						<div className="admin-table-container">
-							<table className="admin-table settings-table">
-								<thead>
-									<tr>
-										<th>Category</th>
-										<th>Setting Key</th>
-										<th>Value</th>
-										<th>Description</th>
-									</tr>
-								</thead>
-								<tbody>
-									{settings.filter(s => !['log_level', 'market_open_ttl_s', 'market_closed_ttl_s'].includes(s.key)).map(setting => (
-										<tr key={setting.key}>
-											<td className="dim">{setting.category}</td>
-											<td className="bold">{setting.key}</td>
-											<td>
-												<input 
-													type="text" 
-													className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
-													value={editingSettings[setting.key] || ''} 
-													onChange={(e) => setEditingSettings({...editingSettings, [setting.key]: e.target.value})}
-												/>
-											</td>
-											<td className="dim small">{setting.description}</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
+						<div className="log-level-control">
+							<label>Proxies</label>
+							<input
+								type="text"
+								className={`proxy-input ${isModified('proxies') ? 'modified' : ''}`}
+								placeholder="http://user:pass@host:port, http://..."
+								value={editingSettings['proxies'] ?? ''}
+								onChange={e => setEditingSettings(prev => ({ ...prev, proxies: e.target.value }))}
+								disabled={savingKey === 'all'}
+							/>
+							<p className="dim small">Comma-separated list of proxies for outbound data requests. Leave blank to connect directly.</p>
 						</div>
+
+						{(() => {
+							const remaining = settings.filter(s => !['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies'].includes(s.key))
+							if (remaining.length === 0) return null
+							return (
+								<div className="admin-table-container">
+									<table className="admin-table settings-table">
+										<thead>
+											<tr>
+												<th>Category</th>
+												<th>Setting Key</th>
+												<th>Value</th>
+												<th>Description</th>
+											</tr>
+										</thead>
+										<tbody>
+											{remaining.map(setting => (
+												<tr key={setting.key}>
+													<td className="dim">{setting.category}</td>
+													<td className="bold">{setting.key}</td>
+													<td>
+														<input
+															type="text"
+															className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
+															value={editingSettings[setting.key] || ''}
+															onChange={e => setEditingSettings({ ...editingSettings, [setting.key]: e.target.value })}
+														/>
+													</td>
+													<td className="dim small">{setting.description}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)
+						})()}
 
 						<div className="settings-footer">
 							{hasChanges && <span className="changes-indicator">You have unsaved changes</span>}
