@@ -7,9 +7,9 @@ let pending: Promise<string[]> | null = null
 function fetchFormulas(): Promise<string[]> {
 	if (!pending) {
 		pending = fetch(`${API_BASE_URL}/api/formulas`)
-			.then(r => r.ok ? r.json() : [])
+			.then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load formulas')))
 			.then(data => { cache = data; return data as string[] })
-			.catch(() => { pending = null; return [] })
+			.catch(err => { pending = null; throw err })
 	}
 	return pending
 }
@@ -23,11 +23,13 @@ function fetchFormulas(): Promise<string[]> {
  *
  * @returns formulas - list of formula type strings (e.g. "sigmoid", "linear")
  * @returns loading  - true while the initial fetch is in flight
+ * @returns error    - error message string if the fetch failed, otherwise null
  * @returns refetch  - invalidates the cache and re-fetches from the server
  */
 export function useFormulas() {
 	const [formulas, setFormulas] = useState<string[]>(cache ?? [])
 	const [loading, setLoading] = useState(cache === null)
+	const [error, setError] = useState<string | null>(null)
 
 	useEffect(() => {
 		if (cache !== null) {
@@ -36,21 +38,20 @@ export function useFormulas() {
 			return
 		}
 		setLoading(true)
-		fetchFormulas().then(data => {
-			setFormulas(data)
-			setLoading(false)
-		})
+		fetchFormulas()
+			.then(data => { setFormulas(data); setLoading(false) })
+			.catch(err => { setError(err instanceof Error ? err.message : 'Failed to load formulas'); setLoading(false) })
 	}, [])
 
 	const refetch = useCallback(() => {
 		cache = null
 		pending = null
+		setError(null)
 		setLoading(true)
-		fetchFormulas().then(data => {
-			setFormulas(data)
-			setLoading(false)
-		})
+		fetchFormulas()
+			.then(data => { setFormulas(data); setLoading(false) })
+			.catch(err => { setError(err instanceof Error ? err.message : 'Failed to load formulas'); setLoading(false) })
 	}, [])
 
-	return { formulas, loading, refetch }
+	return { formulas, loading, error, refetch }
 }

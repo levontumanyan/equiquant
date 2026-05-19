@@ -274,8 +274,8 @@ const AdminDashboard: React.FC = () => {
 					<div className="telemetry-view">
 						<div className="section-header">
 							<h3>Recent Session Telemetry</h3>
-							<button className="refresh-btn" onClick={fetchTelemetry}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={fetchTelemetry} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 						<div className="admin-table-container">
@@ -324,8 +324,8 @@ const AdminDashboard: React.FC = () => {
 									{tables.map(t => <option key={t} value={t}>{t}</option>)}
 								</select>
 							</div>
-							<button className="refresh-btn" onClick={() => fetchDbData(dbTable)}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={() => fetchDbData(dbTable)} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 						<div className="admin-table-container">
@@ -359,8 +359,8 @@ const AdminDashboard: React.FC = () => {
 					<div className="settings-view">
 						<div className="section-header">
 							<h3>Application Settings</h3>
-							<button className="refresh-btn" onClick={() => { fetchSettings(); fetchLogLevel(); }}>
-								<RefreshCw size={14} /> Refresh
+							<button className="refresh-btn" onClick={() => { fetchSettings(); fetchLogLevel(); }} disabled={isLoading}>
+								<RefreshCw size={14} className={isLoading ? 'spin' : ''} /> Refresh
 							</button>
 						</div>
 

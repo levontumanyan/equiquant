@@ -25,19 +25,23 @@ interface HistoryPoint {
 const MetricHistory: React.FC<Props> = ({ metricKey, metricName }) => {
 	const [data, setData] = useState<HistoryPoint[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [fetchError, setFetchError] = useState<string | null>(null);
 
 	useEffect(() => {
 		const fetchHistory = async () => {
 			setLoading(true);
+			setFetchError(null);
 			try {
 				const res = await fetch(`${API_BASE_URL}/api/metrics/${metricKey}/history?limit=50`);
 				if (res.ok) {
 					const history = await res.json();
 					// Recharts likes chronological order
 					setData(history.reverse());
+				} else {
+					setFetchError('Failed to load metric history');
 				}
-			} catch (error) {
-				console.error('Error fetching metric history:', error);
+			} catch {
+				setFetchError('Network error — could not reach the server');
 			} finally {
 				setLoading(false);
 			}
@@ -46,6 +50,7 @@ const MetricHistory: React.FC<Props> = ({ metricKey, metricName }) => {
 	}, [metricKey]);
 
 	if (loading) return <div className="loading-small">Loading history...</div>;
+	if (fetchError) return <div className="no-data">{fetchError}</div>;
 	if (data.length === 0) return <div className="no-data">No historical data found for this metric.</div>;
 
 	return (
