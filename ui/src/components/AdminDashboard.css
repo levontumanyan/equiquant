@@ -568,6 +568,103 @@
 	background: rgba(245, 158, 11, 0.05);
 }
 
+.ttl-control-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 1.25rem;
+}
+
+.ttl-control-header label {
+	margin-bottom: 0;
+}
+
+.ttl-unit-toggle {
+	display: flex;
+	gap: 0.25rem;
+}
+
+.ttl-unit-btn {
+	background: #0f172a;
+	border: 1px solid #334155;
+	color: #94a3b8;
+	padding: 0.25rem 0.6rem;
+	border-radius: 0.35rem;
+	font-size: 0.75rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.15s;
+	text-transform: lowercase;
+}
+
+.ttl-unit-btn:hover {
+	background: #334155;
+	color: #fff;
+}
+
+.ttl-unit-btn.active {
+	background: #60a5fa;
+	border-color: #60a5fa;
+	color: #0f172a;
+}
+
+.ttl-row {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.ttl-row-label {
+	font-size: 0.8rem;
+	color: #94a3b8;
+	font-weight: 500;
+	width: 7rem;
+	flex-shrink: 0;
+}
+
+.ttl-row-controls {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	flex: 1;
+}
+
+.ttl-row-controls .log-level-btn {
+	flex: 0 0 auto;
+	min-width: 5rem;
+}
+
+.ttl-custom-input {
+	background: #0f172a;
+	border: 1px solid #334155;
+	color: #e2e8f0;
+	padding: 0.45rem 0.75rem;
+	border-radius: 0.4rem;
+	font-size: 0.85rem;
+	width: 9rem;
+	transition: border-color 0.2s;
+}
+
+.ttl-custom-input::placeholder {
+	color: #475569;
+}
+
+.ttl-custom-input:focus {
+	outline: none;
+	border-color: #60a5fa;
+}
+
+.ttl-custom-input.active {
+	border-color: #60a5fa;
+	background: rgba(96, 165, 250, 0.05);
+}
+
+.ttl-custom-input:disabled {
+	opacity: 0.7;
+	cursor: wait;
+}
+
 .settings-footer {
 	display: flex;
 	align-items: center;

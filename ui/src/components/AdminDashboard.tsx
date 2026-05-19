@@ -33,8 +33,37 @@ interface AppSetting {
 	last_updated: string;
 }
 
+const TTL_PRESETS: Record<string, { label: string; seconds: number }[]> = {
+	market_open_ttl_s: [
+		{ label: '15 min', seconds: 900 },
+		{ label: '30 min', seconds: 1800 },
+	],
+	market_closed_ttl_s: [
+		{ label: '12h', seconds: 43200 },
+		{ label: '24h', seconds: 86400 },
+	],
+}
+
+const TTL_LABELS: Record<string, string> = {
+	market_open_ttl_s: 'Market Open',
+	market_closed_ttl_s: 'Market Closed',
+}
+
+function toSeconds(value: number, unit: 's' | 'm' | 'h'): number {
+	if (unit === 'm') return Math.round(value * 60)
+	if (unit === 'h') return Math.round(value * 3600)
+	return Math.round(value)
+}
+
+function fromSeconds(seconds: number, unit: 's' | 'm' | 'h'): number {
+	if (unit === 'm') return seconds / 60
+	if (unit === 'h') return seconds / 3600
+	return seconds
+}
+
 const AdminDashboard: React.FC = () => {
 	const [activeSubTab, setActiveSubTab] = useState<'telemetry' | 'database' | 'settings'>('telemetry')
+	const [ttlUnit, setTtlUnit] = useState<'s' | 'm' | 'h'>('m')
 	const [tickersExpanded, setTickersExpanded] = useState(false)
 	const [jsonCopied, setJsonCopied] = useState(false)
 
@@ -381,6 +410,63 @@ const AdminDashboard: React.FC = () => {
 							<p className="dim small">Changes take effect immediately across the server process.</p>
 						</div>
 
+						<div className="log-level-control">
+							<div className="ttl-control-header">
+								<label>Cache TTL</label>
+								<div className="ttl-unit-toggle">
+									{(['s', 'm', 'h'] as const).map(u => (
+										<button
+											key={u}
+											className={`ttl-unit-btn ${ttlUnit === u ? 'active' : ''}`}
+											onClick={() => setTtlUnit(u)}
+										>
+											{u}
+										</button>
+									))}
+								</div>
+							</div>
+							{(['market_open_ttl_s', 'market_closed_ttl_s'] as const).map(key => {
+								const presets = TTL_PRESETS[key]
+								const currentSeconds = parseInt(editingSettings[key] || '0')
+								const isPreset = presets.some(p => p.seconds === currentSeconds)
+								const customVal = !isPreset && currentSeconds > 0
+									? fromSeconds(currentSeconds, ttlUnit)
+									: ''
+								return (
+									<div key={key} className="ttl-row">
+										<span className="ttl-row-label">{TTL_LABELS[key]}</span>
+										<div className="ttl-row-controls">
+											{presets.map(p => (
+												<button
+													key={p.seconds}
+													className={`log-level-btn ${currentSeconds === p.seconds ? 'active' : ''}`}
+													onClick={() => setEditingSettings(prev => ({ ...prev, [key]: String(p.seconds) }))}
+													disabled={savingKey === 'all'}
+												>
+													{p.label}
+												</button>
+											))}
+											<input
+												type="number"
+												className={`ttl-custom-input ${!isPreset && currentSeconds > 0 ? 'active' : ''}`}
+												placeholder={`custom (${ttlUnit})`}
+												value={customVal}
+												min={1}
+												onChange={e => {
+													const val = parseFloat(e.target.value)
+													if (!isNaN(val) && val > 0) {
+														setEditingSettings(prev => ({ ...prev, [key]: String(toSeconds(val, ttlUnit)) }))
+													}
+												}}
+												disabled={savingKey === 'all'}
+											/>
+										</div>
+									</div>
+								)
+							})}
+							<p className="dim small">Changes take effect after saving.</p>
+						</div>
+
 						<div className="admin-table-container">
 							<table className="admin-table settings-table">
 								<thead>
@@ -392,7 +478,7 @@ const AdminDashboard: React.FC = () => {
 									</tr>
 								</thead>
 								<tbody>
-									{settings.filter(s => s.key !== 'log_level').map(setting => (
+									{settings.filter(s => !['log_level', 'market_open_ttl_s', 'market_closed_ttl_s'].includes(s.key)).map(setting => (
 										<tr key={setting.key}>
 											<td className="dim">{setting.category}</td>
 											<td className="bold">{setting.key}</td>
