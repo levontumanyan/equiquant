@@ -270,7 +270,9 @@ class TestComputeRelativeBenchmarksBellCurve:
 class TestComputeRelativeBenchmarksPlateau:
 	def test_target_min_max_are_p33_p67(self):
 		bench = [
-			_make_benchmark("current_ratio", "plateau", target_min=1.5, target_max=2.5)
+			_make_benchmark(
+				"current_ratio", "plateau", target_min=1.5, target_max=2.5, width=1.0
+			)
 		]
 		bench[0].pop("best", None)
 		bench[0].pop("worst", None)
@@ -279,6 +281,12 @@ class TestComputeRelativeBenchmarksPlateau:
 		result = compute_relative_benchmarks(bench, values, min_peers=3)
 		assert result[0]["target_min"] == pytest.approx(_percentile(vals, 33))
 		assert result[0]["target_max"] == pytest.approx(_percentile(vals, 67))
+
+		# Verify width is also scaled (using P75-P25 / 2 heuristic)
+		q75 = _percentile(vals, 75)
+		q25 = _percentile(vals, 25)
+		expected_width = (q75 - q25) / 2.0
+		assert result[0]["width"] == pytest.approx(expected_width)
 
 
 # ---------------------------------------------------------------------------
