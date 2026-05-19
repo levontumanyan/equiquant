@@ -7,7 +7,7 @@ from core.analysis.preprocessing import postprocess_score, preprocess_metric_val
 from core.database import DatabaseManager, DatabaseRepository
 from core.profiles import get_profile_weights
 from core.schema import AssetData
-from core.ui.formatters import format_display_value
+from core.utils.formatters import format_display_value
 
 
 @pytest.fixture

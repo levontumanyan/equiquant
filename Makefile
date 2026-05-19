@@ -1,6 +1,6 @@
 .PHONY: help lint format test test-unit test-integration test-acceptance \
 	test-container coverage check install setup podman-init pr \
-	ui-server ui-dev stop start ui-restart run populate-index \
+	ui-server ui-dev stop start ui-restart \
 	db-shell clean ensure-uv
 
 # Configuration
@@ -27,11 +27,6 @@ help:
 	@echo "  make start    Start both API and UI servers"
 	@echo "  make stop     Kill running API and UI processes"
 	@echo "  make ui-restart  Restart both API and UI servers"
-	@echo ""
-	@echo "CLI Usage:"
-	@echo "  make run TICKERS=\"AAPL\"        Run analysis safely via uv"
-	@echo "  ./analyze.py TICKER              Analyze a stock (auto-isolates)"
-	@echo "  make populate-index INDEX=QQQ    Seed assets for an index"
 	@echo ""
 	@echo "Development & Quality:"
 	@echo "  make check       Run linting and all tests"
@@ -114,7 +109,6 @@ install: ensure-uv
 	@echo "Installation Complete!"
 	@echo "----------------------------------------------------------------"
 	@echo "To start the Web Dashboard:   make start"
-	@echo "To analyze via CLI:           ./analyze.py AAPL"
 	@echo "----------------------------------------------------------------"
 
 setup: ensure-uv
@@ -145,13 +139,7 @@ start: ensure-uv
 
 ui-restart: stop start
 
-# CLI Tools
-run: ensure-uv
-	uv run ./analyze.py $(TICKERS) $(FLAGS)
-
-populate-index: ensure-uv
-	@PYTHONPATH=. uv run scripts/populate_index.py $(INDEX)
-
+# Tools
 db-shell:
 	@sqlite3 market_analysis.db
 

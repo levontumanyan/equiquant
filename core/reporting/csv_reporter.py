@@ -1,11 +1,7 @@
 import csv
 from typing import Any, Dict, List
 
-from rich.console import Console
-
 from .base import BaseReporter
-
-console = Console()
 
 
 class CSVReporter(BaseReporter):
