@@ -23,11 +23,14 @@
 
 | Command | Effect |
 |---|---|
-| `make start` | Start **both** API backend (Uvicorn) and React frontend (Vite) |
+| `make start` | Start **both** API and UI (Background, logs to `logs/orchestrator.log`) |
+| `make dev` | Start **both** API and UI (Foreground, live multiplexed logs) |
 | `make stop` | Kill both API and UI processes |
 | `make ui-server` | Start the API backend only |
 | `make ui-dev` | Start the React frontend only |
 | `make ui-restart` | Stop then start both |
+
+**Orchestration**: Both `start` and `dev` use **Honcho** for unified process management and clean signal handling.
 
 If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
 
