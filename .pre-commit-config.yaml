@@ -16,7 +16,7 @@ repos:
         entry: uv run python -m pytest -q --disable-warnings tests/unit
         language: system
         types: [python]
-        files: ^(core/|tests/unit/|analyze\.py)
+        files: ^(core/|tests/unit/)
         pass_filenames: false
         stages: [pre-commit]
 
@@ -34,16 +34,16 @@ repos:
         entry: uv run python -m pytest -q --disable-warnings tests/integration tests/acceptance
         language: system
         types: [python]
-        files: ^(core/|tests/integration/|tests/acceptance/|analyze\.py)
+        files: ^(core/|tests/integration/|tests/acceptance/)
         pass_filenames: false
         stages: [pre-push]
 
       - id: bandit
         name: bandit
-        entry: uv run bandit -c pyproject.toml -r core analyze.py
+        entry: uv run bandit -c pyproject.toml -r core
         language: system
         types: [python]
-        files: ^(core/|analyze\.py)
+        files: ^core/
         stages: [pre-push]
 
       - id: semgrep
@@ -51,5 +51,5 @@ repos:
         entry: uv run semgrep --config auto --error
         language: system
         types: [python]
-        files: ^(core/|analyze\.py)
+        files: ^core/
         stages: [pre-push]

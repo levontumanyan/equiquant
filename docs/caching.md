@@ -44,7 +44,7 @@ The `timestamp` column records exactly when the payload was last written to the 
 # Flow summary
 
 ```
-analyze.py / API
+API (core/api/init.py)
       │
       ├─ repo.should_use_db_cache(ticker)?  ──Yes──► data already in raw_provider_data
       │                                                        │

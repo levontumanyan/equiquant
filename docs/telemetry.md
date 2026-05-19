@@ -22,31 +22,24 @@ Telemetry is orchestrated by the `SessionStats` class in `core/stats.py`.
 
 -   **Instrumentation**: Key components (Database, Providers, ThreadPool) are instrumented to record events.
 -   **Persistence**: At the end of every run, telemetry is saved to the `session_telemetry` table in `market_analysis.db`.
--   **Visualization**: Diagnostics are displayed in the terminal at the end of every run and can be inspected via the CLI.
+-   **Visualization**: Diagnostics can be inspected via the **Admin Dashboard** in the Web UI.
 
 ---
 
 ## 🛠 Usage & Inspection
 
-### Real-Time Diagnostics
-Every analysis run concludes with a "Performance & I/O Telemetry" and "Efficiency & Resource Footprint" summary in the terminal.
+### Admin Dashboard
+Access per-session performance metrics and data audits in the **Telemetry** section of the Admin Dashboard.
 
-### Historical Inspection
-You can view historical session telemetry using the `--db telemetry` flag:
-
-```bash
-./analyze.py --db telemetry
-```
-
-This displays a table of recent runs:
--   **Dur**: Total duration.
+This displays:
+-   **Duration**: Total session duration.
 -   **Tickers**: Requested vs. Analyzed counts.
 -   **Cache**: Cache hit rate percentage.
 -   **API**: Number of external calls.
--   **Err**: Total error count.
+-   **Errors**: Total error count and topology.
 
 ### Advanced SQL Analysis
-Since telemetry is stored as a JSON blob alongside key columns, you can perform advanced analysis using SQL:
+Since telemetry is stored as a JSON blob alongside key columns, you can perform advanced analysis using SQL via `make db-shell`:
 
 ```sql
 -- Find sessions with highest mutex contention

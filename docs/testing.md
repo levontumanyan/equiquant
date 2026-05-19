@@ -17,24 +17,24 @@ This document outlines the automated testing strategy for Equiquant. We use a th
 *	**When to run**: Before committing or when changing the database schema.
 
 ### Acceptance Tests (`tests/acceptance/`)
-*	**Focus**: "User-Side" testing (Black-box). Verifies that the CLI works as expected for a real user.
-*	**Isolation**: Low. Invokes the real `analyze.py` via `subprocess`.
-*	**Verification**: Checks exit codes, console output (stdout/stderr), and file generation (reports).
-*	**Speed**: Slower (can take seconds per test).
+*	**Focus**: "User-Side" testing (Black-box). Verifies that the API/UI pipeline works as expected.
+*	**Isolation**: Low. Uses the FastAPI `TestClient` to hit real server endpoints.
+*	**Verification**: Checks HTTP status codes, JSON response schemas, and logic consistency.
+*	**Speed**: Moderate.
 *	**When to run**: Before merging a feature or releasing.
 
 ---
 
 ## 2. Acceptance Scenarios (Black-box)
 
-The following scenarios are mandatory for verifying system integrity from a user's perspective:
+The following scenarios are mandatory for verifying system integrity via the API:
 
-1.	**Basic Execution**: Verify `--help` and `--list-*` flags work.
-2.	**Analysis Workflows**: Verify analysis of single tickers, multiple tickers, and bulk analysis via file (`-f`).
-3.	**Index/ETF Expansion**: Verify that the `-i` flag correctly expands an index/ETF into its components for analysis.
-4.	**Reporting**: Verify that `-e csv` and `-e txt` flags generate valid report files in the `reports/` directory.
-5.	**Strategy Profiles**: Verify that switching between `balanced`, `growth`, and `dividend` profiles yields distinct and logically correct results.
-6.	**System Operations**: Verify `--history` (historical score retrieval) and `--background` (process daemonization) functionality.
+1.	**API Connectivity**: Verify `/api/analyze` returns 200 OK.
+2.	**Analysis Workflows**: Verify analysis of single tickers and bulk lists via POST requests.
+3.	**Index Expansion**: Verify that the index constituent endpoint correctly expands symbols for analysis.
+4.	**Reporting**: Verify that `/api/export` generates valid downloadable CSV/TXT files.
+5.	**Strategy Profiles**: Verify that different `profile` parameters yield logically correct results.
+6.	**Admin Operations**: Verify telemetry and database inspection endpoints.
 
 ---
 
@@ -42,6 +42,7 @@ The following scenarios are mandatory for verifying system integrity from a user
 
 *	**`conftest.py`**: Shared test configuration and fixtures. It automatically adds the project root to the Python path.
 *	**`Makefile`**: Provides standard entry points for running different test suites.
+*	**`FastAPI TestClient`**: Used for E2E validation of the API surface.
 
 ---
 
