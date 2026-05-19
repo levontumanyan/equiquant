@@ -74,6 +74,18 @@
 .wf-score-medium { background: rgba(251, 191, 36, 0.15);  color: #fbbf24; }
 .wf-score-low    { background: rgba(239, 68, 68, 0.15);   color: #f87171; }
 
+.wf-context-badge {
+	font-size: 0.7rem;
+	font-weight: 500;
+	padding: 0.15rem 0.55rem;
+	border-radius: 999px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.wf-context-sector { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+.wf-context-batch  { background: rgba(6, 182, 212, 0.15);  color: #22d3ee; }
+
 .wf-close-btn {
 	background: transparent;
 	border: none;

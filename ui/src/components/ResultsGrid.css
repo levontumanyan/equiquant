@@ -15,9 +15,55 @@
 
 .results-grid-container.fullscreen .results-grid-header {
 	flex-shrink: 0;
-	padding: 1rem 1.5rem;
+	height: 2rem;
+	padding: 0 0.75rem;
+	margin-bottom: 0;
 	background: #0d1117;
-	border-bottom: 1px solid #1f2937;
+	border-bottom: 1px solid #1a2233;
+	gap: 0.5rem;
+}
+
+.results-grid-container.fullscreen .results-grid-header .header-left {
+	gap: 0.75rem;
+}
+
+/* Hide "Analysis Results" text but keep the count badge visible */
+.results-grid-container.fullscreen .results-grid-header .results-grid-title {
+	font-size: 0;
+	margin: 0;
+	white-space: nowrap;
+}
+
+.results-grid-container.fullscreen .results-grid-header .asset-count-badge {
+	display: none;
+}
+
+.results-grid-container.fullscreen .results-grid-header .search-container {
+	max-width: 220px;
+}
+
+.results-grid-container.fullscreen .results-grid-header .search-input {
+	font-size: 0.72rem !important;
+	padding: 0.15rem 0.5rem 0.15rem 1.5rem !important;
+	height: 1.4rem;
+}
+
+.results-grid-container.fullscreen .results-grid-header .search-icon {
+	left: 0.5rem;
+	width: 11px;
+	height: 11px;
+}
+
+.results-grid-container.fullscreen .results-grid-header .settings-button {
+	font-size: 0.68rem;
+	padding: 0.12rem 0.4rem;
+	gap: 0.2rem;
+	height: 1.4rem;
+}
+
+.results-grid-container.fullscreen .results-grid-header .settings-button svg {
+	width: 11px;
+	height: 11px;
 }
 
 .results-grid-container.fullscreen .column-settings {
@@ -34,7 +80,7 @@
 	border-radius: 0;
 	border: none;
 	box-shadow: none;
-	padding: 0 1.5rem 1.5rem;
+	padding: 0 1rem 1rem;
 }
 
 .results-grid-container.fullscreen .table-wrapper::-webkit-scrollbar {

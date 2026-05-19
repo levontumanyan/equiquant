@@ -752,7 +752,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 						</div>
 					)}
 					{results.length === 0 || viewMode === 'grid'
-						? <ResultsGrid data={results} profile={profile} externalFilter={heatmapFilter} />
+						? <ResultsGrid data={results} profile={profile} externalFilter={heatmapFilter} scoringContext={scoringContext} />
 						: viewMode === 'explorer'
 							? <CorrelationMap data={results} />
 							: <SmartHeatmap
