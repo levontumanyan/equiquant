@@ -53,7 +53,6 @@ class DatabaseManager:
 		if cursor.fetchone()[0] == 0:
 			logger.info("Seeding benchmarks and profiles...")
 			seeder.seed_benchmarks()
-			seeder.seed_sector_benchmarks()
 			seeder.seed_profiles()
 
 		cursor.execute("SELECT COUNT(*) FROM groups")
@@ -159,20 +158,6 @@ class DatabaseManager:
 				file_hash TEXT,
 				download_date DATETIME DEFAULT CURRENT_TIMESTAMP,
 				FOREIGN KEY (symbol) REFERENCES assets(symbol)
-			)
-		""")
-
-		# Sector Benchmarks table
-		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS sector_benchmarks (
-				sector TEXT,
-				metric_key TEXT,
-				benchmark_type TEXT,
-				value_a REAL,
-				value_b REAL,
-				last_updated DATETIME,
-				version TEXT DEFAULT '1.0.0',
-				PRIMARY KEY (sector, metric_key, version)
 			)
 		""")
 

@@ -28,14 +28,6 @@ def test_auto_seed_populates_global_benchmarks(fresh_db):
 	assert count > 0, "No global benchmarks seeded"
 
 
-def test_auto_seed_populates_sector_benchmarks(fresh_db):
-	"""Auto-seed must insert sector benchmarks."""
-	cursor = fresh_db.get_connection().cursor()
-	cursor.execute("SELECT COUNT(*) FROM sector_benchmarks")
-	count = cursor.fetchone()[0]
-	assert count > 0, "No sector benchmarks seeded"
-
-
 def test_auto_seed_populates_stock_groups(fresh_db):
 	"""Auto-seed must insert the predefined system groups."""
 	repo = DatabaseRepository(fresh_db)

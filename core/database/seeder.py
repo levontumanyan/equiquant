@@ -25,7 +25,6 @@ class DatabaseSeeder:
 		self.seed_assets()
 		self.seed_indices()
 		self.seed_benchmarks()
-		self.seed_sector_benchmarks()
 		self.seed_profiles()
 		self.seed_groups()
 		self.seed_app_settings()
@@ -131,30 +130,6 @@ class DatabaseSeeder:
 			logger.info(f"Seeded {len(data)} global benchmarks.")
 		except Exception as e:
 			logger.error(f"Failed to seed global benchmarks: {e}")
-
-	def seed_sector_benchmarks(self):
-		"""Seed sector-specific benchmark overrides."""
-		seed_file = SEEDS_DIR / "sector_benchmarks.json"
-		if not seed_file.exists():
-			logger.warning(f"Seed file not found: {seed_file}")
-			return
-
-		try:
-			with open(seed_file, "r") as f:
-				data = json.load(f)
-
-			for row in data:
-				self.repo.upsert_sector_benchmark(
-					sector=row["sector"],
-					metric_key=row["metric_key"],
-					benchmark_type=row["benchmark_type"],
-					value_a=row["value_a"],
-					value_b=row["value_b"],
-					version=row.get("version", "1.0.0"),
-				)
-			logger.info(f"Seeded {len(data)} sector benchmarks.")
-		except Exception as e:
-			logger.error(f"Failed to seed sector benchmarks: {e}")
 
 	def seed_profiles(self):
 		"""Seed investor profiles and their metric settings."""

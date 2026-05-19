@@ -20,6 +20,7 @@ interface ResultsGridProps {
 	data: AssetAnalysis[]
 	profile?: string
 	externalFilter?: string
+	scoringContext?: 'global' | 'sector' | 'batch'
 }
 
 interface ProfileData {
@@ -40,7 +41,7 @@ const COL_SIZES = {
 // ~7px per char at 0.75rem uppercase + 24px padding, capped at 160.
 const metricValSize = (name: string) => Math.min(Math.max(name.length * 7 + 24, 70), 160)
 
-const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter }) => {
+const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter, scoringContext = 'global' }) => {
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'score', desc: true }])
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
@@ -261,7 +262,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 							type="text"
 							value={globalFilter ?? ''}
 							onChange={e => setGlobalFilter(e.target.value)}
-							placeholder="Search assets..."
+							placeholder={fullscreen ? `${data.length} assets` : 'Search assets...'}
 							className="search-input"
 						/>
 					</div>
@@ -466,6 +467,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		<ScoreWaterfallModal
 			asset={waterfallAsset}
 			onClose={() => setWaterfallAsset(null)}
+			scoringContext={scoringContext}
 		/>
 		</>
 	)

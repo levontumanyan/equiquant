@@ -235,6 +235,29 @@ class DatabaseRepository:
 			row = cursor.fetchone()
 			return dict(row) if row else None
 
+	def get_asset_sector(self, symbol: str) -> Optional[str]:
+		"""
+		Return the sector string for a symbol from the asset registry.
+
+		Cheaper than get_asset — reads only the sector column, avoids
+		deserialising raw_provider_data. Used for sector context routing
+		before the full asset is loaded by the analysis worker.
+
+		Args:
+			symbol: Ticker symbol (case-insensitive).
+
+		Returns:
+			Sector string (e.g. 'Technology'), or None if not found.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT sector FROM assets WHERE symbol = ?", (symbol.upper(),)
+			)
+			row = cursor.fetchone()
+			return row["sector"] if row else None
+
 	def upsert_financial_statement(
 		self,
 		symbol: str,
@@ -381,6 +404,35 @@ class DatabaseRepository:
 				"provider": row["provider"],
 				"timestamp": row["timestamp"],
 			}
+
+	def get_sector_peer_symbols(self, sector: str) -> List[str]:
+		"""
+		Return ticker symbols for all cached STOCK assets in the given sector.
+
+		Used by sector-relative scoring to gather peer assets via the public
+		get_cached_stock_data API, keeping raw-payload deserialisation inside
+		the provider abstraction.
+
+		Args:
+			sector: Sector name (e.g. "Technology") to filter assets by.
+
+		Returns:
+			List of ticker symbols that have both an asset record in this sector
+			and a cached payload in raw_provider_data.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT a.symbol
+				FROM assets a
+				JOIN raw_provider_data r ON r.symbol = a.symbol
+				WHERE a.sector = ? AND UPPER(a.asset_type) = 'STOCK'
+			""",
+				(sector,),
+			)
+			return [row["symbol"] for row in cursor.fetchall()]
 
 	def create_analysis_snapshot(
 		self,
@@ -633,113 +685,9 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			# Safe to use f-string here because table_name is validated against allowed_tables
-			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
+			# table_name is validated against sqlite_master allowlist above — f-string is safe
+			cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))  # nosec B608  # nosemgrep
 			return [dict(row) for row in cursor.fetchall()]
-
-	def upsert_sector_benchmark(
-		self,
-		sector: str,
-		metric_key: str,
-		benchmark_type: str,
-		value_a: float,
-		value_b: float,
-		version: str = "1.0.0",
-	):
-		"""Insert or update a sector-specific benchmark."""
-		with self._lock:
-			conn = self.db.get_connection()
-			cursor = conn.cursor()
-			cursor.execute(
-				"""
-				INSERT INTO sector_benchmarks (sector, metric_key, benchmark_type, value_a, value_b, last_updated, version)
-				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-				ON CONFLICT(sector, metric_key, version) DO UPDATE SET
-					benchmark_type = excluded.benchmark_type,
-					value_a = excluded.value_a,
-					value_b = excluded.value_b,
-					last_updated = CURRENT_TIMESTAMP
-			""",
-				(sector, metric_key, benchmark_type, value_a, value_b, version),
-			)
-			conn.commit()
-
-	def get_sector_benchmarks(self, sector: str, version: str = "1.0.0") -> List[dict]:
-		"""Get all benchmarks for a specific sector and version."""
-		with self._lock:
-			conn = self.db.get_connection()
-			cursor = conn.cursor()
-			cursor.execute(
-				"SELECT * FROM sector_benchmarks WHERE sector = ? AND version = ?",
-				(sector, version),
-			)
-			return [dict(row) for row in cursor.fetchall()]
-
-	def get_effective_benchmarks(
-		self,
-		asset_type: str = "equity",
-		sector: Optional[str] = None,
-		version: str = "1.0.0",
-	) -> List[dict]:
-		"""
-		Get benchmarks for an asset type, with optional sector-specific overrides.
-		"""
-		# Start with global benchmarks
-		benchmarks = {
-			b["metric"]: b for b in self.get_global_benchmarks(asset_type, version)
-		}
-
-		if sector:
-			# Get sector overrides
-			overrides = self.get_sector_benchmarks(sector, version)
-			for ov in overrides:
-				metric = ov["metric_key"]
-				if metric in benchmarks:
-					# Override specific values
-					b = benchmarks[metric]
-					if ov["benchmark_type"] == "best_worst":
-						b["best"] = ov["value_a"]
-						b["worst"] = ov["value_b"]
-						b["type"] = "sigmoid"  # best_worst maps to sigmoid
-					elif ov["benchmark_type"] == "target_width":
-						b["target"] = ov["value_a"]
-						b["width"] = ov["value_b"]
-						b["type"] = "bell_curve"
-					elif ov["benchmark_type"] == "threshold":
-						b["threshold"] = ov["value_a"]
-						b["type"] = "threshold"
-				else:
-					# New metric for this sector (less common but possible)
-					# We might lack some metadata like 'name', so we use metric as name
-					new_b = {
-						"metric": metric,
-						"name": metric.replace("_", " ").title(),
-						"asset_type": asset_type,
-						"weight": 1.0,
-						"version": version,
-					}
-					if ov["benchmark_type"] == "best_worst":
-						new_b.update(
-							{
-								"type": "sigmoid",
-								"best": ov["value_a"],
-								"worst": ov["value_b"],
-							}
-						)
-					elif ov["benchmark_type"] == "target_width":
-						new_b.update(
-							{
-								"type": "bell_curve",
-								"target": ov["value_a"],
-								"width": ov["value_b"],
-							}
-						)
-					elif ov["benchmark_type"] == "threshold":
-						new_b.update({"type": "threshold", "threshold": ov["value_a"]})
-
-					benchmarks[metric] = new_b
-
-		return list(benchmarks.values())
 
 	def insert_metric_history(self, symbol: str, metric_key: str, value: float):
 		"""Insert a new metric record."""

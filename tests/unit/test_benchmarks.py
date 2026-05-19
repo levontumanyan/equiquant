@@ -10,8 +10,7 @@ def repo():
 	return DatabaseRepository(db_manager)
 
 
-def test_get_effective_benchmarks(repo):
-	# Add global benchmark
+def _seed_pe_benchmark(repo):
 	repo.upsert_global_benchmark(
 		asset_type="equity",
 		metric_key="pe_ratio",
@@ -24,28 +23,23 @@ def test_get_effective_benchmarks(repo):
 		weight=1.0,
 	)
 
-	# Get global
-	benchmarks = repo.get_effective_benchmarks(asset_type="equity")
+
+def test_get_global_benchmarks_returns_seeded_entry(repo):
+	"""Global benchmarks are loaded correctly from the DB."""
+	_seed_pe_benchmark(repo)
+	benchmarks = repo.get_global_benchmarks(asset_type="equity")
 	assert len(benchmarks) == 1
 	assert benchmarks[0]["metric"] == "pe_ratio"
 	assert benchmarks[0]["best"] == 15
+	assert benchmarks[0]["worst"] == 25
 
-	# Add sector override
-	repo.upsert_sector_benchmark(
-		sector="Technology",
-		metric_key="pe_ratio",
-		benchmark_type="best_worst",
-		value_a=25.0,
-		value_b=40.0,
-	)
 
-	# Get with sector override
-	benchmarks = repo.get_effective_benchmarks(asset_type="equity", sector="Technology")
-	assert len(benchmarks) == 1
-	assert benchmarks[0]["metric"] == "pe_ratio"
-	assert benchmarks[0]["best"] == 25.0
-	assert benchmarks[0]["worst"] == 40.0
-	assert benchmarks[0]["type"] == "sigmoid"
+def test_global_benchmarks_no_sector_override(repo):
+	"""Global benchmarks are returned as-is — no static sector patching."""
+	_seed_pe_benchmark(repo)
+	benchmarks = repo.get_global_benchmarks(asset_type="equity")
+	assert benchmarks[0]["best"] == 15
+	assert benchmarks[0]["worst"] == 25
 
 
 def test_get_metric_history(repo):

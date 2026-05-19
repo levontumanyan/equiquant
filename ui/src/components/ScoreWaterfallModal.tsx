@@ -7,11 +7,18 @@ import './ScoreWaterfallModal.css'
 interface ScoreWaterfallModalProps {
 	asset: AssetAnalysis | null
 	onClose: () => void
+	scoringContext?: 'global' | 'sector' | 'batch'
+}
+
+const CONTEXT_LABEL: Record<string, string> = {
+	global: 'Global',
+	sector: 'Sector-Relative',
+	batch: 'Batch-Relative',
 }
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
-const ScoreWaterfallModal: React.FC<ScoreWaterfallModalProps> = ({ asset, onClose }) => {
+const ScoreWaterfallModal: React.FC<ScoreWaterfallModalProps> = ({ asset, onClose, scoringContext = 'global' }) => {
 	const modalRef = useRef<HTMLDivElement>(null)
 	const closeBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -56,6 +63,11 @@ const ScoreWaterfallModal: React.FC<ScoreWaterfallModalProps> = ({ asset, onClos
 						<span className="wf-symbol">{asset.symbol}</span>
 						<span className="wf-asset-name">{asset.name}</span>
 						<span className={`wf-score-badge ${scoreClass}`}>{asset.score.toFixed(1)} / 100</span>
+						{scoringContext !== 'global' && (
+							<span className={`wf-context-badge wf-context-${scoringContext}`}>
+								{CONTEXT_LABEL[scoringContext]}
+							</span>
+						)}
 					</div>
 					<button ref={closeBtnRef} className="wf-close-btn" onClick={onClose} aria-label="Close breakdown">
 						<X size={16} />

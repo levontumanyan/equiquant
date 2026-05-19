@@ -5,17 +5,28 @@ import threading
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from functools import partial
-from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Optional, Tuple
+from typing import (
+	Any,
+	AsyncGenerator,
+	AsyncIterator,
+	Dict,
+	List,
+	Literal,
+	Optional,
+	Tuple,
+)
 
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
 from core.logger import get_logger
 from core.profiles import get_profile_config
-from core.schema import AssetData, AssetType
+from core.schema import AssetData
 from core.stats import stats
 
 logger = get_logger(__name__)
+
+ScoringContext = Literal["global", "sector", "batch"]
 
 
 def analyze_asset(
@@ -23,15 +34,21 @@ def analyze_asset(
 	profile: str,
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
+	benchmark_overrides: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
 	"""
 	Analyze a single pre-loaded asset by evaluating benchmarks and optionally saving results.
+
+	If benchmark_overrides is provided (computed externally for sector or batch context),
+	those definitions are used directly instead of loading from the DB.
 
 	Args:
 		asset: Pre-loaded AssetData object.
 		profile: The investor profile name to use for weighting.
 		repo: Optional database repository for persistence.
-		benchmark_version: The version of benchmarks to load.
+		benchmark_version: The version of benchmarks to load (used when no overrides).
+		benchmark_overrides: Pre-computed benchmark defs for relative scoring contexts.
+			When None, global benchmarks are loaded from the DB.
 
 	Returns:
 		A dictionary containing analysis results and the final score, or None if analysis failed.
@@ -39,14 +56,14 @@ def analyze_asset(
 	symbol = asset.symbol
 	logger.info(f"Analyzing asset: {symbol} with profile: {profile}")
 
-	# Load benchmarks with sector context for stocks
-	sector_context = asset.sector if asset.asset_type == AssetType.STOCK else None
-	benchmark_defs = load_benchmarks(
-		asset.asset_type.value,
-		sector=sector_context,
-		repo=repo,
-		version=benchmark_version,
-	)
+	if benchmark_overrides is not None:
+		benchmark_defs = benchmark_overrides
+	else:
+		benchmark_defs = load_benchmarks(
+			asset.asset_type.value,
+			repo=repo,
+			version=benchmark_version,
+		)
 
 	if not benchmark_defs:
 		logger.error(f"No benchmarks found for {symbol}")
@@ -93,8 +110,23 @@ def _tracked_analyze_asset(
 	benchmark_version: str = "1.0.0",
 	submitted_at: float = 0.0,
 	cancel_event: Optional[threading.Event] = None,
+	benchmark_overrides: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
-	"""Wraps analyze_asset with telemetry and cooperative cancellation support."""
+	"""
+	Wraps analyze_asset with telemetry and cooperative cancellation support.
+
+	Args:
+		ticker: Ticker symbol to analyse.
+		profile: Investor profile name.
+		repo: Database repository for cache and persistence.
+		benchmark_version: Benchmark version string.
+		submitted_at: perf_counter timestamp when the task was submitted (for latency tracking).
+		cancel_event: Optional threading.Event; returns None immediately when set.
+		benchmark_overrides: Pre-computed benchmark defs for relative scoring contexts.
+
+	Returns:
+		Analysis result dict, or None if cancelled or data unavailable.
+	"""
 	if cancel_event and cancel_event.is_set():
 		return None
 	queued_latency = time.perf_counter() - submitted_at
@@ -105,7 +137,9 @@ def _tracked_analyze_asset(
 		if not asset:
 			logger.warning(f"Skipping analysis for {ticker}: No data cached.")
 			return None
-		return analyze_asset(asset, profile, repo, benchmark_version)
+		return analyze_asset(
+			asset, profile, repo, benchmark_version, benchmark_overrides
+		)
 	finally:
 		worker_time = time.perf_counter() - start_time
 		stats.record_task_complete(worker_time)
@@ -219,6 +253,85 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 	logger.info("Data fetch complete.")
 
 
+def _build_batch_benchmarks(
+	tickers: List[str],
+	asset_type_value: str,
+	repo: Optional[DatabaseRepository],
+	benchmark_version: str,
+) -> Optional[List[Dict[str, Any]]]:
+	"""
+	Pre-compute batch-relative benchmarks by loading all cached assets and
+	deriving distributional thresholds from their metric values.
+
+	Returns None if fewer than 3 assets have cached data (falls back to global).
+
+	Args:
+		tickers: All ticker symbols in the batch.
+		asset_type_value: Asset type string for global benchmark lookup.
+		repo: Database repository.
+		benchmark_version: Benchmark version string.
+
+	Returns:
+		Relative benchmark list, or None to signal fallback to global.
+	"""
+	from core.analysis.relative import compute_batch_relative_benchmarks
+
+	assets = [get_cached_stock_data(t, repo=repo) for t in tickers]
+	assets = [a for a in assets if a is not None]
+
+	if len(assets) < 3:
+		logger.warning(
+			"Batch-relative mode: fewer than 3 cached assets, falling back to global."
+		)
+		return None
+
+	global_benchmarks = load_benchmarks(
+		asset_type_value, repo=repo, version=benchmark_version
+	)
+	return compute_batch_relative_benchmarks(assets, global_benchmarks)
+
+
+def _resolve_asset_benchmarks(
+	ticker: str,
+	context: ScoringContext,
+	global_benchmarks: List[Dict[str, Any]],
+	batch_benchmarks: Optional[List[Dict[str, Any]]],
+	repo: Optional[DatabaseRepository],
+	sector_cache: Dict[str, List[Dict[str, Any]]],
+) -> Optional[List[Dict[str, Any]]]:
+	"""
+	Resolve the benchmark list for a single ticker given the active context.
+
+	Called from the main thread so sector_cache writes are serialised.
+
+	Args:
+		ticker: Normalised ticker symbol.
+		context: Active scoring context.
+		global_benchmarks: Pre-loaded global benchmark definitions.
+		batch_benchmarks: Pre-computed batch-relative benchmarks (context='batch').
+		repo: Database repository for sector peer queries.
+		sector_cache: Per-sector benchmark cache, mutated in-place as sectors are seen.
+
+	Returns:
+		Benchmark list to pass as overrides, or None to fall back to global.
+	"""
+	if context == "batch":
+		return batch_benchmarks
+	if context == "sector" and repo:
+		# Use a cheap sector-only lookup so the full asset load happens only
+		# once inside the analysis worker, not twice (here + in _tracked_analyze_asset).
+		sector = repo.get_asset_sector(ticker)
+		if sector:
+			if sector not in sector_cache:
+				from core.analysis.relative import compute_sector_relative_benchmarks
+
+				sector_cache[sector] = compute_sector_relative_benchmarks(
+					sector, repo, global_benchmarks
+				)
+			return sector_cache[sector]
+	return None
+
+
 def run_bulk_analysis(
 	tickers: List[str],
 	profile: str,
@@ -226,14 +339,36 @@ def run_bulk_analysis(
 	repo: Optional[DatabaseRepository] = None,
 	benchmark_version: str = "1.0.0",
 	max_workers: int = 5,
+	context: ScoringContext = "global",
 ) -> List[Dict[str, Any]]:
 	"""
 	Run analysis for multiple tickers using parallel processing.
 	Only processes data that is already cached locally.
+
+	Args:
+		tickers: Ticker symbols to analyse.
+		profile: Investor profile name.
+		progress_callback: Optional callable called with each result as it completes.
+		repo: Optional database repository for persistence.
+		benchmark_version: Benchmark version string.
+		max_workers: Thread pool size.
+		context: Scoring context — 'global', 'sector', or 'batch'.
+
+	Returns:
+		List of analysis result dicts.
 	"""
 	logger.info(
-		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers"
+		f"Starting bulk analysis for {len(tickers)} tickers with {max_workers} workers (context={context})"
 	)
+
+	global_benchmarks = load_benchmarks("STOCK", repo=repo, version=benchmark_version)
+	batch_benchmarks: Optional[List[Dict[str, Any]]] = None
+	sector_cache: Dict[str, List[Dict[str, Any]]] = {}
+
+	if context == "batch":
+		batch_benchmarks = _build_batch_benchmarks(
+			tickers, "STOCK", repo, benchmark_version
+		)
 
 	all_results = []
 
@@ -243,6 +378,9 @@ def run_bulk_analysis(
 		for ticker in tickers:
 			ticker = ticker.upper().strip()
 			stats.record_pool_submission()
+			asset_benchmarks = _resolve_asset_benchmarks(
+				ticker, context, global_benchmarks, batch_benchmarks, repo, sector_cache
+			)
 			futures.append(
 				executor.submit(
 					_tracked_analyze_asset,
@@ -251,6 +389,7 @@ def run_bulk_analysis(
 					repo=repo,
 					benchmark_version=benchmark_version,
 					submitted_at=time.perf_counter(),
+					benchmark_overrides=asset_benchmarks,
 				)
 			)
 
@@ -288,6 +427,7 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 	max_workers: int = min(32, (os.cpu_count() or 4) + 4),
 	executor: Optional[ThreadPoolExecutor] = None,
 	cancel_event: Optional[threading.Event] = None,
+	context: ScoringContext = "global",
 ) -> AsyncGenerator[Dict[str, Any], None]:
 	"""
 	Async generator that yields individual analysis results as each ticker completes.
@@ -299,6 +439,10 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 	When an external executor is provided the caller owns its lifecycle; otherwise
 	this function creates and tears down its own executor.
 
+	For 'batch' context the function performs a two-pass approach: all asset data
+	must be available before batch benchmarks can be computed, so there is no
+	fetch-time pipelining in that mode. Data is loaded from cache only.
+
 	Args:
 		tickers: Ticker symbols to analyse (normalised to uppercase internally).
 		profile: Investor profile name used for metric weighting.
@@ -307,6 +451,7 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 		max_workers: Maximum parallel worker threads (used only when no external executor).
 		executor: Optional external ThreadPoolExecutor to reuse across calls.
 		cancel_event: Optional threading.Event for cooperative cancellation.
+		context: Scoring context — 'global', 'sector', or 'batch'.
 
 	Yields:
 		Analysis result dict for each completed ticker (None results are skipped).
@@ -319,12 +464,28 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 	if owns_executor:
 		executor = ThreadPoolExecutor(max_workers=max_workers)
 
+	# Resolve per-asset benchmark overrides in the main thread before submitting to pool.
+	# sector_cache is populated here (single-threaded) so workers only read from it.
+	global_benchmarks = load_benchmarks("STOCK", repo=repo, version=benchmark_version)
+	batch_benchmarks: Optional[List[Dict[str, Any]]] = None
+	sector_cache: Dict[str, List[Dict[str, Any]]] = {}
+
+	if context == "batch":
+		batch_benchmarks = _build_batch_benchmarks(
+			tickers, "STOCK", repo, benchmark_version
+		)
+
 	futures: List[asyncio.Future] = []
 
 	try:
 		for ticker in tickers:
 			ticker = ticker.upper().strip()
 			stats.record_pool_submission()
+
+			asset_benchmarks = _resolve_asset_benchmarks(
+				ticker, context, global_benchmarks, batch_benchmarks, repo, sector_cache
+			)
+
 			task = loop.run_in_executor(
 				executor,
 				partial(
@@ -335,6 +496,7 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 					benchmark_version,
 					time.perf_counter(),
 					cancel_event,
+					asset_benchmarks,
 				),
 			)
 			futures.append(task)

@@ -50,6 +50,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [newGroupDesc, setNewGroupDesc] = useState('')
 	const [groupSaveStatus, setGroupSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
 
+	const [scoringContext, setScoringContext] = useState<'global' | 'sector' | 'batch'>('global')
 	const [indexExpansion, setIndexExpansion] = useState<string | null>(null)
 	const [provider, setProvider] = useState('openbb')
 	const [showSettings, setShowSettings] = useState(false)
@@ -286,7 +287,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 			await fetchEventSource(`${API_BASE_URL}/api/analyze/stream`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ tickers, profile }),
+				body: JSON.stringify({ tickers, profile, context: scoringContext }),
 				signal: controller.signal,
 				openWhenHidden: true,
 				onmessage(ev) {
@@ -613,6 +614,27 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 							</select>
 						</div>
 
+						{/* Scoring Context */}
+						<div className="input-group">
+							<label className="input-label">Scoring Context</label>
+							<div className="context-toggle">
+								{(['global', 'sector', 'batch'] as const).map(ctx => (
+									<button
+										key={ctx}
+										className={`context-toggle-btn${scoringContext === ctx ? ' active' : ''}`}
+										onClick={() => setScoringContext(ctx)}
+										title={
+											ctx === 'global' ? 'Score against global market averages' :
+											ctx === 'sector' ? 'Score each stock relative to its sector peers' :
+											'Score stocks relative to each other within this batch'
+										}
+									>
+										{ctx.charAt(0).toUpperCase() + ctx.slice(1)}
+									</button>
+								))}
+							</div>
+						</div>
+
 						{/* Run / Cancel Buttons */}
 						<button
 							onClick={handleRunAnalysis}
@@ -730,7 +752,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 						</div>
 					)}
 					{results.length === 0 || viewMode === 'grid'
-						? <ResultsGrid data={results} profile={profile} externalFilter={heatmapFilter} />
+						? <ResultsGrid data={results} profile={profile} externalFilter={heatmapFilter} scoringContext={scoringContext} />
 						: viewMode === 'explorer'
 							? <CorrelationMap data={results} />
 							: <SmartHeatmap
