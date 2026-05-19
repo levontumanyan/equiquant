@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -36,6 +36,7 @@ class AnalysisRequest(BaseModel):
 	tickers: List[str]
 	profile: str = "balanced"
 	benchmark_version: str = "1.0.0"
+	context: Literal["global", "sector", "batch"] = "global"
 
 
 class ExportRequest(BaseModel):

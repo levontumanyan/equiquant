@@ -110,37 +110,6 @@ def show_snapshots():
 	conn.close()
 
 
-def show_sectors():
-	conn = get_db_conn()
-	if not conn:
-		return
-
-	cursor = conn.cursor()
-	cursor.execute(
-		"SELECT sector, metric_key, benchmark_type, value_a, value_b FROM sector_benchmarks ORDER BY sector, metric_key"
-	)
-	rows = cursor.fetchall()
-
-	table = Table(title="Sector Benchmarks (30-day cache)")
-	table.add_column("Sector", style="cyan")
-	table.add_column("Metric", style="green")
-	table.add_column("Type", style="magenta")
-	table.add_column("Value A", justify="right")
-	table.add_column("Value B", justify="right")
-
-	for row in rows:
-		table.add_row(
-			row["sector"],
-			row["metric_key"],
-			row["benchmark_type"],
-			f"{row['value_a']:.2f}",
-			f"{row['value_b']:.2f}",
-		)
-
-	console.print(table)
-	conn.close()
-
-
 def show_profiles():
 	conn = get_db_conn()
 	if not conn:
@@ -293,8 +262,6 @@ def dispatch_db_view(view: str):
 		show_indices()
 	elif view == "snapshots":
 		show_snapshots()
-	elif view == "sectors":
-		show_sectors()
 	elif view == "profiles":
 		show_profiles()
 	elif view == "benchmarks":

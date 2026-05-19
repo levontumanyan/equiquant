@@ -10,12 +10,10 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/benchmarks", response_model=List[BenchmarkResponse])
-async def get_benchmarks(
-	asset_type: str = "equity", sector: Optional[str] = None, version: str = "1.0.0"
-):
-	"""Fetch all global benchmarks for a given asset type, with optional sector overrides."""
+async def get_benchmarks(asset_type: str = "equity", version: str = "1.0.0"):
+	"""Fetch all global benchmarks for a given asset type."""
 	try:
-		benchmarks = repo.get_effective_benchmarks(asset_type, sector, version)
+		benchmarks = repo.get_global_benchmarks(asset_type, version)
 		return benchmarks
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
@@ -23,30 +21,14 @@ async def get_benchmarks(
 
 @router.get("/sectors")
 async def get_sectors():
-	"""Fetch all unique sectors from the database."""
+	"""Fetch all unique sectors present in the asset registry."""
 	try:
 		conn = db_manager.get_connection()
 		cursor = conn.cursor()
 		cursor.execute(
 			"SELECT DISTINCT sector FROM assets WHERE sector IS NOT NULL ORDER BY sector"
 		)
-		sectors = [row[0] for row in cursor.fetchall()]
-
-		cursor.execute("SELECT DISTINCT sector FROM sector_benchmarks ORDER BY sector")
-		for row in cursor.fetchall():
-			if row[0] not in sectors:
-				sectors.append(row[0])
-
-		return sorted(sectors)
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/benchmarks/sector/{sector}")
-async def get_sector_benchmarks(sector: str, version: str = "1.0.0"):
-	"""Fetch benchmarks for a specific sector."""
-	try:
-		return repo.get_sector_benchmarks(sector, version)
+		return [row[0] for row in cursor.fetchall()]
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
 

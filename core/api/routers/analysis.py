@@ -91,6 +91,7 @@ async def _stream_results(
 		benchmark_version=request.benchmark_version,
 		executor=executor,
 		cancel_event=cancel_event,
+		context=request.context,
 	):
 		yield {
 			"event": "result",
@@ -178,6 +179,7 @@ async def analyze_assets(request: AnalysisRequest):
 			profile=request.profile,
 			repo=repo,
 			benchmark_version=request.benchmark_version,
+			context=request.context,
 		)
 		stats.end_stage("Analysis & Scoring")
 		_finalize_stats(len(results), db_path, tickers)

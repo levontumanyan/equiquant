@@ -80,32 +80,6 @@ def test_benchmark_versioning(repo):
 	assert v2[0]["weight"] == 1.5
 
 
-def test_sector_benchmark_versioning(repo):
-	"""Test versioning for sector-specific benchmarks."""
-	repo.upsert_sector_benchmark(
-		sector="Tech",
-		metric_key="pe_ratio",
-		benchmark_type="best_worst",
-		value_a=20.0,
-		value_b=40.0,
-		version="1.0.0",
-	)
-	repo.upsert_sector_benchmark(
-		sector="Tech",
-		metric_key="pe_ratio",
-		benchmark_type="best_worst",
-		value_a=25.0,
-		value_b=50.0,
-		version="2.0.0",
-	)
-
-	v1 = repo.get_sector_benchmarks("Tech", version="1.0.0")
-	v2 = repo.get_sector_benchmarks("Tech", version="2.0.0")
-
-	assert v1[0]["value_a"] == 20.0
-	assert v2[0]["value_a"] == 25.0
-
-
 def test_analysis_snapshot_versioning(repo):
 	"""Test that analysis snapshots record the benchmark version."""
 	import time
@@ -127,8 +101,7 @@ def test_analysis_snapshot_versioning(repo):
 
 
 def test_load_benchmarks_with_version(repo):
-	"""Test loading benchmarks with a specific version."""
-	# Setup global v1 and v2
+	"""Test that load_benchmarks respects the version parameter."""
 	repo.upsert_global_benchmark(
 		"STOCK",
 		"pe",
@@ -150,40 +123,19 @@ def test_load_benchmarks_with_version(repo):
 		False,
 		None,
 		'{"best": 10, "worst": 20}',
-		1.0,
-		"2.0.0",
-	)
-	repo.upsert_global_benchmark(
-		"STOCK",
-		"roe",
-		"ROE",
-		"bell_curve",
-		None,
-		False,
-		None,
-		'{"target": 0.1, "width": 0.02}',
-		1.0,
+		1.5,
 		"2.0.0",
 	)
 
-	# Setup sector override for v2 only
-	repo.upsert_sector_benchmark("Tech", "pe", "best_worst", 5.0, 15.0, "2.0.0")
-	repo.upsert_sector_benchmark("Tech", "roe", "target_width", 0.15, 0.05, "2.0.0")
-
-	# Load v1 for Tech (should have global v1 values)
-	bench_v1 = load_benchmarks("STOCK", sector="Tech", repo=repo, version="1.0.0")
-	# Load v2 for Tech (should have sector override)
-	bench_v2 = load_benchmarks("STOCK", sector="Tech", repo=repo, version="2.0.0")
+	bench_v1 = load_benchmarks("STOCK", repo=repo, version="1.0.0")
+	bench_v2 = load_benchmarks("STOCK", repo=repo, version="2.0.0")
 
 	pe_v1 = next(b for b in bench_v1 if b["metric"] == "pe")
 	pe_v2 = next(b for b in bench_v2 if b["metric"] == "pe")
-	roe_v2 = next((b for b in bench_v2 if b["metric"] == "roe"), None)
 
 	assert pe_v1["best"] == 15
-	assert pe_v2["best"] == 5.0
-	if roe_v2:
-		assert roe_v2["target"] == 0.15
-		assert roe_v2["width"] == 0.05
+	assert pe_v2["best"] == 10
+	assert pe_v2["weight"] == 1.5
 
 
 def test_analyze_asset_saves_version(repo):

@@ -53,7 +53,6 @@ class DatabaseManager:
 		if cursor.fetchone()[0] == 0:
 			logger.info("Seeding benchmarks and profiles...")
 			seeder.seed_benchmarks()
-			seeder.seed_sector_benchmarks()
 			seeder.seed_profiles()
 
 		cursor.execute("SELECT COUNT(*) FROM groups")
