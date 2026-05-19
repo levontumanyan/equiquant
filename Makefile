@@ -24,7 +24,8 @@ help:
 	@echo "UI Development:"
 	@echo "  make ui-server   Start the API backend (Uvicorn)"
 	@echo "  make ui-dev      Start the React frontend (Vite)"
-	@echo "  make start    Start both API and UI servers"
+	@echo "  make start    Start both (Background, logs to logs/orchestrator.log)"
+	@echo "  make dev      Start both (Foreground, multiplexed logs)"
 	@echo "  make stop     Kill running API and UI processes"
 	@echo "  make ui-restart  Restart both API and UI servers"
 	@echo ""
@@ -130,12 +131,22 @@ ui-dev: ensure-uv
 
 stop:
 	@echo "Stopping EquiQuant processes..."
+	@pkill -f "honcho start" 2>/dev/null || true
 	@pkill -f "uvicorn core.api" 2>/dev/null || true
 	@pkill -f "vite.*--port $(UI_PORT)" 2>/dev/null || true
 	@sleep 0.5
 
-start: ensure-uv
-	@$(MAKE) ui-server & $(MAKE) ui-dev
+start: ensure-uv stop
+	@echo "Starting EquiQuant in background..."
+	@mkdir -p logs
+	@nohup uv run honcho start > logs/orchestrator.log 2>&1 &
+	@echo "Servers are running. Check logs/orchestrator.log for details."
+	@echo "API: http://localhost:$(API_PORT)"
+	@echo "UI:  http://localhost:$(UI_PORT)"
+	@echo "Use 'make stop' to shutdown."
+
+dev: ensure-uv stop
+	@uv run honcho start
 
 ui-restart: stop start
 
