@@ -24,10 +24,7 @@ To prevent redundant scraping and respect provider bandwidth, a **7-day time-to-
 3.  **Automatic Persistence**: Every fresh scrape automatically updates the `indices` metadata and `index_constituents` table, resetting the 7-day timer.
 
 ## Usage
-To analyze an ETF and all its holdings, use the `--index` (or `-i`) flag:
-```bash
-make run INDEX=XME
-```
+To analyze an ETF and all its holdings, enter the ETF symbol in the Web Dashboard search bar. The system will automatically expand the index and analyze its constituents.
 
 ## Adding New Providers
 To support a new fund family (e.g., Vanguard, BlackRock/iShares):

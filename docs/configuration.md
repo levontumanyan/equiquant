@@ -1,14 +1,14 @@
 # Configuration (Database-Driven)
 
-The "Investment Brain" stores all logic in `market_analysis.db`. You can visualize these rules using the CLI:
+The "Investment Brain" stores all logic in `market_analysis.db`. You can visualize and manage these rules using the **Admin Dashboard** (`/admin` in the Web UI):
 
-- `./analyze.py --db benchmarks`: View master scoring rules (STOCK vs ETF).
-- `./analyze.py --db profiles`: View available investment strategies.
-- `./analyze.py --db sectors`: View sector-specific valuation overrides.
+- **Benchmarks Explorer**: View master scoring rules (STOCK vs ETF).
+- **Profile Manager**: View and edit investment strategies.
+- **Sector Overrides**: View sector-specific valuation parameters.
 
 ## Strategic Weight Resolution Flow
 
-When you run an analysis (e.g., `./analyze.py NVDA --profile growth`), the system follows this path:
+When you run an analysis via the Dashboard or API, the system follows this path:
 
 1. **Identify Rules**: Fetches metrics for the asset type (STOCK or ETF) from the `global_benchmarks` table.
 2. **Apply Peer Logic**: Checks `sector_benchmarks` for scoring overrides based on the asset's sector.

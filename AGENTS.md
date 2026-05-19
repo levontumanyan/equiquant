@@ -12,7 +12,7 @@
 
 ## Architecture Mandates
 - **Modularity**: All logic belongs in `core/`.
-- **DEPRECATION WARNING**: `analyze.py` is being **decommissioned** (Epic #159). Do NOT add new logic to it, and ensure no new functionality relies on it. All orchestration should flow through `core/api.py`.
+- **API Orchestration**: All orchestration flows through `core/api.py`.
 - **Functional Style**: Prefer pure functions. Every new logic component must be its own function.
 - **Scalability**: New data sources inherit `BaseProvider`; new metrics update `mappings.py` and `AssetData`.
 - **Lean Config**: Keep `seeds/` benchmarks and profiles focused.
@@ -32,12 +32,12 @@
 If `node_modules` is missing in the worktree, run `cd ui && pnpm install` first.
 
 ## Environment, Branching & Parallelism
-- **Tooling**: Use `make` for development tasks (lint, format, test). For running the application, prefer direct CLI usage via `./analyze.py`.
+- **Tooling**: Use `make` for development tasks (lint, format, test).
 - **STRICT MANDATE**: Use the worktree skill for all new tasks.
 - **Identify** the worktree root as WORKTREE_ROOT. Use this path as the cwd (Current Working Directory) for all tool calls and shell commands to avoid repetitive cd operations.
 - **Perform research**, implementation, and testing within the worktree.
 - **Send periodic** issue updates and a final summary upon completion as comments on the issue.
-- **Perform UI/API Validation**: Verify changes via the Web Dashboard (`make start`) or API endpoints. CLI checks via `./analyze.py` are secondary and being phased out.
+- **Perform UI/API Validation**: Verify changes via the Web Dashboard (`make start`) or API endpoints.
 - If the user is satisfied with the changes (ask), from $WORKTREE_ROOT, use the PR target:
   `make pr TITLE="feat: your title (#issue)" BODY="Description. Closes #issue"`
 - This target automatically validates the code in the rootless Podman environment, pushes the branch with `--no-verify` (bypassing local hooks as validation is handled by the container), and creates the PR.
@@ -109,7 +109,7 @@ analysis_snapshots(symbol, profile, total_score, benchmark_version, timestamp)
 - Market closed → 12 h TTL
 
 ## Fetch flow
-1. `analyze.py` / `api.py` splits tickers via `repo.should_use_db_cache()`
+1. `api.py` splits tickers via `repo.should_use_db_cache()`
 2. Missing tickers → `fetch_data(tickers, repo=repo)` → subprocess fetches from OpenBB
 3. Subprocess returns `Tuple[bool, float, Dict[str, Dict]]` via pickle IPC (no disk write)
 4. Orchestrator writes dict to `raw_provider_data` **before** yielding the batch

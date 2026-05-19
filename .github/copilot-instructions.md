@@ -18,7 +18,7 @@ You are an expert software architect and senior engineer reviewing and generatin
     *   **Small Functions**: Functions SHOULD NOT exceed ~50 lines. Refactor larger functions into focused units. Unless it is necessary to have a large function, then make an exception.
     *   **Pure Functions**: Prefer functions with no side effects (input -> output).
     *   **Composition**: Build complex logic by composing simple, well-tested functions.
-    *   **Logic Isolation**: All core logic MUST reside in `core/`. Top-level scripts (like `analyze.py`) are strictly for orchestration.
+    *   **Logic Isolation**: All core logic MUST reside in `core/`. Top-level entry points (like `core/api/init.py`) are strictly for orchestration.
 
 ## Coding Standards
 
