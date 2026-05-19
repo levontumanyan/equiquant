@@ -29,51 +29,6 @@ logger = get_logger(__name__)
 ScoringContext = Literal["global", "sector", "batch"]
 
 
-def _resolve_benchmarks(
-	context: ScoringContext,
-	asset: AssetData,
-	global_benchmarks: List[Dict[str, Any]],
-	repo: Optional[DatabaseRepository],
-	sector_cache: Dict[str, List[Dict[str, Any]]],
-	batch_benchmarks: Optional[List[Dict[str, Any]]] = None,
-) -> List[Dict[str, Any]]:
-	"""
-	Return the appropriate benchmark list for one asset given the active scoring context.
-
-	For 'global', the pre-loaded global_benchmarks are returned unchanged.
-	For 'sector', benchmarks are derived from cached peers in the same sector
-	(computed once per sector and cached in sector_cache for reuse).
-	For 'batch', the caller-supplied batch_benchmarks are returned.
-
-	Falls back to global_benchmarks when sector data is unavailable or the batch
-	override was not provided.
-
-	Args:
-		context: Active scoring context ('global', 'sector', or 'batch').
-		asset: The asset being scored (used to determine sector).
-		global_benchmarks: Pre-loaded global benchmark definitions.
-		repo: Database repository (needed for sector peer queries).
-		sector_cache: Mutable dict shared across workers for per-sector memoisation.
-		batch_benchmarks: Pre-computed benchmarks for 'batch' context.
-
-	Returns:
-		List of benchmark dicts to use for this asset.
-	"""
-	if context == "batch":
-		return batch_benchmarks if batch_benchmarks else global_benchmarks
-
-	if context == "sector" and asset.sector and repo:
-		if asset.sector not in sector_cache:
-			from core.analysis.relative import compute_sector_relative_benchmarks
-
-			sector_cache[asset.sector] = compute_sector_relative_benchmarks(
-				asset.sector, repo, global_benchmarks
-			)
-		return sector_cache[asset.sector]
-
-	return global_benchmarks
-
-
 def analyze_asset(
 	asset: AssetData,
 	profile: str,
@@ -362,12 +317,18 @@ def _resolve_asset_benchmarks(
 	"""
 	if context == "batch":
 		return batch_benchmarks
-	if context == "sector":
-		asset = get_cached_stock_data(ticker, repo=repo)
-		if asset:
-			return _resolve_benchmarks(
-				"sector", asset, global_benchmarks, repo, sector_cache
-			)
+	if context == "sector" and repo:
+		# Use a cheap sector-only lookup so the full asset load happens only
+		# once inside the analysis worker, not twice (here + in _tracked_analyze_asset).
+		sector = repo.get_asset_sector(ticker)
+		if sector:
+			if sector not in sector_cache:
+				from core.analysis.relative import compute_sector_relative_benchmarks
+
+				sector_cache[sector] = compute_sector_relative_benchmarks(
+					sector, repo, global_benchmarks
+				)
+			return sector_cache[sector]
 	return None
 
 

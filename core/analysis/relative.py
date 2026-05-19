@@ -101,7 +101,13 @@ def compute_relative_benchmarks(
 		override = dict(bench)
 
 		if formula in ("sigmoid", "linear"):
-			higher_is_better = bench.get("best", 1.0) > bench.get("worst", 0.0)
+			best_ref = bench.get("best")
+			worst_ref = bench.get("worst")
+			if best_ref is None or worst_ref is None:
+				# Cannot determine direction — keep global params unchanged.
+				result.append(bench)
+				continue
+			higher_is_better = best_ref > worst_ref
 			if higher_is_better:
 				override["best"] = _percentile(values, 75)
 				override["worst"] = _percentile(values, 25)
@@ -158,31 +164,29 @@ def compute_sector_relative_benchmarks(
 	"""
 	Compute relative benchmarks from all cached stocks in a given sector.
 
-	Queries raw_provider_data joined against assets to gather sector peer values,
-	normalises them via OpenBBProvider, then derives distributional benchmarks.
-	Falls back to global benchmarks when the sector has fewer than min_peers cached stocks.
+	Loads peer assets through the public get_cached_stock_data API so that
+	normalisation is handled by the existing provider abstraction rather than
+	calling private provider methods directly.
+
+	Falls back to global benchmarks when the sector has fewer than min_peers
+	cached stocks with valid data.
 
 	Args:
 		sector: Sector name (e.g. "Technology") to gather peer data for.
-		repo: DatabaseRepository instance for querying sector peer data.
+		repo: DatabaseRepository instance for querying sector peer symbols.
 		global_benchmarks: Global benchmark definitions (used for formula metadata).
 		min_peers: Minimum peer assets required to apply relative logic.
 
 	Returns:
 		List of benchmark dicts derived from the sector peer distribution.
 	"""
-	from core.providers.openbb_provider import OpenBBProvider
+	from core.data import get_cached_stock_data
 
-	peer_payloads = repo.get_sector_peer_raw_data(sector)
-	if len(peer_payloads) < min_peers:
+	peer_symbols = repo.get_sector_peer_symbols(sector)
+	if len(peer_symbols) < min_peers:
 		return global_benchmarks
 
-	provider = OpenBBProvider()
-	assets = [
-		provider._normalize(f"__PEER_{i}__", payload)
-		for i, payload in enumerate(peer_payloads)
-		if payload
-	]
+	assets = [get_cached_stock_data(sym, repo=repo) for sym in peer_symbols]
 	assets = [a for a in assets if a is not None]
 
 	if len(assets) < min_peers:

@@ -235,6 +235,29 @@ class DatabaseRepository:
 			row = cursor.fetchone()
 			return dict(row) if row else None
 
+	def get_asset_sector(self, symbol: str) -> Optional[str]:
+		"""
+		Return the sector string for a symbol from the asset registry.
+
+		Cheaper than get_asset — reads only the sector column, avoids
+		deserialising raw_provider_data. Used for sector context routing
+		before the full asset is loaded by the analysis worker.
+
+		Args:
+			symbol: Ticker symbol (case-insensitive).
+
+		Returns:
+			Sector string (e.g. 'Technology'), or None if not found.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT sector FROM assets WHERE symbol = ?", (symbol.upper(),)
+			)
+			row = cursor.fetchone()
+			return row["sector"] if row else None
+
 	def upsert_financial_statement(
 		self,
 		symbol: str,
@@ -382,36 +405,34 @@ class DatabaseRepository:
 				"timestamp": row["timestamp"],
 			}
 
-	def get_sector_peer_raw_data(self, sector: str) -> List[dict]:
+	def get_sector_peer_symbols(self, sector: str) -> List[str]:
 		"""
-		Return raw provider data payloads for all cached STOCK assets in the given sector.
+		Return ticker symbols for all cached STOCK assets in the given sector.
 
-		Used by sector-relative scoring to compute peer-distribution benchmarks
-		without hardcoded threshold values.
+		Used by sector-relative scoring to gather peer assets via the public
+		get_cached_stock_data API, keeping raw-payload deserialisation inside
+		the provider abstraction.
 
 		Args:
 			sector: Sector name (e.g. "Technology") to filter assets by.
 
 		Returns:
-			List of raw data dicts (the payload stored in raw_provider_data.data_json),
-			one per cached stock in that sector.
+			List of ticker symbols that have both an asset record in this sector
+			and a cached payload in raw_provider_data.
 		"""
-		import json
-
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				SELECT r.data_json
-				FROM raw_provider_data r
-				JOIN assets a ON r.symbol = a.symbol
+				SELECT a.symbol
+				FROM assets a
+				JOIN raw_provider_data r ON r.symbol = a.symbol
 				WHERE a.sector = ? AND UPPER(a.asset_type) = 'STOCK'
 			""",
 				(sector,),
 			)
-			rows = cursor.fetchall()
-		return [json.loads(row["data_json"]) for row in rows]
+			return [row["symbol"] for row in cursor.fetchall()]
 
 	def create_analysis_snapshot(
 		self,

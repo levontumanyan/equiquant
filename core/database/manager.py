@@ -161,20 +161,6 @@ class DatabaseManager:
 			)
 		""")
 
-		# Sector Benchmarks table
-		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS sector_benchmarks (
-				sector TEXT,
-				metric_key TEXT,
-				benchmark_type TEXT,
-				value_a REAL,
-				value_b REAL,
-				last_updated DATETIME,
-				version TEXT DEFAULT '1.0.0',
-				PRIMARY KEY (sector, metric_key, version)
-			)
-		""")
-
 		# Metrics History table
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS metrics_history (
