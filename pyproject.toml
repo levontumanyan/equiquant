@@ -52,6 +52,7 @@ dev = [
 	"httpx>=0.28.1",
 	"semgrep>=1.162.0",
 	"bandit[toml]>=1.9.4",
+	"watchfiles>=1.2.0",
 ]
 
 [tool.pytest.ini_options]

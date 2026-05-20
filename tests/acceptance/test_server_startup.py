@@ -55,13 +55,13 @@ def live_server():
 def test_server_starts_and_openbb_warms_up(live_server):
 	"""
 	Verifies that a real uvicorn process starts and OpenBB is ready
-	within 45 seconds — proving the synchronous lifespan warmup works
+	within 45 seconds — proving the asynchronous lifespan warmup works
 	end-to-end with no threading/signal issues.
 	"""
 	data = _wait_for_openbb(TEST_PORT, timeout=45)
 	assert data.get("backend") == "connected", "Server never became reachable"
 	assert data.get("openbb") == "ready", (
-		f"OpenBB not ready after 45s — got: {data.get('openbb')!r}. Check that the lifespan imports OpenBB in the main thread."
+		f"OpenBB not ready after 45s — got: {data.get('openbb')!r}. Check that the lifespan offloads OpenBB to a background thread."
 	)
 
 

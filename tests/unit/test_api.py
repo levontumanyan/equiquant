@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -30,13 +32,21 @@ def test_get_status_shape():
 
 
 @pytest.mark.slow
-def test_openbb_ready_after_lifespan(mocker):
+def test_openbb_ready_eventually(mocker):
 	"""
-	Verifies OpenBB is fully ready after the lifespan runs.
-	Mocking signal.signal is necessary because TestClient runs lifespan in a thread.
+	Verifies OpenBB becomes ready after the lifespan runs.
+	Since warmup is asynchronous, we poll the status until it becomes 'ready'.
 	"""
 	mocker.patch("signal.signal")
 	with TestClient(app) as client:
-		response = client.get("/api/status")
+		# Poll until ready or timeout (max 45s for OpenBB initialization)
+		for _ in range(45):
+			response = client.get("/api/status")
+			if response.json()["openbb"] == "ready":
+				break
+			time.sleep(1)
+		else:
+			pytest.fail("OpenBB never became ready")
+
 	assert response.status_code == 200
 	assert response.json()["openbb"] == "ready"
