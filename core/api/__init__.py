@@ -22,8 +22,8 @@ def _warmup_openbb_sync():
 
 		_openbb_ready = True
 		logger.info("OpenBB ready.")
-	except Exception as e:
-		logger.error(f"OpenBB warmup failed: {e}")
+	except Exception:
+		logger.exception("OpenBB warmup failed")
 
 
 @asynccontextmanager
@@ -43,9 +43,19 @@ async def lifespan(_app: FastAPI):
 		logger.warning("Could not restore log level from DB: %s", e)
 
 	# Start warmup in background to avoid blocking initial health checks
-	asyncio.create_task(anyio.to_thread.run_sync(_warmup_openbb_sync))
+	warmup_task = asyncio.create_task(anyio.to_thread.run_sync(_warmup_openbb_sync))
 
-	yield
+	try:
+		yield
+	finally:
+		# Ensure the warmup task is handled during shutdown/reload
+		if not warmup_task.done():
+			logger.info("Cancelling OpenBB warmup task during shutdown...")
+			warmup_task.cancel()
+			try:
+				await warmup_task
+			except asyncio.CancelledError:
+				logger.debug("Warmup task successfully cancelled.")
 
 
 app = FastAPI(
