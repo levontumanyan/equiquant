@@ -1,6 +1,8 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
+import anyio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,10 +13,22 @@ logger = get_logger(__name__)
 _openbb_ready = False
 
 
+def _warmup_openbb_sync():
+	"""Perform the synchronous OpenBB import and update the ready flag."""
+	global _openbb_ready
+	try:
+		logger.info("Warming up OpenBB in background thread...")
+		from openbb import obb  # noqa: F401
+
+		_openbb_ready = True
+		logger.info("OpenBB ready.")
+	except Exception as e:
+		logger.error(f"OpenBB warmup failed: {e}")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-	"""Configure logging, then warm up OpenBB synchronously in the main thread."""
-	global _openbb_ready
+	"""Configure logging, then offload OpenBB warmup to a worker thread."""
 	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 
 	# Restore persisted log level from DB so restarts/reloads honour the saved setting
@@ -28,14 +42,9 @@ async def lifespan(_app: FastAPI):
 	except Exception as e:
 		logger.warning("Could not restore log level from DB: %s", e)
 
-	try:
-		logger.info("Warming up OpenBB...")
-		from openbb import obb  # noqa: F401
+	# Start warmup in background to avoid blocking initial health checks
+	asyncio.create_task(anyio.to_thread.run_sync(_warmup_openbb_sync))
 
-		_openbb_ready = True
-		logger.info("OpenBB ready.")
-	except Exception as e:
-		logger.error(f"OpenBB warmup failed: {e}")
 	yield
 
 
