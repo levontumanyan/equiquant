@@ -104,7 +104,7 @@ install: ensure-uv
 	@echo "Installing Python dependencies (Zero-Pollution)..."
 	uv sync --no-dev
 	@echo "Priming OpenBB (Building extensions in main thread)..."
-	@uv run python -c "from openbb import obb" > /dev/null 2>&1 || true
+	@uv run python -c "from openbb import obb; _ = obb.equity"
 	@echo "Installing UI dependencies (using pnpm)..."
 	@cd ui && uv run pnpm install
 	@echo ""
@@ -118,7 +118,7 @@ setup: ensure-uv
 	@echo "Setting up development environment..."
 	uv sync
 	@echo "Priming OpenBB (Building extensions in main thread)..."
-	@uv run python -c "from openbb import obb" > /dev/null 2>&1 || true
+	@uv run python -c "from openbb import obb; _ = obb.equity"
 	@cd ui && uv run pnpm install
 	uv run pre-commit install
 	uv run pre-commit install --hook-type pre-push
