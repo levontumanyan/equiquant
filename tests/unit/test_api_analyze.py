@@ -205,6 +205,34 @@ def test_stream_empty_tickers():
 	assert "No tickers provided" in response.json()["detail"]
 
 
+def test_stream_batch_context_uses_full_ticker_list(mock_stream_orchestrator):
+	"""
+	Regression: with context='batch' and mixed cached/missing tickers,
+	stream_bulk_analysis must be called once with the full ticker list so
+	batch-relative benchmarks are computed from the complete distribution.
+	"""
+
+	mock_fetch, mock_stream, mock_cache = mock_stream_orchestrator
+
+	# AAPL cached, MSFT missing
+	mock_cache.side_effect = lambda t: t == "AAPL"
+
+	payload = {"tickers": ["AAPL", "MSFT"], "profile": "balanced", "context": "batch"}
+	with client.stream("POST", "/api/analyze/stream", json=payload) as response:
+		assert response.status_code == 200
+		body = response.read().decode()
+
+	events = _parse_sse_lines(body)
+	event_types = [e["event"] for e in events]
+	assert "result" in event_types
+	assert "done" in event_types
+
+	# stream_bulk_analysis must be called exactly once with the full list
+	assert mock_stream.call_count == 1
+	called_tickers = mock_stream.call_args.args[0]
+	assert set(called_tickers) == {"AAPL", "MSFT"}
+
+
 def test_stream_result_schema(mock_stream_orchestrator):
 	"""Each result event deserialises to a valid AssetAnalysis shape."""
 	import json as _json

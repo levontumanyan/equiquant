@@ -107,30 +107,60 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 	executor = ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) + 4))
 
 	try:
-		if cached_tickers:
-			stats.start_stage("Analysis & Scoring (Cached)")
-			async for event in _stream_results(
-				cached_tickers, request, executor, cancel_event
-			):
-				analyzed_count += 1
-				yield event
-			stats.end_stage("Analysis & Scoring (Cached)")
-
-		if missing_tickers:
+		if request.context == "batch" and missing_tickers:
+			# Fetch all missing data first so batch benchmarks are computed from
+			# the full ticker distribution, not sub-batches.
 			yield {
 				"event": "status",
 				"data": json.dumps(
 					{"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"}
 				),
 			}
-			stats.start_stage("Data Acquisition & Scoring")
+			stats.start_stage("Data Acquisition")
 			async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+				yield {
+					"event": "status",
+					"data": json.dumps(
+						{
+							"message": f"Fetched {len(batch)} ticker(s), preparing analysis…"
+						}
+					),
+				}
+			stats.end_stage("Data Acquisition")
+			stats.start_stage("Analysis & Scoring")
+			async for event in _stream_results(
+				tickers, request, executor, cancel_event
+			):
+				analyzed_count += 1
+				yield event
+			stats.end_stage("Analysis & Scoring")
+		else:
+			if cached_tickers:
+				stats.start_stage("Analysis & Scoring (Cached)")
 				async for event in _stream_results(
-					batch, request, executor, cancel_event
+					cached_tickers, request, executor, cancel_event
 				):
 					analyzed_count += 1
 					yield event
-			stats.end_stage("Data Acquisition & Scoring")
+				stats.end_stage("Analysis & Scoring (Cached)")
+
+			if missing_tickers:
+				yield {
+					"event": "status",
+					"data": json.dumps(
+						{
+							"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"
+						}
+					),
+				}
+				stats.start_stage("Data Acquisition & Scoring")
+				async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+					async for event in _stream_results(
+						batch, request, executor, cancel_event
+					):
+						analyzed_count += 1
+						yield event
+				stats.end_stage("Data Acquisition & Scoring")
 
 		executor.shutdown(wait=False)
 		_finalize_stats(analyzed_count, db_path, tickers)
