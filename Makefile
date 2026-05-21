@@ -150,6 +150,8 @@ start: ensure-uv stop
 	@echo "Use 'make stop' to shutdown."
 
 dev: ensure-uv stop
+	@echo "Ensuring OpenBB is primed (building extensions)..."
+	@uv run python -c "from openbb import obb; _ = obb.equity"
 	@uv run honcho start
 
 ui-restart: stop start
@@ -159,7 +161,11 @@ db-shell:
 	@sqlite3 market_analysis.db
 
 clean:
+	@echo "Cleaning development and cache artifacts..."
 	rm -rf .venv ui/node_modules
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .pytest_cache .ruff_cache
+	rm -rf logs/*.log
+	rm -rf ~/.openbb_platform
 	podman image prune -f || true
+	@echo "Cleanup complete. (Note: market_analysis.db was preserved)"

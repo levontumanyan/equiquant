@@ -8,30 +8,34 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.api.routers import admin, analysis, assets, config
 from core.logger import SERVER_LOG_FILE, get_logger, set_log_level, setup_logging
+from core.openbb_client import ensure_openbb_ready, is_openbb_ready
 
 logger = get_logger(__name__)
-_openbb_ready = False
+_sec_ready = False
 
 
-def _warmup_openbb_sync():
-	"""Perform the synchronous OpenBB import and update the ready flag."""
-	global _openbb_ready
+def _warmup_sec_sync():
+	"""Perform synchronous warmup of SEC EDGAR mapping."""
+	global _sec_ready
 	try:
-		logger.info("Warming up OpenBB in background thread...")
-		from openbb import obb  # noqa: F401
+		logger.info("Warming up SEC EDGAR mapping...")
+		from core.api.deps import repo
+		from core.utils.sec import get_cik
 
-		_openbb_ready = True
-		logger.info("OpenBB ready.")
+		# Trigger a lookup to ensure mapping is cached in DB
+		_ = get_cik("AAPL", repo)
+		_sec_ready = True
+		logger.info("SEC EDGAR ready.")
 	except Exception:
-		logger.exception("OpenBB warmup failed")
+		logger.exception("SEC EDGAR warmup failed")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-	"""Configure logging, then offload OpenBB warmup to a worker thread."""
+	"""Configure logging and perform background warmup of providers."""
 	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 
-	# Restore persisted log level from DB so restarts/reloads honour the saved setting
+	# Restore persisted log level from DB
 	try:
 		from core.api.deps import repo
 
@@ -42,22 +46,20 @@ async def lifespan(_app: FastAPI):
 	except Exception as e:
 		logger.warning("Could not restore log level from DB: %s", e)
 
-	# Start warmup in background to avoid blocking initial health checks
-	# Disable auto-build in this environment to prevent signal registration crashes in threads
+	# Start warmup in background to avoid blocking server availability.
+	# We use anyio.to_thread so health checks and requests work immediately.
 	os.environ["OPENBB_AUTO_BUILD"] = "false"
-	warmup_task = asyncio.create_task(anyio.to_thread.run_sync(_warmup_openbb_sync))
+
+	async def full_warmup():
+		await anyio.to_thread.run_sync(ensure_openbb_ready)
+		await anyio.to_thread.run_sync(_warmup_sec_sync)
+
+	warmup_task = asyncio.create_task(full_warmup())
 
 	try:
 		yield
 	finally:
-		# Ensure the warmup task is handled during shutdown/reload
-		if not warmup_task.done():
-			logger.info("Cancelling OpenBB warmup task during shutdown...")
-			warmup_task.cancel()
-			try:
-				await warmup_task
-			except asyncio.CancelledError:
-				logger.debug("Warmup task successfully cancelled.")
+		warmup_task.cancel()
 
 
 app = FastAPI(
@@ -98,9 +100,11 @@ async def health_check():
 @app.get("/api/status")
 async def get_status():
 	"""Detailed status for the frontend dashboard."""
+	# We check the global flags from the providers
 	return {
 		"backend": "connected",
 		"database": "available",
 		"version": "0.1.0",
-		"openbb": "ready" if _openbb_ready else "warming_up",
+		"openbb": "ready" if is_openbb_ready() else "warming_up",
+		"sec": "ready" if _sec_ready else "warming_up",
 	}

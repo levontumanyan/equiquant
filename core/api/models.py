@@ -73,6 +73,7 @@ class AppSetting(BaseModel):
 	value: str
 	category: str
 	description: Optional[str] = None
+	is_secret: bool = False
 	last_updated: str
 
 
@@ -92,6 +93,7 @@ class MetricResult(BaseModel):
 	score: float
 	weight: float
 	status: str
+	source: Optional[str] = None
 
 
 class AssetAnalysis(BaseModel):
@@ -105,4 +107,5 @@ class AssetAnalysis(BaseModel):
 	score: float
 	results: List[MetricResult]
 	raw_metrics: Optional[Dict[str, Any]] = None
+	sources: Optional[Dict[str, str]] = None
 	market_cap: Optional[float] = None

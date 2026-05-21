@@ -63,5 +63,11 @@ def test_get_profile_weights_invalid(repo):
 def test_get_stock_data(mocker):
 	# Mock the provider to avoid real API calls
 	# We patch where it is used or defined
-	mocker.patch("core.data.OpenBBProvider.get_data", return_value="mocked_data")
-	assert get_stock_data("AAPL") == "mocked_data"
+	mock_asset = AssetData(symbol="AAPL", metrics={"price": 150})
+	mocker.patch("core.data.OpenBBProvider.get_data", return_value=mock_asset)
+	# Also mock SEC fetch as it's now part of the multi-provider fetch
+	mocker.patch("core.data.SECProvider.get_data", return_value=None)
+
+	result = get_stock_data("AAPL")
+	assert result.symbol == "AAPL"
+	assert result.metrics["price"] == 150

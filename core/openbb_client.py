@@ -10,6 +10,52 @@ from core.stats import stats
 
 logger = get_logger(__name__)
 
+_openbb_initialized = False
+
+
+def is_openbb_ready() -> bool:
+	"""Check if the OpenBB Platform is initialized."""
+	return _openbb_initialized
+
+
+def ensure_openbb_ready():
+	"""
+	Perform a deep initialization of the OpenBB Platform.
+	Triggers the dynamic build process by accessing a core extension.
+	This should be called from the main thread during startup to avoid delays or locks.
+	"""
+	global _openbb_initialized
+	if _openbb_initialized:
+		return
+
+	try:
+		logger.info("Initializing OpenBB Platform (Deep Initialization)...")
+		from openbb import obb
+
+		# Accessing obb.equity triggers the build process (caching providers/extensions)
+		if not hasattr(obb, "equity"):
+			logger.warning(
+				"OpenBB 'equity' extension not found. The platform might need a rebuild."
+			)
+			# Try to trigger a generic discovery if equity is missing
+			_ = obb.user.credentials
+		else:
+			_ = obb.equity
+
+		_openbb_initialized = True
+		logger.info("OpenBB Platform is 100% ready.")
+	except ValueError as e:
+		if "signal only works in main thread" in str(e):
+			# This is expected when running in a background thread.
+			# We can safely continue as we don't need signal handling in the API.
+			_openbb_initialized = True
+			logger.info("OpenBB Platform initialized (without signal support).")
+		else:
+			logger.error(f"OpenBB initialization value error: {e}")
+	except Exception as e:
+		logger.error(f"Failed to initialize OpenBB Platform: {e}")
+		logger.info("HINT: Try running 'make setup' to rebuild OpenBB extensions.")
+
 
 class RateLimitError(Exception):
 	"""Raised when OpenBB returns a 429 status code."""

@@ -178,11 +178,21 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ data, profile, externalFilter
 		]
 
 		const metricColumns = allMetrics.flatMap(m => [
-			columnHelper.accessor(row => row.results.find(r => r.metric === m.key)?.value, {
+			columnHelper.accessor(row => row.results.find(r => r.metric === m.key), {
 				id: `${m.key}_value`,
 				header: m.name,
 				size: metricValSize(m.name),
-				cell: info => <span className="metric-value">{info.getValue() ?? 'N/A'}</span>,
+				cell: info => {
+					const res = info.getValue()
+					return (
+						<span 
+							className="metric-value" 
+							title={res?.source ? `Source: ${res.source}` : undefined}
+						>
+							{res?.value ?? 'N/A'}
+						</span>
+					)
+				},
 			}),
 			columnHelper.accessor(row => row.results.find(r => r.metric === m.key)?.status, {
 				id: `${m.key}_strength`,

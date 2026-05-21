@@ -405,6 +405,30 @@ class DatabaseRepository:
 				"timestamp": row["timestamp"],
 			}
 
+	def get_all_raw_provider_data(self, symbol: str) -> List[dict]:
+		"""
+		Retrieve all raw provider payloads for a symbol.
+		"""
+		import json
+
+		symbol = symbol.upper().strip()
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT data_json, provider, timestamp FROM raw_provider_data WHERE symbol = ?",
+				(symbol,),
+			)
+			rows = cursor.fetchall()
+			return [
+				{
+					"data": json.loads(row["data_json"]),
+					"provider": row["provider"],
+					"timestamp": row["timestamp"],
+				}
+				for row in rows
+			]
+
 	def get_sector_peer_symbols(self, sector: str) -> List[str]:
 		"""
 		Return ticker symbols for all cached STOCK assets in the given sector.
@@ -562,6 +586,59 @@ class DatabaseRepository:
 			)
 			return [row["version"] for row in cursor.fetchall()]
 
+	def bulk_upsert_cik_mappings(self, mappings: List[dict]):
+		"""
+		Perform a bulk upsert of ticker-to-CIK mappings.
+		Expects a list of dicts with 'ticker', 'cik', and 'title'.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			try:
+				cursor.executemany(
+					"""
+					INSERT INTO sec_cik_mapping (ticker, cik, title, last_updated)
+					VALUES (:ticker, :cik, :title, CURRENT_TIMESTAMP)
+					ON CONFLICT(ticker) DO UPDATE SET
+						cik = excluded.cik,
+						title = excluded.title,
+						last_updated = CURRENT_TIMESTAMP
+				""",
+					mappings,
+				)
+				conn.commit()
+			except Exception as e:
+				conn.rollback()
+				raise e
+
+	def get_cik(self, ticker: str) -> Optional[str]:
+		"""Get the 10-digit padded CIK for a ticker."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT cik FROM sec_cik_mapping WHERE ticker = ?", (ticker.upper(),)
+			)
+			row = cursor.fetchone()
+			return row["cik"] if row else None
+
+	def get_cik_mapping_count(self) -> int:
+		"""Return the number of ticker-to-CIK mappings in the DB."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT COUNT(*) FROM sec_cik_mapping")
+			return cursor.fetchone()[0]
+
+	def get_cik_last_updated(self) -> Optional[str]:
+		"""Get the timestamp of the last CIK mapping update."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT MAX(last_updated) FROM sec_cik_mapping")
+			row = cursor.fetchone()
+			return row[0] if row else None
+
 	def get_aggregate_stats(self) -> dict:
 		"""Return aggregate statistics across all sessions and the asset cache."""
 		with self._lock:
@@ -612,6 +689,7 @@ class DatabaseRepository:
 		value: str,
 		category: str = "general",
 		description: Optional[str] = None,
+		is_secret: bool = False,
 	):
 		"""Insert or update an application setting."""
 		with self._lock:
@@ -619,14 +697,28 @@ class DatabaseRepository:
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO app_settings (key, value, category, description, last_updated)
-				VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+				INSERT INTO app_settings (key, value, category, description, is_secret, last_updated)
+				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 				ON CONFLICT(key) DO UPDATE SET
 					category = COALESCE(excluded.category, app_settings.category),
 					description = COALESCE(excluded.description, app_settings.description),
+					is_secret = excluded.is_secret,
 					last_updated = app_settings.last_updated
 			""",
-				(key, value, category, description),
+				(key, value, category, description, is_secret),
+			)
+			conn.commit()
+			# Invalidate cache
+			self._settings_cache = {}
+
+	def update_setting_value(self, key: str, value: str):
+		"""Update only the value of an existing setting."""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"UPDATE app_settings SET value = ?, last_updated = CURRENT_TIMESTAMP WHERE key = ?",
+				(value, key),
 			)
 			conn.commit()
 			# Invalidate cache

@@ -90,7 +90,7 @@ async def get_all_settings_admin():
 async def update_setting_admin(key: str, update: SettingUpdate):
 	"""Update a specific application setting."""
 	try:
-		repo.upsert_app_setting(key, update.value)
+		repo.update_setting_value(key, update.value)
 
 		# Apply certain settings immediately
 		if key == "log_level":
