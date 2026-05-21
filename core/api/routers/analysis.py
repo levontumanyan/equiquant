@@ -117,8 +117,15 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 				),
 			}
 			stats.start_stage("Data Acquisition")
-			async for _ in orchestrator_fetch_data(missing_tickers, repo=repo):
-				pass
+			async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+				yield {
+					"event": "status",
+					"data": json.dumps(
+						{
+							"message": f"Fetched {len(batch)} ticker(s), preparing analysis…"
+						}
+					),
+				}
 			stats.end_stage("Data Acquisition")
 			stats.start_stage("Analysis & Scoring")
 			async for event in _stream_results(
