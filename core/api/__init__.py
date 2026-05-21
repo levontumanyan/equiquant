@@ -43,6 +43,8 @@ async def lifespan(_app: FastAPI):
 		logger.warning("Could not restore log level from DB: %s", e)
 
 	# Start warmup in background to avoid blocking initial health checks
+	# Disable auto-build in this environment to prevent signal registration crashes in threads
+	os.environ["OPENBB_AUTO_BUILD"] = "false"
 	warmup_task = asyncio.create_task(anyio.to_thread.run_sync(_warmup_openbb_sync))
 
 	try:
