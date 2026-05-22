@@ -15,7 +15,8 @@ export interface StudioMetric {
 	width?: number
 	threshold?: number
 	weight: number
-	range_min: number
-	range_max: number
+	range_min: number | null
+	range_max: number | null
 	formula: string
+	is_penalty?: boolean
 }

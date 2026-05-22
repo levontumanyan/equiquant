@@ -65,17 +65,19 @@ async def get_profile(name: str):
 		settings = repo.get_profile_settings(name)
 		if not settings:
 			raise HTTPException(status_code=404, detail=f"Profile '{name}' not found")
-		weights, ranges, formulas = {}, {}, {}
+		weights, ranges, formulas, penalties = {}, {}, {}, {}
 		for s in settings:
 			key = s["metric_key"]
 			weights[key] = s["weight"]
 			ranges[key] = {"min": s["range_min"], "max": s["range_max"]}
 			formulas[key] = s["formula"]
+			penalties[key] = bool(s.get("is_penalty", False))
 		return {
 			"name": name,
 			"weights": weights,
 			"ranges": ranges,
 			"formulas": formulas,
+			"penalties": penalties,
 		}
 	except HTTPException:
 		raise

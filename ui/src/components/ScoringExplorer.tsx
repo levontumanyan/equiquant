@@ -9,7 +9,15 @@ import {
 	ResponsiveContainer,
 	ReferenceLine
 } from 'recharts';
-import { sigmoidScore, linearScore, bellScore, plateauScore, thresholdScore } from '../utils/scorers';
+import {
+	sigmoidScore,
+	linearScore,
+	bellScore,
+	plateauScore,
+	thresholdScore,
+	penaltyThresholdScore,
+	flatPenaltyScore
+} from '../utils/scorers';
 import type { Benchmark, ScorerType } from '../types';
 import './ScoringExplorer.css';
 
@@ -60,6 +68,8 @@ const ScoringExplorer: React.FC<Props> = ({ initialData }) => {
 			else if (type === 'bell_curve') score = bellScore(i, target, width);
 			else if (type === 'plateau') score = plateauScore(i, targetMin, targetMax, width);
 			else if (type === 'threshold') score = thresholdScore(i, threshold);
+			else if (type === 'penalty_threshold') score = penaltyThresholdScore(i, threshold, worst);
+			else if (type === 'flat_penalty') score = flatPenaltyScore(i, threshold);
 
 			points.push({
 				x: parseFloat(i.toFixed(2)),
@@ -75,6 +85,8 @@ const ScoringExplorer: React.FC<Props> = ({ initialData }) => {
 		if (type === 'bell_curve') return bellScore(currentVal, target, width);
 		if (type === 'plateau') return plateauScore(currentVal, targetMin, targetMax, width);
 		if (type === 'threshold') return thresholdScore(currentVal, threshold);
+		if (type === 'penalty_threshold') return penaltyThresholdScore(currentVal, threshold, worst);
+		if (type === 'flat_penalty') return flatPenaltyScore(currentVal, threshold);
 		return 0;
 	}, [currentVal, type, best, worst, target, targetMin, targetMax, width, threshold]);
 
@@ -96,17 +108,26 @@ const ScoringExplorer: React.FC<Props> = ({ initialData }) => {
 						<option value="bell_curve">Bell Curve (Target)</option>
 						<option value="plateau">Plateau (Range)</option>
 						<option value="threshold">Threshold (Pass/Fail)</option>
+						<option value="penalty_threshold">Penalty Range</option>
+						<option value="flat_penalty">Flat Penalty</option>
 					</select>
 				</div>
 
-				{(type === 'sigmoid' || type === 'linear') && (
+				{(type === 'sigmoid' || type === 'linear' || type === 'penalty_threshold') && (
 					<>
+						{type === 'penalty_threshold' ? (
+							<div className="control-group">
+								<label>Threshold (0%): {threshold}</label>
+								<input type="range" min="-50" max="100" step="0.1" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} />
+							</div>
+						) : (
+							<div className="control-group">
+								<label>Best Value (100%): {best}</label>
+								<input type="range" min="-50" max="100" step="0.1" value={best} onChange={(e) => setBest(Number(e.target.value))} />
+							</div>
+						)}
 						<div className="control-group">
-							<label>Best Value (100%): {best}</label>
-							<input type="range" min="-50" max="100" step="0.1" value={best} onChange={(e) => setBest(Number(e.target.value))} />
-						</div>
-						<div className="control-group">
-							<label>Worst Value (0%): {worst}</label>
+							<label>{type === 'penalty_threshold' ? 'Worst Value (-100%)' : 'Worst Value (0%)'}: {worst}</label>
 							<input type="range" min="-50" max="100" step="0.1" value={worst} onChange={(e) => setWorst(Number(e.target.value))} />
 						</div>
 					</>
@@ -149,6 +170,13 @@ const ScoringExplorer: React.FC<Props> = ({ initialData }) => {
 					</div>
 				)}
 
+				{type === 'flat_penalty' && (
+					<div className="control-group">
+						<label>Threshold: {threshold}</label>
+						<input type="range" min="-50" max="100" step="0.1" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} />
+					</div>
+				)}
+
 				<div className="control-group tester">
 					<label>Test Value: {currentVal}</label>
 					<input type="range" min="-50" max="100" step="0.1" value={currentVal} onChange={(e) => setCurrentVal(Number(e.target.value))} />
@@ -163,7 +191,7 @@ const ScoringExplorer: React.FC<Props> = ({ initialData }) => {
 					<LineChart data={data}>
 						<CartesianGrid strokeDasharray="3 3" stroke="#333" />
 						<XAxis dataKey="x" stroke="#888" />
-						<YAxis domain={[0, 100]} stroke="#888" />
+						<YAxis domain={['auto', 'auto']} stroke="#888" />
 						<Tooltip 
 							contentStyle={{ backgroundColor: '#222', border: '1px solid #444', color: '#fff' }}
 							itemStyle={{ color: '#646cff' }}

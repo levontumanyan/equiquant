@@ -40,6 +40,7 @@ def get_profile_config(
 			"best": s["range_min"],
 			"worst": s["range_max"],
 			"formula": s["formula"],
+			"is_penalty": bool(s.get("is_penalty", False)),
 		}
 		for s in settings
 	}

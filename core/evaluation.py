@@ -64,8 +64,11 @@ def _resolve_params(
 	elif formula_type == "plateau":
 		params["target_min"] = p_best
 		params["target_max"] = p_worst
-	elif formula_type == "threshold":
+	elif formula_type in ("threshold", "flat_penalty"):
 		params["threshold"] = p_best
+	elif formula_type == "penalty_threshold":
+		params["threshold"] = p_best
+		params["worst"] = p_worst
 	return params
 
 
@@ -116,6 +119,10 @@ def evaluate_metric(  # noqa: C901 — branching is inherent to multi-formula sc
 		p_formula if (p_formula and p_formula != bench_formula) else bench_formula
 	)
 
+	# Determine if this is a penalty metric
+	bench_penalty = benchmark.get("is_penalty", False)
+	is_penalty = bool(p.get("is_penalty", bench_penalty))
+
 	params = _resolve_params(formula_type, p, benchmark)
 
 	unit = benchmark.get("unit")
@@ -161,6 +168,10 @@ def evaluate_metric(  # noqa: C901 — branching is inherent to multi-formula sc
 		)
 	elif formula_type == "threshold":
 		pct = scorer(val, params.get("threshold", 0))
+	elif formula_type == "penalty_threshold":
+		pct = scorer(val, params.get("threshold", 0), params.get("worst", 100))
+	elif formula_type == "flat_penalty":
+		pct = scorer(val, params.get("threshold", 0))
 	else:
 		pct = 0.0
 
@@ -176,4 +187,5 @@ def evaluate_metric(  # noqa: C901 — branching is inherent to multi-formula sc
 		"score": score,
 		"weight": weight,
 		"pct": pct,
+		"is_penalty": is_penalty,
 	}

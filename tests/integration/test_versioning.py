@@ -103,28 +103,28 @@ def test_analysis_snapshot_versioning(repo):
 def test_load_benchmarks_with_version(repo):
 	"""Test that load_benchmarks respects the version parameter."""
 	repo.upsert_global_benchmark(
-		"STOCK",
-		"pe",
-		"PE",
-		"sigmoid",
-		None,
-		False,
-		None,
-		'{"best": 15, "worst": 30}',
-		1.0,
-		"1.0.0",
+		asset_type="STOCK",
+		metric_key="pe",
+		name="PE",
+		formula_type="sigmoid",
+		unit=None,
+		is_decimal=False,
+		display_key=None,
+		params_json='{"best": 15, "worst": 30}',
+		weight=1.0,
+		version="1.0.0",
 	)
 	repo.upsert_global_benchmark(
-		"STOCK",
-		"pe",
-		"PE",
-		"sigmoid",
-		None,
-		False,
-		None,
-		'{"best": 10, "worst": 20}',
-		1.5,
-		"2.0.0",
+		asset_type="STOCK",
+		metric_key="pe",
+		name="PE",
+		formula_type="sigmoid",
+		unit=None,
+		is_decimal=False,
+		display_key=None,
+		params_json='{"best": 10, "worst": 20}',
+		weight=1.5,
+		version="2.0.0",
 	)
 
 	bench_v1 = load_benchmarks("STOCK", repo=repo, version="1.0.0")
@@ -162,7 +162,7 @@ def test_analyze_asset_saves_version(repo):
 		None,
 		'{"best": 10, "worst": 20}',
 		1.0,
-		"2.0.0",
+		version="2.0.0",
 	)
 
 	# Seed a minimal profile so the scoring engine has a weight to work with.

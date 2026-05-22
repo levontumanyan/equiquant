@@ -26,7 +26,7 @@ export const linearScore = (val: number, best: number, worst: number): number =>
 	} else {
 		pct = (worst - val) / (worst - best);
 	}
-	return Math.max(0, Math.min(1, pct));
+	return Math.max(-1, Math.min(1, pct));
 };
 
 export const bellScore = (val: number, target: number, width: number): number => {
@@ -51,4 +51,21 @@ export const plateauScore = (val: number, targetMin: number, targetMax: number, 
 
 export const thresholdScore = (val: number, threshold: number): number => {
 	return val >= threshold ? 1 : 0;
+};
+
+export const penaltyThresholdScore = (val: number, threshold: number, worst: number): number => {
+	if (Math.abs(worst - threshold) < 1e-9) return val >= threshold ? -1 : 0;
+	let pct: number;
+	if (worst > threshold) {
+		if (val <= threshold) return 0;
+		pct = (val - threshold) / (worst - threshold);
+	} else {
+		if (val >= threshold) return 0;
+		pct = (threshold - val) / (threshold - worst);
+	}
+	return -Math.max(0, Math.min(1, pct));
+};
+
+export const flatPenaltyScore = (val: number, threshold: number, penaltyValue: number = -0.5): number => {
+	return val >= threshold ? penaltyValue : 0;
 };

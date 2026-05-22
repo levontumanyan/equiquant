@@ -4,7 +4,9 @@ import pytest
 
 from core.scorers import (
 	calculate_bell_score,
+	calculate_flat_penalty_score,
 	calculate_linear_score,
+	calculate_penalty_threshold_score,
 	calculate_plateau_score,
 	calculate_sigmoid_score,
 	calculate_threshold_score,
@@ -35,7 +37,8 @@ def test_linear_score():
 	assert calculate_linear_score(0, best, worst) == 0.0
 	assert calculate_linear_score(50, best, worst) == 0.5
 	assert calculate_linear_score(150, best, worst) == 1.0
-	assert calculate_linear_score(-50, best, worst) == 0.0
+	assert calculate_linear_score(-50, best, worst) == -0.5
+	assert calculate_linear_score(-150, best, worst) == -1.0
 
 
 def test_bell_score():
@@ -69,3 +72,49 @@ def test_threshold_score():
 	assert calculate_threshold_score(10, 5) == 1.0
 	assert calculate_threshold_score(3, 5) == 0.0
 	assert calculate_threshold_score(5, 5) == 1.0
+
+
+def test_penalty_threshold_score():
+	# Penalty starts at 3.0, reaches max at 10.0 (e.g. Debt/Equity)
+	threshold, worst = 3.0, 10.0
+
+	# Below threshold -> no penalty
+	assert calculate_penalty_threshold_score(1.0, threshold, worst) == 0.0
+	assert calculate_penalty_threshold_score(3.0, threshold, worst) == 0.0
+
+	# At worst -> -1.0
+	assert calculate_penalty_threshold_score(10.0, threshold, worst) == -1.0
+
+	# Beyond worst -> -1.0
+	assert calculate_penalty_threshold_score(15.0, threshold, worst) == -1.0
+
+	# Midpoint -> -0.5
+	# (6.5 - 3.0) / (10.0 - 3.0) = 3.5 / 7.0 = 0.5
+	assert calculate_penalty_threshold_score(6.5, threshold, worst) == -0.5
+
+
+def test_penalty_threshold_inverted():
+	# Penalty starts at 1.0 and gets worse as it goes DOWN (e.g. Current Ratio < 1.0)
+	threshold, worst = 1.0, 0.5
+
+	# Above threshold -> no penalty
+	assert calculate_penalty_threshold_score(1.5, threshold, worst) == 0.0
+	assert calculate_penalty_threshold_score(1.0, threshold, worst) == 0.0
+
+	# At worst -> -1.0
+	assert calculate_penalty_threshold_score(0.5, threshold, worst) == -1.0
+
+	# Below worst -> -1.0
+	assert calculate_penalty_threshold_score(0.1, threshold, worst) == -1.0
+
+	# Midpoint -> -0.5
+	assert calculate_penalty_threshold_score(0.75, threshold, worst) == -0.5
+
+
+def test_flat_penalty_score():
+	threshold = 5.0
+	penalty = -0.3
+
+	assert calculate_flat_penalty_score(3.0, threshold, penalty) == 0.0
+	assert calculate_flat_penalty_score(5.0, threshold, penalty) == penalty
+	assert calculate_flat_penalty_score(10.0, threshold, penalty) == penalty

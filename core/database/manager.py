@@ -34,10 +34,11 @@ class DatabaseManager:
 				self._auto_seed()
 
 	def _auto_seed(self):
-		"""Seed each config table independently if it has no rows yet.
+		"""Seed and synchronize configuration tables.
 
-		Checking per-table lets new seed categories (e.g. groups) populate
-		existing databases without re-running already-seeded tables.
+		Benchmarks and Profiles are ALWAYS synchronized on startup to ensure
+		code-level scoring improvements are reflected in the database.
+		Other tables (Assets, Groups) are only seeded if empty.
 		"""
 		from core.database.repository import DatabaseRepository
 		from core.database.seeder import DatabaseSeeder
@@ -52,10 +53,14 @@ class DatabaseManager:
 			seeder.seed_assets()
 			seeder.seed_indices()
 
+		# Always sync benchmarks to apply new logic/thresholds
+		logger.info("Synchronizing global benchmarks...")
+		seeder.seed_benchmarks()
+
+		# Profiles are only seeded if empty to protect user customizations
 		cursor.execute("SELECT COUNT(*) FROM investor_profiles")
 		if cursor.fetchone()[0] == 0:
-			logger.info("Seeding benchmarks and profiles...")
-			seeder.seed_benchmarks()
+			logger.info("Seeding system profiles...")
 			seeder.seed_profiles()
 
 		cursor.execute("SELECT COUNT(*) FROM groups")
@@ -195,6 +200,7 @@ class DatabaseManager:
 				range_min REAL,
 				range_max REAL,
 				formula TEXT,
+				is_penalty BOOLEAN DEFAULT 0,
 				PRIMARY KEY (profile_name, metric_key),
 				FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
 			)
@@ -212,6 +218,7 @@ class DatabaseManager:
 				display_key TEXT,
 				params_json TEXT,
 				weight REAL,
+				is_penalty BOOLEAN DEFAULT 0,
 				version TEXT DEFAULT '1.0.0',
 				PRIMARY KEY (asset_type, metric_key, version)
 			)
@@ -321,6 +328,20 @@ class DatabaseManager:
 		if "is_secret" not in {row[1] for row in cursor.fetchall()}:
 			cursor.execute(
 				"ALTER TABLE app_settings ADD COLUMN is_secret BOOLEAN DEFAULT 0"
+			)
+
+		# Migration: add is_penalty to global_benchmarks if missing
+		cursor.execute("PRAGMA table_info(global_benchmarks)")
+		if "is_penalty" not in {row[1] for row in cursor.fetchall()}:
+			cursor.execute(
+				"ALTER TABLE global_benchmarks ADD COLUMN is_penalty BOOLEAN DEFAULT 0"
+			)
+
+		# Migration: add is_penalty to profile_metric_settings if missing
+		cursor.execute("PRAGMA table_info(profile_metric_settings)")
+		if "is_penalty" not in {row[1] for row in cursor.fetchall()}:
+			cursor.execute(
+				"ALTER TABLE profile_metric_settings ADD COLUMN is_penalty BOOLEAN DEFAULT 0"
 			)
 
 		# Migration: drop legacy profile_weights (superseded by profile_metric_settings)

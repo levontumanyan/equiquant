@@ -21,6 +21,8 @@ const FORMULA_LABELS: Record<string, string> = {
 	bell_curve: 'Bell',
 	plateau: 'Plateau',
 	threshold: 'Thresh',
+	penalty_threshold: 'Penalty Range',
+	flat_penalty: 'Flat Penalty',
 }
 
 type StudioMode = 'landing' | 'importing' | 'active'
@@ -85,6 +87,7 @@ const ScoringStudio: React.FC = () => {
 				weights: Record<string, number>
 				ranges: Record<string, { min: number; max: number }>
 				formulas: Record<string, string>
+				penalties: Record<string, boolean>
 			} = await res.json()
 			if (requestId !== profileLoadRef.current) return
 
@@ -92,8 +95,9 @@ const ScoringStudio: React.FC = () => {
 				.filter(([, w]) => w > 0)
 				.map(([key, w]) => {
 					const bench = benchmarks.find(b => b.metric === key)
-					const range = profile.ranges[key] ?? { min: 0, max: 100 }
+					const range = profile.ranges[key] ?? { min: null, max: null }
 					const formula = profile.formulas[key] ?? 'sigmoid'
+					const is_penalty = profile.penalties?.[key] ?? false
 					return {
 						metric: key,
 						name: bench?.name ?? key,
@@ -112,6 +116,7 @@ const ScoringStudio: React.FC = () => {
 						range_min: range.min,
 						range_max: range.max,
 						formula,
+						is_penalty,
 					}
 				})
 
@@ -165,9 +170,10 @@ const ScoringStudio: React.FC = () => {
 			width: bench.width,
 			threshold: bench.threshold,
 			weight: 50,
-			range_min: 0,
-			range_max: 100,
+			range_min: null,
+			range_max: null,
 			formula: bench.type,
+			is_penalty: bench.is_penalty,
 		}
 		setActiveMetrics(prev => [...prev, newMetric])
 		setSelectedMetricKey(bench.metric)
@@ -191,17 +197,19 @@ const ScoringStudio: React.FC = () => {
 		setOverwriteTarget(null)
 		try {
 			const weights: Record<string, number> = {}
-			const ranges: Record<string, { min: number; max: number }> = {}
+			const ranges: Record<string, { min: number | null; max: number | null }> = {}
 			const formulas: Record<string, string> = {}
+			const penalties: Record<string, boolean> = {}
 			for (const m of activeMetrics) {
 				weights[m.metric] = m.weight
 				ranges[m.metric] = { min: m.range_min, max: m.range_max }
 				formulas[m.metric] = m.formula
+				penalties[m.metric] = m.is_penalty ?? false
 			}
 			const res = await fetch(`${API_BASE_URL}/api/profiles`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, weights, ranges, formulas }),
+				body: JSON.stringify({ name, weights, ranges, formulas, penalties }),
 			})
 			if (res.ok) {
 				setSaveStatus('saved')
@@ -419,6 +427,17 @@ const ScoringStudio: React.FC = () => {
 									>
 										{availableFormulas.map(f => <option key={f} value={f}>{FORMULA_LABELS[f] ?? f}</option>)}
 									</select>
+								</div>
+
+								<div className="studio-override-group-row">
+									<label className="studio-checkbox-label">
+										<input
+											type="checkbox"
+											checked={selectedMetric.is_penalty}
+											onChange={e => updateMetric(selectedMetric.metric, { is_penalty: e.target.checked })}
+										/>
+										Penalty Mode (Subtract from total)
+									</label>
 								</div>
 
 								{(selectedMetric.formula === 'sigmoid' || selectedMetric.formula === 'linear') && (<>
