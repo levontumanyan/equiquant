@@ -470,6 +470,11 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure parent asset row exists so the FK is satisfied
+			cursor.execute(
+				"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+				(symbol,),
+			)
 			cursor.execute(
 				"""
 				INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
