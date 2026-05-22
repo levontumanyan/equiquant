@@ -1,13 +1,14 @@
 .PHONY: help lint format test test-unit test-integration test-acceptance \
 	test-container coverage check install setup podman-init pr \
 	ui-server ui-dev stop start ui-restart \
-	db-shell clean ensure-uv
+	db-shell backup restore clean ensure-uv
 
 # Configuration
 PROFILE ?= balanced
 BENCHMARK_VERSION ?= 1.0.0
 API_PORT ?= 8000
 UI_PORT  ?= 8888
+BACKUP_DIR ?= $(shell if [ -d "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com" ]; then echo "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com/My Drive/equiquant_backups"; else echo "backups"; fi)
 
 # Podman Configuration
 PODMAN_CPUS ?= 1
@@ -37,6 +38,8 @@ help:
 	@echo "  make podman-init Initialize and start Podman machine"
 	@echo "  make pr          Run container tests and create a PR"
 	@echo "  make db-shell    Open sqlite3 shell for data inspection"
+	@echo "  make backup      Backup market_analysis.db to backups/"
+	@echo "  make restore     Restore database (defaults to latest backup, or FILE=<path>)"
 	@echo "  make clean       Cleanup environment and temporary files"
 
 # Quality Checks
@@ -159,6 +162,33 @@ ui-restart: stop start
 # Tools
 db-shell:
 	@sqlite3 market_analysis.db
+
+backup:
+	@mkdir -p "$(BACKUP_DIR)"
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	sqlite3 market_analysis.db ".backup '$(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db'"; \
+	cp "$(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db" "$(BACKUP_DIR)/market_analysis_latest.db"; \
+	echo "Database backup created: $(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db"; \
+	echo "Latest backup link updated: $(BACKUP_DIR)/market_analysis_latest.db"
+
+restore:
+	@if [ -z "$(FILE)" ]; then \
+		if [ -f "$(BACKUP_DIR)/market_analysis_latest.db" ]; then \
+			FILE="$(BACKUP_DIR)/market_analysis_latest.db"; \
+		else \
+			echo "Usage: make restore FILE=path/to/backup.db"; \
+			exit 1; \
+		fi; \
+	else \
+		FILE="$(FILE)"; \
+	fi; \
+	if [ ! -f "$$FILE" ]; then \
+		echo "Error: File '$$FILE' not found."; \
+		exit 1; \
+	fi; \
+	echo "Restoring database from $$FILE..."; \
+	sqlite3 market_analysis.db ".restore '$$FILE'"; \
+	echo "Database restored successfully."
 
 clean:
 	@echo "Cleaning development and cache artifacts..."
