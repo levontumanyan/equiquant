@@ -52,6 +52,10 @@ def test_index_staleness(db_manager):
 		(symbol, "Stale Index", stale_date),
 	)
 	conn.execute(
+		"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+		("OLD_TICKER",),
+	)
+	conn.execute(
 		"INSERT INTO index_constituents (index_symbol, asset_symbol) VALUES (?, ?)",
 		(symbol, "OLD_TICKER"),
 	)

@@ -470,6 +470,11 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure parent asset row exists so the FK is satisfied
+			cursor.execute(
+				"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+				(symbol,),
+			)
 			cursor.execute(
 				"""
 				INSERT INTO analysis_snapshots (symbol, profile, total_score, results_json, benchmark_version)
@@ -792,6 +797,11 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure parent asset row exists so the FK is satisfied
+			cursor.execute(
+				"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+				(symbol,),
+			)
 			cursor.execute(
 				"""
 				INSERT INTO metrics_history (symbol, metric_key, value)
@@ -1012,6 +1022,326 @@ class DatabaseRepository:
 					(metric_key, limit),
 				)
 			return [dict(row) for row in cursor.fetchall()]
+
+	# ── Portfolio management ────────────────────────────────────────────────
+
+	def create_portfolio(self, name: str, description: Optional[str] = None) -> dict:
+		"""Create a new portfolio.
+
+		Args:
+			name: Unique portfolio name.
+			description: Optional free-text description.
+
+		Returns:
+			The newly created portfolio row as a dict.
+
+		Raises:
+			ValueError: If a portfolio with the same name already exists.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT id FROM portfolios WHERE name = ?", (name,))
+			if cursor.fetchone():
+				raise ValueError(f"Portfolio '{name}' already exists")
+			cursor.execute(
+				"INSERT INTO portfolios (name, description) VALUES (?, ?)",
+				(name, description),
+			)
+			conn.commit()
+			new_id = cursor.lastrowid
+		# Re-use get_portfolio so the response shape (with transaction_count / total_fees)
+		# is identical to every other portfolio endpoint.
+		return self.get_portfolio(new_id)
+
+	def list_portfolios(self) -> List[dict]:
+		"""Return all portfolios with their transaction counts.
+
+		Returns:
+			List of portfolio dicts, each including a ``transaction_count`` field.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("""
+				SELECT p.*, COUNT(t.id) AS transaction_count, COALESCE(SUM(t.fees), 0) AS total_fees
+				FROM portfolios p
+				LEFT JOIN transactions t ON t.portfolio_id = p.id
+				GROUP BY p.id
+				ORDER BY p.name
+			""")
+			return [dict(row) for row in cursor.fetchall()]
+
+	def get_portfolio(self, portfolio_id: int) -> Optional[dict]:
+		"""Return a single portfolio by ID, or None if not found.
+
+		Includes ``transaction_count`` and ``total_fees`` aggregates.
+
+		Args:
+			portfolio_id: Primary key of the portfolio.
+
+		Returns:
+			Portfolio row as a dict, or None.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT p.*, COUNT(t.id) AS transaction_count, COALESCE(SUM(t.fees), 0) AS total_fees
+				FROM portfolios p
+				LEFT JOIN transactions t ON t.portfolio_id = p.id
+				WHERE p.id = ?
+				GROUP BY p.id
+			""",
+				(portfolio_id,),
+			)
+			row = cursor.fetchone()
+			return dict(row) if row else None
+
+	def delete_portfolio(self, portfolio_id: int) -> str:
+		"""Delete a portfolio and cascade to its holdings and transactions.
+
+		Args:
+			portfolio_id: Primary key of the portfolio to delete.
+
+		Returns:
+			``'deleted'`` on success, ``'not_found'`` if the ID does not exist.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute("SELECT id FROM portfolios WHERE id = ?", (portfolio_id,))
+			if not cursor.fetchone():
+				return "not_found"
+			cursor.execute("DELETE FROM portfolios WHERE id = ?", (portfolio_id,))
+			conn.commit()
+			return "deleted"
+
+	def record_transaction(
+		self,
+		portfolio_id: int,
+		symbol: str,
+		transaction_type: str,
+		quantity: float,
+		price_per_share: float,
+		transaction_date: str,
+		fees: float = 0.0,
+		notes: Optional[str] = None,
+	) -> dict:
+		"""Record a transaction and update the portfolio_holdings cache.
+
+		Supports BUY (updates average cost), SELL (reduces shares, rejects oversell),
+		and DIVIDEND (logged but does not affect share count).
+
+		Args:
+			portfolio_id: Owning portfolio primary key.
+			symbol: Normalised ticker symbol (uppercase).
+			transaction_type: One of 'BUY', 'SELL', 'DIVIDEND'.
+			quantity: Number of shares (must be > 0).
+			price_per_share: Price per share in the portfolio's currency.
+			transaction_date: ISO-8601 date string (e.g. '2024-01-15').
+			fees: Optional brokerage fees.
+			notes: Optional free-text note.
+
+		Returns:
+			The inserted transaction row as a dict.
+
+		Raises:
+			ValueError: When a SELL would exceed available shares.
+		"""
+		allowed_types = {"BUY", "SELL", "DIVIDEND"}
+		if transaction_type not in allowed_types:
+			raise ValueError(
+				f"Invalid transaction_type '{transaction_type}'. Must be one of {allowed_types}"
+			)
+		if quantity <= 0:
+			raise ValueError("quantity must be greater than zero")
+		if price_per_share <= 0:
+			raise ValueError("price_per_share must be greater than zero")
+		if fees < 0:
+			raise ValueError("fees cannot be negative")
+
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+
+			if transaction_type == "BUY":
+				# Fees are included in cost basis — amortised across the shares acquired
+				effective_cost = quantity * price_per_share + fees
+				cursor.execute(
+					"SELECT total_shares, average_cost FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
+					(portfolio_id, symbol),
+				)
+				row = cursor.fetchone()
+				if row:
+					old_shares = row["total_shares"]
+					old_avg = row["average_cost"]
+					new_shares = old_shares + quantity
+					new_avg = (old_shares * old_avg + effective_cost) / new_shares
+					cursor.execute(
+						"""
+						UPDATE portfolio_holdings
+						SET total_shares = ?, average_cost = ?, last_updated = CURRENT_TIMESTAMP
+						WHERE portfolio_id = ? AND symbol = ?
+						""",
+						(new_shares, new_avg, portfolio_id, symbol),
+					)
+				else:
+					cursor.execute(
+						"""
+						INSERT INTO portfolio_holdings (portfolio_id, symbol, total_shares, average_cost)
+						VALUES (?, ?, ?, ?)
+						""",
+						(portfolio_id, symbol, quantity, effective_cost / quantity),
+					)
+
+			elif transaction_type == "SELL":
+				cursor.execute(
+					"SELECT total_shares FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
+					(portfolio_id, symbol),
+				)
+				row = cursor.fetchone()
+				current_shares = row["total_shares"] if row else 0.0
+				if quantity > current_shares:
+					raise ValueError(
+						f"Cannot sell {quantity} shares of {symbol}: only {current_shares} held"
+					)
+				new_shares = current_shares - quantity
+				if new_shares <= 0:
+					cursor.execute(
+						"DELETE FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
+						(portfolio_id, symbol),
+					)
+				else:
+					cursor.execute(
+						"""
+						UPDATE portfolio_holdings
+						SET total_shares = ?, last_updated = CURRENT_TIMESTAMP
+						WHERE portfolio_id = ? AND symbol = ?
+						""",
+						(new_shares, portfolio_id, symbol),
+					)
+
+			# DIVIDEND: no holding change — only the ledger entry is written
+
+			cursor.execute(
+				"""
+				INSERT INTO transactions
+				(portfolio_id, symbol, transaction_type, quantity, price_per_share,
+				transaction_date, fees, notes)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				(
+					portfolio_id,
+					symbol,
+					transaction_type,
+					quantity,
+					price_per_share,
+					transaction_date,
+					fees,
+					notes,
+				),
+			)
+			tx_id = cursor.lastrowid
+			cursor.execute(
+				"UPDATE portfolios SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+				(portfolio_id,),
+			)
+			conn.commit()
+
+			cursor.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+			return dict(cursor.fetchone())
+
+	def get_transactions(self, portfolio_id: int) -> List[dict]:
+		"""Return the full transaction ledger for a portfolio, newest first.
+
+		Args:
+			portfolio_id: Owning portfolio primary key.
+
+		Returns:
+			List of transaction rows as dicts.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT * FROM transactions
+				WHERE portfolio_id = ?
+				ORDER BY transaction_date DESC, created_at DESC
+				""",
+				(portfolio_id,),
+			)
+			return [dict(row) for row in cursor.fetchall()]
+
+	def get_holdings(self, portfolio_id: int) -> List[dict]:
+		"""Return current holdings for a portfolio, enriched with asset metadata and pricing.
+
+		Joins portfolio_holdings against assets and raw_provider_data to include name,
+		sector, current price, market value, unrealized P&L, and the latest EquiQuant score.
+
+		Args:
+			portfolio_id: Owning portfolio primary key.
+
+		Returns:
+			List of holding dicts sorted alphabetically by symbol.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				SELECT
+					ph.symbol,
+					ph.total_shares,
+					ph.average_cost,
+					ph.last_updated,
+					a.name,
+					a.sector,
+					CAST(json_extract(
+						(
+							SELECT data_json FROM raw_provider_data
+							WHERE symbol = ph.symbol
+							AND json_extract(data_json, '$.current_price') IS NOT NULL
+							ORDER BY timestamp DESC
+							LIMIT 1
+						), '$.current_price'
+					) AS REAL) AS current_price,
+					(
+						SELECT total_score
+						FROM analysis_snapshots
+						WHERE symbol = ph.symbol
+						ORDER BY timestamp DESC
+						LIMIT 1
+					) AS latest_score
+				FROM portfolio_holdings ph
+				LEFT JOIN assets a ON a.symbol = ph.symbol
+				WHERE ph.portfolio_id = ?
+				ORDER BY ph.symbol
+				""",
+				(portfolio_id,),
+			)
+			rows = [dict(row) for row in cursor.fetchall()]
+
+		for h in rows:
+			cp = h.get("current_price")
+			avg = h["average_cost"]
+			shares = h["total_shares"]
+			h["market_value"] = round(cp * shares, 4) if cp is not None else None
+			h["cost_basis"] = round(avg * shares, 4)
+			if cp is not None:
+				h["unrealized_pnl"] = round((cp - avg) * shares, 4)
+				h["unrealized_pnl_pct"] = (
+					round((cp - avg) / avg * 100, 2) if avg else None
+				)
+			else:
+				h["unrealized_pnl"] = None
+				h["unrealized_pnl_pct"] = None
+
+		return rows
+
+	# ── End portfolio management ─────────────────────────────────────────────
 
 	def save_telemetry(self, duration_s: float, metrics: dict):
 		"""Save session telemetry to the database."""

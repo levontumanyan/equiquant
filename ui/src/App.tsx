@@ -5,11 +5,12 @@ import ScoringExplorer from './components/ScoringExplorer'
 import ScoringStudio from './components/ScoringStudio'
 import AnalysisPanel from './components/AnalysisPanel'
 import AdminDashboard from './components/AdminDashboard'
+import PortfolioDashboard from './components/PortfolioDashboard'
 
 function App() {
 	const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline')
 	const [openbbReady, setOpenbbReady] = useState<boolean | null>(null)
-	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis' | 'admin'>('status')
+	const [activeTab, setActiveTab] = useState<'status' | 'math' | 'studio' | 'analysis' | 'admin' | 'portfolio'>('status')
 
 	useEffect(() => {
 		const handleNavigate = (e: any) => setActiveTab(e.detail)
@@ -87,6 +88,12 @@ function App() {
 					>
 						Admin
 					</button>
+					<button
+						className={activeTab === 'portfolio' ? 'active' : ''}
+						onClick={() => setActiveTab('portfolio')}
+					>
+						Portfolio
+					</button>
 				</nav>
 
 				<div className="header-right-slot" />
@@ -135,6 +142,12 @@ function App() {
 				{activeTab === 'admin' && (
 					<section className="admin-section">
 						<AdminDashboard />
+					</section>
+				)}
+
+				{activeTab === 'portfolio' && (
+					<section className="portfolio-section">
+						<PortfolioDashboard />
 					</section>
 				)}
 
