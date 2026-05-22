@@ -126,6 +126,7 @@ class DatabaseSeeder:
 					display_key=row.get("display_key"),
 					params_json=row.get("params_json"),
 					weight=float(row.get("weight", 1.0)),
+					is_penalty=bool(row.get("is_penalty", False)),
 					version=row.get("version", "1.0.0"),
 				)
 			logger.info(f"Seeded {len(data)} global benchmarks.")
@@ -159,6 +160,7 @@ class DatabaseSeeder:
 					range_min=float(raw_min) if raw_min is not None else None,
 					range_max=float(raw_max) if raw_max is not None else None,
 					formula=s.get("formula"),
+					is_penalty=bool(s.get("is_penalty", False)),
 				)
 			logger.info(
 				f"Seeded {len(profiles)} profiles and {len(settings)} settings."

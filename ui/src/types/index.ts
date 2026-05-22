@@ -1,4 +1,11 @@
-export type ScorerType = 'sigmoid' | 'linear' | 'bell_curve' | 'plateau' | 'threshold';
+export type ScorerType =
+	| 'sigmoid'
+	| 'linear'
+	| 'bell_curve'
+	| 'plateau'
+	| 'threshold'
+	| 'penalty_threshold'
+	| 'flat_penalty'
 
 export interface Benchmark {
 	metric: string;
@@ -6,6 +13,7 @@ export interface Benchmark {
 	type: ScorerType;
 	weight: number;
 	asset_type: string;
+	is_penalty?: boolean;
 	unit?: string;
 	is_decimal?: boolean;
 	display_key?: string;
@@ -26,6 +34,7 @@ export interface MetricResult {
 	score: number;
 	weight: number;
 	status: string;
+	is_penalty?: boolean;
 	source?: string;
 }
 

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.schema import AssetType
 
@@ -13,6 +13,7 @@ class BenchmarkResponse(BaseModel):
 	type: str
 	weight: float
 	asset_type: str
+	is_penalty: bool = False
 	unit: Optional[str] = None
 	best: Optional[float] = None
 	worst: Optional[float] = None
@@ -64,6 +65,7 @@ class ProfileRequest(BaseModel):
 	weights: dict
 	ranges: dict
 	formulas: dict
+	penalties: Dict[str, bool] = Field(default_factory=dict)
 
 
 class AppSetting(BaseModel):
@@ -93,6 +95,7 @@ class MetricResult(BaseModel):
 	score: float
 	weight: float
 	status: str
+	is_penalty: bool = False
 	source: Optional[str] = None
 
 

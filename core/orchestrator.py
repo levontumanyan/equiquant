@@ -93,8 +93,15 @@ def analyze_asset(
 
 	# Calculate total score
 	total_score = sum(res["score"] for res in results)
-	max_score = sum(res["weight"] for res in results)
+	# Penalty metrics do not contribute to the 'potential' max score;
+	# they only drag the total score down from its positive potential.
+	max_score = sum(res["weight"] for res in results if not res.get("is_penalty"))
 	final_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
+
+	# Clamp the final percentage to [0, 100] unless we want to allow negative totals
+	# The issue suggests: "surface extreme cases" — let's allow it to go negative
+	# but maybe clamp the UI? For now, we follow the math.
+	# final_pct = max(0.0, min(100.0, final_pct))
 
 	logger.info(f"Analysis complete for {symbol}: {final_pct:.2f}%")
 	return {

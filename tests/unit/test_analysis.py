@@ -26,7 +26,7 @@ def test_linear_math():
 
 	# Clamping
 	assert calculate_linear_score(25, 20, 10) == 1.0
-	assert calculate_linear_score(5, 20, 10) == 0.0
+	assert calculate_linear_score(5, 20, 10) == -0.5
 
 
 def test_bell_curve_math():
@@ -93,3 +93,79 @@ def test_short_interest_scoring():
 	)
 	res = evaluate_metric(asset, benchmark, {"shortPercentOfFloat": 1.0})
 	assert res["pct"] > 0.9  # Very high strength
+
+
+def test_evaluate_metric_with_penalty():
+	asset = AssetData(
+		symbol="TEST", asset_type=AssetType.STOCK, metrics={"leverage": 5.0, "roe": 0.2}
+	)
+
+	# Reward metric
+	bench_roe = {
+		"metric": "roe",
+		"name": "ROE",
+		"type": "linear",
+		"best": 0.2,
+		"worst": 0.0,
+		"weight": 10.0,
+		"is_penalty": False,
+	}
+
+	# Penalty metric
+	bench_leverage = {
+		"metric": "leverage",
+		"name": "Leverage Penalty",
+		"type": "penalty_threshold",
+		"threshold": 3.0,
+		"worst": 7.0,
+		"weight": 10.0,
+		"is_penalty": True,
+	}
+
+	profile_config = {}  # No overrides
+
+	# ROE score should be 10.0 (weight 10 * pct 1.0)
+	res_roe = evaluate_metric(asset, bench_roe, profile_config)
+	assert res_roe["pct"] == 1.0
+	assert res_roe["score"] == 10.0
+	assert res_roe["is_penalty"] is False
+
+	# Leverage score should be -5.0 (weight 10 * pct -0.5)
+	# (5.0 - 3.0) / (7.0 - 3.0) = 2.0 / 4.0 = 0.5 -> penalty -0.5
+	res_leverage = evaluate_metric(asset, bench_leverage, profile_config)
+	assert res_leverage["pct"] == -0.5
+	assert res_leverage["score"] == -5.0
+	assert res_leverage["is_penalty"] is True
+	assert res_leverage["status"] == "-50%"
+
+
+def test_evaluate_metric_penalty_override():
+	asset = AssetData(
+		symbol="TEST", asset_type=AssetType.STOCK, metrics={"leverage": 5.0}
+	)
+
+	bench = {
+		"metric": "leverage",
+		"name": "Leverage",
+		"type": "linear",
+		"best": 0.0,
+		"worst": 10.0,
+		"weight": 10.0,
+		"is_penalty": False,  # Default not penalty
+	}
+
+	# Profile overrides it to be a penalty
+	profile_config = {
+		"leverage": {
+			"weight": 10.0,
+			"formula": "penalty_threshold",
+			"best": 3.0,  # maps to threshold
+			"worst": 7.0,
+			"is_penalty": True,
+		}
+	}
+
+	res = evaluate_metric(asset, bench, profile_config)
+	assert res["is_penalty"] is True
+	assert res["pct"] == -0.5
+	assert res["score"] == -5.0

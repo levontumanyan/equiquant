@@ -152,6 +152,24 @@
     "formula": null
   },
   {
+    "profile_name": "balanced",
+    "metric_key": "debt_to_equity_penalty",
+    "weight": 2.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null,
+    "is_penalty": true
+  },
+  {
+    "profile_name": "balanced",
+    "metric_key": "overall_risk_penalty",
+    "weight": 1.5,
+    "range_min": null,
+    "range_max": null,
+    "formula": null,
+    "is_penalty": true
+  },
+  {
     "profile_name": "dividend",
     "metric_key": "debt_to_equity",
     "weight": 1.4,
@@ -262,6 +280,15 @@
     "range_min": null,
     "range_max": null,
     "formula": null
+  },
+  {
+    "profile_name": "dividend",
+    "metric_key": "debt_to_equity_penalty",
+    "weight": 3.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null,
+    "is_penalty": true
   },
   {
     "profile_name": "growth",
@@ -382,5 +409,14 @@
     "range_min": null,
     "range_max": null,
     "formula": null
+  },
+  {
+    "profile_name": "growth",
+    "metric_key": "overall_risk_penalty",
+    "weight": 1.0,
+    "range_min": null,
+    "range_max": null,
+    "formula": null,
+    "is_penalty": true
   }
 ]

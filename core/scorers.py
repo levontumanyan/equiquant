@@ -62,7 +62,7 @@ def calculate_linear_score(val: float, best: float, worst: float) -> float:
 	else:  # Lower is better (e.g. P/E)
 		pct = (worst - val) / (worst - best)
 
-	return max(0.0, min(1.0, pct))
+	return max(-1.0, min(1.0, pct))
 
 
 def calculate_bell_score(val: float, target: float, width: float) -> float:
@@ -125,6 +125,57 @@ def calculate_threshold_score(val: float, threshold: float) -> float:
 	return 1.0 if val >= threshold else 0.0
 
 
+def calculate_penalty_threshold_score(
+	val: float, threshold: float, worst: float
+) -> float:
+	"""
+	Returns 0.0 if val is better than threshold.
+	If val is worse than threshold, returns a negative value proportional
+	to how far it exceeds the threshold, capped at -1.0.
+
+	Args:
+		val (float): The raw value to score.
+		threshold (float): The value where penalties begin (returns 0.0).
+		worst (float): The value where the maximum penalty is reached (returns -1.0).
+
+	Returns:
+		float: A score between -1.0 and 0.0.
+	"""
+	if abs(worst - threshold) < 1e-9:
+		return -1.0 if val >= threshold else 0.0
+
+	# Direction: if worst > threshold, val must be > threshold to penalise
+	if worst > threshold:
+		if val <= threshold:
+			return 0.0
+		pct = (val - threshold) / (worst - threshold)
+	else:
+		if val >= threshold:
+			return 0.0
+		pct = (threshold - val) / (threshold - worst)
+
+	return -max(0.0, min(1.0, pct))
+
+
+def calculate_flat_penalty_score(
+	val: float, threshold: float, penalty_value: float = -0.5
+) -> float:
+	"""
+	Binary penalty: if threshold met, return fixed negative value.
+
+	Args:
+		val (float): The raw value.
+		threshold (float): The value at which the penalty is triggered.
+		penalty_value (float): The fixed score to return if triggered.
+
+	Returns:
+		float: penalty_value or 0.0.
+	"""
+	# Check if threshold is a 'ceiling' (worst case) or 'floor'
+	# For simplicity, we assume 'at least threshold' triggers penalty
+	return penalty_value if val >= threshold else 0.0
+
+
 # Registry for easy extension
 SCORERS = {
 	"sigmoid": calculate_sigmoid_score,
@@ -132,4 +183,6 @@ SCORERS = {
 	"bell_curve": calculate_bell_score,
 	"plateau": calculate_plateau_score,
 	"threshold": calculate_threshold_score,
+	"penalty_threshold": calculate_penalty_threshold_score,
+	"flat_penalty": calculate_flat_penalty_score,
 }

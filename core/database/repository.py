@@ -850,6 +850,7 @@ class DatabaseRepository:
 		range_min: Optional[float] = None,
 		range_max: Optional[float] = None,
 		formula: Optional[str] = None,
+		is_penalty: bool = False,
 	):
 		"""Insert or update metric settings for a profile.
 
@@ -862,21 +863,31 @@ class DatabaseRepository:
 			range_max: Custom curve upper param (worst/width/target_max).
 				NULL means "use benchmark default" — not the same as 100.0.
 			formula: Scoring formula override. NULL means "use benchmark formula".
+			is_penalty: Whether this metric is a penalty (negative scoring).
 		"""
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO profile_metric_settings (profile_name, metric_key, weight, range_min, range_max, formula)
-				VALUES (?, ?, ?, ?, ?, ?)
+				INSERT INTO profile_metric_settings (profile_name, metric_key, weight, range_min, range_max, formula, is_penalty)
+				VALUES (?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(profile_name, metric_key) DO UPDATE SET
 					weight = excluded.weight,
 					range_min = excluded.range_min,
 					range_max = excluded.range_max,
-					formula = excluded.formula
+					formula = excluded.formula,
+					is_penalty = excluded.is_penalty
 			""",
-				(profile_name, metric_key, weight, range_min, range_max, formula),
+				(
+					profile_name,
+					metric_key,
+					weight,
+					range_min,
+					range_max,
+					formula,
+					int(is_penalty),
+				),
 			)
 			conn.commit()
 
@@ -892,18 +903,47 @@ class DatabaseRepository:
 			return [dict(row) for row in cursor.fetchall()]
 
 	def create_profile(self, profile: Any):
-		"""Create a new profile with weights, ranges, and formulas."""
-		self.upsert_profile(profile.name)
-		for metric_key, weight in profile.weights.items():
-			range_data = profile.ranges.get(metric_key, {"min": 0, "max": 100})
-			formula = profile.formulas.get(metric_key, "sigmoid")
+		"""Create a new profile with weights, ranges, formulas, and penalties."""
+		name = getattr(
+			profile, "name", profile.get("name") if isinstance(profile, dict) else None
+		)
+		if not name:
+			raise ValueError("Profile name is required")
+
+		self.upsert_profile(name)
+
+		# Ensure we can handle both dict and object (Pydantic model)
+		weights = (
+			profile.weights
+			if hasattr(profile, "weights")
+			else profile.get("weights", {})
+		)
+		ranges = (
+			profile.ranges if hasattr(profile, "ranges") else profile.get("ranges", {})
+		)
+		formulas = (
+			profile.formulas
+			if hasattr(profile, "formulas")
+			else profile.get("formulas", {})
+		)
+		penalties = (
+			profile.penalties
+			if hasattr(profile, "penalties")
+			else profile.get("penalties", {})
+		)
+
+		for metric_key, weight in weights.items():
+			range_data = ranges.get(metric_key, {"min": None, "max": None})
+			formula = formulas.get(metric_key, "sigmoid")
+			is_penalty = penalties.get(metric_key, False)
 			self.upsert_profile_setting(
-				profile.name,
+				name,
 				metric_key,
 				weight,
-				range_data["min"],
-				range_data["max"],
+				range_data.get("min"),
+				range_data.get("max"),
 				formula,
+				is_penalty,
 			)
 
 	def upsert_global_benchmark(
@@ -917,6 +957,7 @@ class DatabaseRepository:
 		display_key: Optional[str],
 		params_json: str,
 		weight: float,
+		is_penalty: bool = False,
 		version: str = "1.0.0",
 	):
 		"""Insert or update a global benchmark."""
@@ -925,8 +966,8 @@ class DatabaseRepository:
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight, version)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO global_benchmarks (asset_type, metric_key, name, formula_type, unit, is_decimal, display_key, params_json, weight, is_penalty, version)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(asset_type, metric_key, version) DO UPDATE SET
 					name = excluded.name,
 					formula_type = excluded.formula_type,
@@ -934,7 +975,8 @@ class DatabaseRepository:
 					is_decimal = excluded.is_decimal,
 					display_key = excluded.display_key,
 					params_json = excluded.params_json,
-					weight = excluded.weight
+					weight = excluded.weight,
+					is_penalty = excluded.is_penalty
 			""",
 				(
 					asset_type,
@@ -946,6 +988,7 @@ class DatabaseRepository:
 					display_key,
 					params_json,
 					weight,
+					int(is_penalty),
 					version,
 				),
 			)

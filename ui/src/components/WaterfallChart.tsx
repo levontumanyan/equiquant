@@ -26,12 +26,14 @@ interface WaterfallEntry {
 	rawDisplay: unknown
 	status: string
 	isTotal: boolean
+	isPenalty: boolean
 	label: string
 }
 
 // Fix 1: use strict > 7 so the boundary matches the legend ">7 pts" label
 function barColor(entry: WaterfallEntry): string {
 	if (entry.isTotal) return '#3b82f6'
+	if (entry.isPenalty && entry.contribution < 0) return '#ef4444'
 	const c = entry.contribution
 	if (c > 7)  return '#22c55e'
 	if (c >= 3) return '#86efac'
@@ -64,7 +66,7 @@ const CustomTooltip: React.FC<TooltipProps> = ({ active, payload }) => {
 			)}
 			<div className="wf-tooltip-row wf-tooltip-contrib">
 				<span>{d.isTotal ? 'Final Score' : 'Contribution'}</span>
-				<span>{d.isTotal ? d.contribution.toFixed(1) : `+${d.contribution.toFixed(1)}`}</span>
+				<span>{d.isTotal ? d.contribution.toFixed(1) : `${d.contribution >= 0 ? '+' : ''}${d.contribution.toFixed(1)}`}</span>
 			</div>
 		</div>
 	)
@@ -72,28 +74,42 @@ const CustomTooltip: React.FC<TooltipProps> = ({ active, payload }) => {
 
 const WaterfallChart: React.FC<WaterfallChartProps> = ({ results, totalScore }) => {
 	const data = useMemo<WaterfallEntry[]>(() => {
-		const totalWeight = results.reduce((sum, r) => sum + r.weight, 0)
+		// Penalty metrics do not contribute to potential max score
+		const rewardWeight = results.reduce((sum, r) => sum + (r.is_penalty ? 0 : r.weight), 0)
 
 		const sorted = [...results]
 			.map(r => ({
 				...r,
-				contribution: totalWeight > 0 ? (r.score / totalWeight) * 100 : 0,
+				contribution: rewardWeight > 0 ? (r.score / rewardWeight) * 100 : 0,
 			}))
 			.sort((a, b) => b.contribution - a.contribution)
 
 		let cumulative = 0
 		const bars: WaterfallEntry[] = sorted.map(r => {
+			const contrib = r.contribution
+			const isPenalty = !!r.is_penalty
+
+			let spacer, value
+			if (contrib >= 0) {
+				spacer = cumulative
+				value = contrib
+			} else {
+				spacer = cumulative + contrib
+				value = Math.abs(contrib)
+			}
+
 			const entry: WaterfallEntry = {
 				name: r.name,
-				spacer: cumulative,
-				value: r.contribution,
-				contribution: r.contribution,
+				spacer: spacer,
+				value: value,
+				contribution: contrib,
 				rawDisplay: r.value,
 				status: r.status,
 				isTotal: false,
-				label: `+${r.contribution.toFixed(1)}`,
+				isPenalty: isPenalty,
+				label: `${contrib >= 0 ? '+' : ''}${contrib.toFixed(1)}`,
 			}
-			cumulative += r.contribution
+			cumulative += contrib
 			return entry
 		})
 
@@ -105,6 +121,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({ results, totalScore }) 
 			rawDisplay: null,
 			status: `${totalScore.toFixed(1)}%`,
 			isTotal: true,
+			isPenalty: false,
 			label: totalScore.toFixed(1),
 		})
 
@@ -126,7 +143,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({ results, totalScore }) 
 						axisLine={{ stroke: '#374151' }}
 					/>
 					<YAxis
-						domain={[0, 100]}
+						domain={['auto', 'auto']}
 						tick={{ fill: '#9ca3af', fontSize: 11 }}
 						tickLine={false}
 						axisLine={false}
@@ -165,7 +182,7 @@ const WaterfallChart: React.FC<WaterfallChartProps> = ({ results, totalScore }) 
 							<td>{d.name}</td>
 							<td>{d.rawDisplay != null ? String(d.rawDisplay) : '—'}</td>
 							<td>{d.status}</td>
-							<td>{`+${d.contribution.toFixed(1)}`}</td>
+							<td>{`${d.contribution >= 0 ? '+' : ''}${d.contribution.toFixed(1)}`}</td>
 						</tr>
 					))}
 				</tbody>
