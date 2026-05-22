@@ -271,6 +271,48 @@ class DatabaseManager:
 			)
 		""")
 
+		# Portfolios table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS portfolios (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT UNIQUE NOT NULL,
+				description TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		""")
+
+		# Portfolio Holdings table — cached derived state, updated on every transaction
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS portfolio_holdings (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				portfolio_id INTEGER NOT NULL,
+				symbol TEXT NOT NULL,
+				total_shares REAL NOT NULL DEFAULT 0,
+				average_cost REAL NOT NULL DEFAULT 0,
+				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+				UNIQUE(portfolio_id, symbol),
+				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+			)
+		""")
+
+		# Transactions table — full immutable ledger
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS transactions (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				portfolio_id INTEGER NOT NULL,
+				symbol TEXT NOT NULL,
+				transaction_type TEXT NOT NULL,
+				quantity REAL NOT NULL,
+				price_per_share REAL NOT NULL,
+				transaction_date TEXT NOT NULL,
+				fees REAL DEFAULT 0.0,
+				notes TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+			)
+		""")
+
 		# Migration: add is_secret to app_settings if missing
 		cursor.execute("PRAGMA table_info(app_settings)")
 		if "is_secret" not in {row[1] for row in cursor.fetchall()}:

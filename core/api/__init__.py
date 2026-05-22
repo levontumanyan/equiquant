@@ -6,7 +6,7 @@ import anyio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.api.routers import admin, analysis, assets, config
+from core.api.routers import admin, analysis, assets, config, portfolio
 from core.logger import SERVER_LOG_FILE, get_logger, set_log_level, setup_logging
 from core.openbb_client import ensure_openbb_ready, is_openbb_ready
 
@@ -89,6 +89,7 @@ app.include_router(analysis.router)
 app.include_router(admin.router)
 app.include_router(assets.router)
 app.include_router(config.router)
+app.include_router(portfolio.router)
 
 
 @app.get("/health")
