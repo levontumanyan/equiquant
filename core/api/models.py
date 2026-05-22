@@ -117,6 +117,17 @@ class PortfolioCreate(BaseModel):
 	name: str
 	description: Optional[str] = None
 
+	@field_validator("name")
+	@classmethod
+	def name_not_blank(cls, v: str) -> str:
+		"""Reject empty or whitespace-only names."""
+		stripped = v.strip()
+		if not stripped:
+			raise ValueError("Portfolio name cannot be blank")
+		if len(stripped) > 100:
+			raise ValueError("Portfolio name must be 100 characters or fewer")
+		return stripped
+
 
 class PortfolioResponse(BaseModel):
 	"""Response model for a portfolio."""
@@ -152,6 +163,14 @@ class TransactionCreate(BaseModel):
 		"""Reject non-positive quantities and prices."""
 		if v <= 0:
 			raise ValueError("Must be greater than zero")
+		return v
+
+	@field_validator("fees")
+	@classmethod
+	def non_negative_fees(cls, v: float) -> float:
+		"""Reject negative fees."""
+		if v < 0:
+			raise ValueError("Fees cannot be negative")
 		return v
 
 

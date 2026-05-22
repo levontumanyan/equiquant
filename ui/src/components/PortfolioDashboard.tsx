@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 import './PortfolioDashboard.css'
@@ -100,7 +100,7 @@ function CreatePortfolioModal({ onClose, onCreated }: { onClose: () => void; onC
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 
-	async function handleSubmit(e: React.FormEvent) {
+	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
 		if (!name.trim()) { setError('Name is required'); return }
 		setLoading(true)
@@ -183,7 +183,7 @@ function AddTransactionModal({
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 
-	async function handleSubmit(e: React.FormEvent) {
+	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
 		if (!symbol.trim() || !quantity || !price) { setError('Symbol, quantity, and price are required'); return }
 		setLoading(true)
@@ -245,11 +245,11 @@ function AddTransactionModal({
 					<div className="pd-form-row">
 						<label>
 							Quantity
-							<input type="number" min="0" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="100" />
+							<input type="number" min="0.0001" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="100" />
 						</label>
 						<label>
 							Price / Share
-							<input type="number" min="0" step="any" value={price} onChange={e => setPrice(e.target.value)} placeholder="150.00" />
+							<input type="number" min="0.0001" step="any" value={price} onChange={e => setPrice(e.target.value)} placeholder="150.00" />
 						</label>
 					</div>
 					<div className="pd-form-row">
@@ -324,7 +324,7 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 								</td>
 								<td className="pd-right" style={{ color: pnlColor }}>
 									{h.unrealized_pnl !== null
-										? `${h.unrealized_pnl >= 0 ? '+' : ''}$${fmtMoney(h.unrealized_pnl)} (${h.unrealized_pnl_pct?.toFixed(1)}%)`
+										? `${h.unrealized_pnl >= 0 ? '+' : ''}$${fmtMoney(h.unrealized_pnl)}${h.unrealized_pnl_pct != null ? ` (${h.unrealized_pnl_pct.toFixed(1)}%)` : ''}`
 										: <span className="pd-muted">—</span>}
 								</td>
 								<td className="pd-right">
@@ -369,7 +369,12 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 				</thead>
 				<tbody>
 					{transactions.map(tx => {
-						const total = tx.quantity * tx.price_per_share + tx.fees
+						const gross = tx.quantity * tx.price_per_share
+						const total = tx.transaction_type === 'SELL'
+							? gross - tx.fees
+							: tx.transaction_type === 'DIVIDEND'
+							? gross
+							: gross + tx.fees
 						return (
 							<tr key={tx.id}>
 								<td className="pd-muted">{fmtDate(tx.transaction_date)}</td>
@@ -411,7 +416,7 @@ export default function PortfolioDashboard() {
 	const [deleting, setDeleting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
-	// Fetch portfolios list
+	// Fetch portfolios list — no dependency on activePortfolio to avoid stale closure
 	const fetchPortfolios = useCallback(async () => {
 		setLoadingPortfolios(true)
 		try {
@@ -419,26 +424,30 @@ export default function PortfolioDashboard() {
 			if (!res.ok) throw new Error('Failed to load portfolios')
 			const data: Portfolio[] = await res.json()
 			setPortfolios(data)
-			// Auto-select first if none selected
-			if (data.length > 0 && !activePortfolio) {
-				setActivePortfolio(data[0])
-			}
+			// Auto-select first only if nothing is selected yet
+			setActivePortfolio(prev => prev ?? (data[0] ?? null))
 		} catch (err: any) {
 			setError(err.message)
 		} finally {
 			setLoadingPortfolios(false)
 		}
-	}, [activePortfolio])
+	}, [])
 
-	useEffect(() => { fetchPortfolios() }, [])
+	useEffect(() => { fetchPortfolios() }, [fetchPortfolios])
 
 	// Fetch holdings + transactions when active portfolio changes
 	useEffect(() => {
 		if (!activePortfolio) { setHoldings([]); setTransactions([]); return }
 		setLoadingDetail(true)
 		Promise.all([
-			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/holdings`).then(r => r.json()),
-			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/transactions`).then(r => r.json()),
+			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/holdings`).then(r => {
+				if (!r.ok) throw new Error(`Holdings fetch failed: ${r.status}`)
+				return r.json()
+			}),
+			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/transactions`).then(r => {
+				if (!r.ok) throw new Error(`Transactions fetch failed: ${r.status}`)
+				return r.json()
+			}),
 		]).then(([h, t]) => {
 			setHoldings(Array.isArray(h) ? h : [])
 			setTransactions(Array.isArray(t) ? t : [])
@@ -600,7 +609,7 @@ export default function PortfolioDashboard() {
 										style={{ color: totalPnl === null ? '#888' : totalPnl >= 0 ? '#4caf50' : '#f44336' }}
 									>
 										{totalPnl !== null
-											? `${totalPnl >= 0 ? '+' : ''}$${fmtMoney(totalPnl)} (${totalPnlPct?.toFixed(1)}%)`
+											? `${totalPnl >= 0 ? '+' : ''}$${fmtMoney(totalPnl)}${totalPnlPct != null ? ` (${totalPnlPct.toFixed(1)}%)` : ''}`
 											: '—'}
 									</span>
 								</div>

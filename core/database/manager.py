@@ -26,6 +26,9 @@ class DatabaseManager:
 			# Access MUST be serialized using self._lock.
 			self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
 			self.conn.row_factory = sqlite3.Row
+			# Enable FK enforcement for the lifetime of this connection so CASCADE
+			# deletes on portfolios/holdings/transactions work reliably.
+			self.conn.execute("PRAGMA foreign_keys = ON")
 			self._create_tables()
 			if not self._skip_auto_seed:
 				self._auto_seed()

@@ -155,6 +155,44 @@ class TestRecordTransaction:
 		assert len(holdings) == 2
 
 
+# ── Repo-layer input validation ─────────────────────────────────────────────
+
+
+class TestRecordTransactionValidation:
+	def test_invalid_transaction_type_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(ValueError, match="Invalid transaction_type"):
+			repo.record_transaction(1, "AAPL", "GRANT", 5, 100.0, "2024-01-01")
+
+	def test_zero_quantity_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(ValueError, match="quantity"):
+			repo.record_transaction(1, "AAPL", "BUY", 0, 100.0, "2024-01-01")
+
+	def test_negative_quantity_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(ValueError, match="quantity"):
+			repo.record_transaction(1, "AAPL", "BUY", -1, 100.0, "2024-01-01")
+
+	def test_zero_price_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(ValueError, match="price_per_share"):
+			repo.record_transaction(1, "AAPL", "BUY", 5, 0.0, "2024-01-01")
+
+	def test_negative_fees_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(ValueError, match="fees"):
+			repo.record_transaction(1, "AAPL", "BUY", 5, 100.0, "2024-01-01", fees=-1.0)
+
+	def test_invalid_type_does_not_mutate_holdings(self, repo):
+		repo.create_portfolio("P")
+		repo.record_transaction(1, "AAPL", "BUY", 10, 100.0, "2024-01-01")
+		with pytest.raises(ValueError):
+			repo.record_transaction(1, "AAPL", "GRANT", 5, 100.0, "2024-01-02")
+		# Holdings must be unchanged
+		assert repo.get_holdings(1)[0]["total_shares"] == 10
+
+
 # ── Cascade delete ──────────────────────────────────────────────────────────
 
 

@@ -792,6 +792,11 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+			# Ensure parent asset row exists so the FK is satisfied
+			cursor.execute(
+				"INSERT OR IGNORE INTO assets (symbol, last_updated) VALUES (?, CURRENT_TIMESTAMP)",
+				(symbol,),
+			)
 			cursor.execute(
 				"""
 				INSERT INTO metrics_history (symbol, metric_key, value)
@@ -1039,8 +1044,10 @@ class DatabaseRepository:
 				(name, description),
 			)
 			conn.commit()
-			cursor.execute("SELECT * FROM portfolios WHERE id = ?", (cursor.lastrowid,))
-			return dict(cursor.fetchone())
+			new_id = cursor.lastrowid
+		# Re-use get_portfolio so the response shape (with transaction_count / total_fees)
+		# is identical to every other portfolio endpoint.
+		return self.get_portfolio(new_id)
 
 	def list_portfolios(self) -> List[dict]:
 		"""Return all portfolios with their transaction counts.
@@ -1102,7 +1109,6 @@ class DatabaseRepository:
 			cursor.execute("SELECT id FROM portfolios WHERE id = ?", (portfolio_id,))
 			if not cursor.fetchone():
 				return "not_found"
-			cursor.execute("PRAGMA foreign_keys = ON")
 			cursor.execute("DELETE FROM portfolios WHERE id = ?", (portfolio_id,))
 			conn.commit()
 			return "deleted"
@@ -1139,10 +1145,21 @@ class DatabaseRepository:
 		Raises:
 			ValueError: When a SELL would exceed available shares.
 		"""
+		allowed_types = {"BUY", "SELL", "DIVIDEND"}
+		if transaction_type not in allowed_types:
+			raise ValueError(
+				f"Invalid transaction_type '{transaction_type}'. Must be one of {allowed_types}"
+			)
+		if quantity <= 0:
+			raise ValueError("quantity must be greater than zero")
+		if price_per_share <= 0:
+			raise ValueError("price_per_share must be greater than zero")
+		if fees < 0:
+			raise ValueError("fees cannot be negative")
+
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute("PRAGMA foreign_keys = ON")
 
 			if transaction_type == "BUY":
 				# Fees are included in cost basis — amortised across the shares acquired
