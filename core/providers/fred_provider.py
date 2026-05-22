@@ -111,6 +111,7 @@ class FREDProvider(BaseProvider):
 			asset_type=AssetType.INDEX,
 			name="Macroeconomic Indicators",
 			metrics=metrics,
+			raw_data=metrics,
 		)
 
 	def get_data(self, symbol: str) -> Optional[AssetData]:

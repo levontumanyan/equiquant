@@ -16,6 +16,8 @@ from typing import (
 	Tuple,
 )
 
+import anyio
+
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
@@ -186,7 +188,7 @@ async def fetch_data(  # noqa: C901
 	sec_provider = SECProvider(repo=repo)
 	fred_provider = FREDProvider(repo=repo)
 
-	async def _perform_enrichment_fetch():
+	def _perform_enrichment_fetch_sync():
 		# Fetch Macro snapshot if needed (log warning once if not configured)
 		if not fred_provider.is_configured:
 			logger.info("FRED Provider skipped (API Key not configured)")
@@ -213,7 +215,7 @@ async def fetch_data(  # noqa: C901
 					except Exception as e:
 						logger.warning(f"Failed to fetch SEC data for {symbol}: {e}")
 
-	await _perform_enrichment_fetch()
+	await anyio.to_thread.run_sync(_perform_enrichment_fetch_sync)
 
 	# 2. Then, proceed with OpenBB bulk fetch as before
 	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]

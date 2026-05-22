@@ -703,7 +703,7 @@ class DatabaseRepository:
 					category = COALESCE(excluded.category, app_settings.category),
 					description = COALESCE(excluded.description, app_settings.description),
 					is_secret = excluded.is_secret,
-					last_updated = app_settings.last_updated
+					last_updated = CURRENT_TIMESTAMP
 			""",
 				(key, value, category, description, is_secret),
 			)
@@ -729,7 +729,7 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute("SELECT * FROM app_settings")
+			cursor.execute("SELECT * FROM app_settings ORDER BY category, key")
 			rows = cursor.fetchall()
 			settings = []
 			for row in rows:

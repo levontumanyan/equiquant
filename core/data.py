@@ -210,6 +210,6 @@ def get_cached_stock_data(  # noqa: C901
 			for k in asset.metrics.keys():
 				merged_asset.sources[k] = cached["provider"]
 		else:
-			merged_asset.merge(asset, cached["provider"])
+			merged_asset.merge(asset, cached["provider"], overwrite=True)
 
 	return merged_asset
