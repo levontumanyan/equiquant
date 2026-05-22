@@ -26,6 +26,9 @@ class DatabaseManager:
 			# Access MUST be serialized using self._lock.
 			self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
 			self.conn.row_factory = sqlite3.Row
+			# Enable FK enforcement for the lifetime of this connection so CASCADE
+			# deletes on portfolios/holdings/transactions work reliably.
+			self.conn.execute("PRAGMA foreign_keys = ON")
 			self._create_tables()
 			if not self._skip_auto_seed:
 				self._auto_seed()
@@ -275,6 +278,48 @@ class DatabaseManager:
 				api_attempts INTEGER,
 				errors INTEGER,
 				metrics_json TEXT
+			)
+		""")
+
+		# Portfolios table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS portfolios (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT UNIQUE NOT NULL,
+				description TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		""")
+
+		# Portfolio Holdings table — cached derived state, updated on every transaction
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS portfolio_holdings (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				portfolio_id INTEGER NOT NULL,
+				symbol TEXT NOT NULL,
+				total_shares REAL NOT NULL DEFAULT 0,
+				average_cost REAL NOT NULL DEFAULT 0,
+				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+				UNIQUE(portfolio_id, symbol),
+				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+			)
+		""")
+
+		# Transactions table — full immutable ledger
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS transactions (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				portfolio_id INTEGER NOT NULL,
+				symbol TEXT NOT NULL,
+				transaction_type TEXT NOT NULL,
+				quantity REAL NOT NULL,
+				price_per_share REAL NOT NULL,
+				transaction_date TEXT NOT NULL,
+				fees REAL DEFAULT 0.0,
+				notes TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
 			)
 		""")
 
