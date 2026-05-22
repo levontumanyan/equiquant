@@ -100,7 +100,10 @@ def get_stock_data(  # noqa: C901
 
 	# If we have a repo, check for staleness of individual providers
 	providers_to_fetch = []
-	all_providers = ["openbb", "sec"]  # FRED is usually global, not per-ticker
+	all_providers = [
+		"yfinance",
+		"sec",
+	]  # Standardized: yfinance used for check and write
 
 	if repo:
 		for p_name in all_providers:
@@ -137,7 +140,7 @@ def get_stock_data(  # noqa: C901
 	return asset
 
 
-def get_cached_stock_data(
+def get_cached_stock_data(  # noqa: C901
 	ticker_symbol: str, repo: Optional[DatabaseRepository] = None
 ) -> Optional[AssetData]:
 	"""
@@ -176,8 +179,26 @@ def get_cached_stock_data(
 		return p.priority if p else 100
 
 	sorted_cached = sorted(all_cached, key=get_priority)
+	merged_asset: Optional[AssetData] = None
 
+	# Find primary provider (yfinance/openbb) first to ensure it seeds the base raw_data
+	primary_entry = next(
+		(e for e in sorted_cached if e["provider"] in ("yfinance", "openbb")), None
+	)
+
+	if primary_entry:
+		provider = provider_instances.get(primary_entry["provider"])
+		if provider:
+			merged_asset = provider._normalize(symbol, primary_entry["data"])
+			# Track sources
+			for k in merged_asset.metrics.keys():
+				merged_asset.sources[k] = primary_entry["provider"]
+
+	# Merge remaining providers
 	for cached in sorted_cached:
+		if primary_entry and cached["provider"] == primary_entry["provider"]:
+			continue
+
 		provider = provider_instances.get(cached["provider"])
 		if not provider:
 			continue

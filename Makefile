@@ -166,6 +166,11 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .pytest_cache .ruff_cache
 	rm -rf logs/*.log
-	rm -rf ~/.openbb_platform
 	podman image prune -f || true
-	@echo "Cleanup complete. (Note: market_analysis.db was preserved)"
+	@echo "Cleanup complete. (Note: market_analysis.db and global OpenBB cache preserved)"
+
+clean-all-data: clean
+	@echo "Wiping ALL data including local database and global OpenBB platform cache..."
+	rm -f market_analysis.db
+	rm -rf ~/.openbb_platform
+	@echo "All data wiped."

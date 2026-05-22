@@ -60,6 +60,10 @@ async def lifespan(_app: FastAPI):
 		yield
 	finally:
 		warmup_task.cancel()
+		try:
+			await warmup_task
+		except asyncio.CancelledError:
+			logger.debug("Warmup task successfully cancelled.")
 
 
 app = FastAPI(

@@ -8,6 +8,8 @@ from core.schema import AssetType
 class TestSECProvider(unittest.TestCase):
 	def setUp(self):
 		self.repo = MagicMock()
+		# Mock valid configuration
+		self.repo.get_setting.return_value = "Test Agent test@example.com"
 		self.provider = SECProvider(repo=self.repo)
 
 	@patch("requests.get")

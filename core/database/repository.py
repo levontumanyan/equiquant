@@ -729,8 +729,15 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
-			cursor.execute("SELECT * FROM app_settings ORDER BY category, key")
-			return [dict(row) for row in cursor.fetchall()]
+			cursor.execute("SELECT * FROM app_settings")
+			rows = cursor.fetchall()
+			settings = []
+			for row in rows:
+				s = dict(row)
+				if s.get("is_secret"):
+					s["value"] = "••••••••" if s.get("value") else ""
+				settings.append(s)
+			return settings
 
 	def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
 		"""Get a specific setting value, using in-memory cache for speed."""

@@ -30,7 +30,8 @@ class SECProvider(BaseProvider):
 
 		ua = _get_user_agent(self.repo)
 		# Handle placeholders or empty strings
-		if not ua or "admin@equiquant.com" in ua or "placeholder" in ua.lower():
+		# Rejecting only explicit placeholder or empty
+		if not ua or "your_email" in ua.lower():
 			return ""
 		return ua
 
@@ -101,6 +102,9 @@ class SECProvider(BaseProvider):
 		"""
 		Fetch and normalize SEC data for a given ticker.
 		"""
+		if not self.is_configured:
+			return None
+
 		cik = get_cik(symbol, self.repo)
 		if not cik:
 			logger.warning(f"No CIK found for {symbol}")

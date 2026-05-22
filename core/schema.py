@@ -62,13 +62,9 @@ class AssetData:
 				self.metrics[k] = v
 				self.sources[k] = provider_name
 
-		# Merge raw data
-		if other.raw_data:
-			if provider_name not in self.raw_data:
-				self.raw_data[provider_name] = other.raw_data
-			else:
-				# If raw_data is already a dict (standard), merge into it
-				if isinstance(self.raw_data[provider_name], dict):
-					self.raw_data[provider_name].update(other.raw_data)
-				else:
-					self.raw_data[provider_name] = other.raw_data
+		# Merge raw data (keep it flat to avoid breaking consumers)
+		if other.raw_data and isinstance(other.raw_data, dict):
+			for k, v in other.raw_data.items():
+				# Only overwrite if new value is not None or if current value is None
+				if v is not None or k not in self.raw_data:
+					self.raw_data[k] = v

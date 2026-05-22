@@ -40,11 +40,14 @@ class FREDProvider(BaseProvider):
 		"""Retrieve the FRED API key from the database or environment."""
 		key = None
 		try:
-			db_path = os.environ.get("DB_PATH", "market_analysis.db")
-			db = DatabaseManager(db_path, skip_auto_seed=True)
-			repo = DatabaseRepository(db)
-			key = repo.get_setting("fred_api_key")
-			db.close()
+			if self.repo:
+				key = self.repo.get_setting("fred_api_key")
+			else:
+				db_path = os.environ.get("DB_PATH", "market_analysis.db")
+				db = DatabaseManager(db_path, skip_auto_seed=True)
+				repo = DatabaseRepository(db)
+				key = repo.get_setting("fred_api_key")
+				db.close()
 		except Exception as e:
 			logger.debug(f"Failed to get FRED API key from DB: {e}")
 

@@ -175,6 +175,7 @@ async def fetch_data(  # noqa: C901
 	Enables pipelining where analysis can start before all fetching is done.
 	Now supports multi-source fetching (OpenBB + SEC + FRED).
 	"""
+
 	tickers = [t.upper().strip() for t in tickers if t.strip()]
 	logger.info(f"Starting hybrid data fetch for {len(tickers)} tickers")
 
@@ -185,31 +186,34 @@ async def fetch_data(  # noqa: C901
 	sec_provider = SECProvider(repo=repo)
 	fred_provider = FREDProvider(repo=repo)
 
-	# Fetch Macro snapshot if needed (log warning once if not configured)
-	if not fred_provider.is_configured:
-		logger.info("FRED Provider skipped (API Key not configured)")
-	elif repo and not repo.should_use_db_cache("MACRO", "fred"):
-		macro_data = fred_provider.get_data("MACRO")
-		if macro_data:
-			repo.upsert_raw_provider_data("MACRO", "fred", macro_data.raw_data)
+	async def _perform_enrichment_fetch():
+		# Fetch Macro snapshot if needed (log warning once if not configured)
+		if not fred_provider.is_configured:
+			logger.info("FRED Provider skipped (API Key not configured)")
+		elif repo and not repo.should_use_db_cache("MACRO", "fred"):
+			macro_data = fred_provider.get_data("MACRO")
+			if macro_data:
+				repo.upsert_raw_provider_data("MACRO", "fred", macro_data.raw_data)
 
-	# SEC Data Fetch (log warning once if not configured)
-	if not sec_provider.is_configured:
-		logger.info("SEC Provider skipped (User-Agent not configured)")
-	else:
-		# We can use a small ThreadPool for SEC lookups
-		with ThreadPoolExecutor(max_workers=10) as executor:
-			sec_futures = {
-				executor.submit(sec_provider.get_data, t): t for t in tickers
-			}
-			for future in as_completed(sec_futures):
-				symbol = sec_futures[future]
-				try:
-					asset = future.result()
-					if asset and repo:
-						repo.upsert_raw_provider_data(symbol, "sec", asset.raw_data)
-				except Exception as e:
-					logger.warning(f"Failed to fetch SEC data for {symbol}: {e}")
+		# SEC Data Fetch (log warning once if not configured)
+		if not sec_provider.is_configured:
+			logger.info("SEC Provider skipped (User-Agent not configured)")
+		else:
+			# We can use a small ThreadPool for SEC lookups
+			with ThreadPoolExecutor(max_workers=10) as executor:
+				sec_futures = {
+					executor.submit(sec_provider.get_data, t): t for t in tickers
+				}
+				for future in as_completed(sec_futures):
+					symbol = sec_futures[future]
+					try:
+						asset = future.result()
+						if asset and repo:
+							repo.upsert_raw_provider_data(symbol, "sec", asset.raw_data)
+					except Exception as e:
+						logger.warning(f"Failed to fetch SEC data for {symbol}: {e}")
+
+	await _perform_enrichment_fetch()
 
 	# 2. Then, proceed with OpenBB bulk fetch as before
 	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
