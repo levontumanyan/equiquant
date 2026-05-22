@@ -219,3 +219,4 @@ __marimo__/
 
 # Git Worktrees
 .worktrees/
+data/

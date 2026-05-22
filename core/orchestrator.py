@@ -16,6 +16,8 @@ from typing import (
 	Tuple,
 )
 
+import anyio
+
 from core.data import get_cached_stock_data, load_benchmarks
 from core.database.repository import DatabaseRepository
 from core.evaluation import evaluate_metric
@@ -72,7 +74,14 @@ def analyze_asset(
 	profile_config = get_profile_config(repo, profile)
 
 	scoring_start = time.perf_counter()
-	results = [evaluate_metric(asset, b, profile_config) for b in benchmark_defs]
+	results = []
+	for b in benchmark_defs:
+		res = evaluate_metric(asset, b, profile_config)
+		# Add source attribution
+		m_key = b.get("metric_key") or b.get("metric")
+		res["source"] = asset.sources.get(m_key, "unknown") if m_key else "unknown"
+		results.append(res)
+
 	stats.scoring_time_total += time.perf_counter() - scoring_start
 
 	# Data Quality Audit: Record which metrics were present
@@ -97,6 +106,7 @@ def analyze_asset(
 		"benchmark_defs": benchmark_defs,
 		"score": final_pct,
 		"asset_type": asset.asset_type,
+		"sources": asset.sources,
 		"market_cap": asset.raw_data.get("market_cap")
 		if asset.raw_data.get("market_cap") is not None
 		else asset.raw_data.get("marketCap"),
@@ -156,7 +166,7 @@ def _fetch_batch_process_worker(
 	return fetch_batch_with_backoff(batch_tickers, current_cooldown, db_path=db_path)
 
 
-async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inherent to error-handling branches
+async def fetch_data(  # noqa: C901
 	tickers: List[str],
 	batch_size: int = 20,
 	use_processes: bool = True,
@@ -165,31 +175,55 @@ async def fetch_data(  # noqa: C901 — batched async fetch, complexity is inher
 	"""
 	Fetch data for multiple tickers in parallel batches and yield successful batches.
 	Enables pipelining where analysis can start before all fetching is done.
+	Now supports multi-source fetching (OpenBB + SEC + FRED).
 	"""
-	# PR Feedback: Normalize symbols early and consistently
-	tickers = [t.upper().strip() for t in tickers if t.strip()]
-	logger.info(
-		f"Starting data fetch for {len(tickers)} tickers (processes={use_processes}, batch_size={batch_size})"
-	)
 
+	tickers = [t.upper().strip() for t in tickers if t.strip()]
+	logger.info(f"Starting hybrid data fetch for {len(tickers)} tickers")
+
+	# 1. First, fetch from SEC and FRED (fast, I/O bound)
+	from core.providers.fred_provider import FREDProvider
+	from core.providers.sec_provider import SECProvider
+
+	sec_provider = SECProvider(repo=repo)
+	fred_provider = FREDProvider(repo=repo)
+
+	def _perform_enrichment_fetch_sync():
+		# Fetch Macro snapshot if needed (log warning once if not configured)
+		if not fred_provider.is_configured:
+			logger.info("FRED Provider skipped (API Key not configured)")
+		elif repo and not repo.should_use_db_cache("MACRO", "fred"):
+			macro_data = fred_provider.get_data("MACRO")
+			if macro_data:
+				repo.upsert_raw_provider_data("MACRO", "fred", macro_data.raw_data)
+
+		# SEC Data Fetch (log warning once if not configured)
+		if not sec_provider.is_configured:
+			logger.info("SEC Provider skipped (User-Agent not configured)")
+		else:
+			# We can use a small ThreadPool for SEC lookups
+			with ThreadPoolExecutor(max_workers=10) as executor:
+				sec_futures = {
+					executor.submit(sec_provider.get_data, t): t for t in tickers
+				}
+				for future in as_completed(sec_futures):
+					symbol = sec_futures[future]
+					try:
+						asset = future.result()
+						if asset and repo:
+							repo.upsert_raw_provider_data(symbol, "sec", asset.raw_data)
+					except Exception as e:
+						logger.warning(f"Failed to fetch SEC data for {symbol}: {e}")
+
+	await anyio.to_thread.run_sync(_perform_enrichment_fetch_sync)
+
+	# 2. Then, proceed with OpenBB bulk fetch as before
 	batches = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
 
 	if not batches:
 		return
 
 	db_path_str = str(repo.db.db_path) if repo else None
-
-	if use_processes:
-		# Pre-initialize OpenBB in main process to avoid concurrent build locks in workers.
-		# This ensures extensions are built and locked once before spawning parallel processes.
-		try:
-			from openbb import obb
-
-			logger.info("Initializing OpenBB Platform...")
-			# Accessing a core extension triggers the build process if needed
-			_ = obb.equity
-		except Exception as e:
-			logger.debug(f"OpenBB pre-initialization skipped or failed: {e}")
 
 	if not use_processes:
 		current_cooldown = 5.0

@@ -7,6 +7,11 @@ from .base import BaseProvider
 
 
 class OpenBBProvider(BaseProvider):
+	def __init__(self):
+		super().__init__(
+			priority=20
+		)  # Lower priority, used as fallback or general data
+
 	def _normalize(self, symbol: str, raw_data: dict) -> AssetData:
 		asset_type = AssetType.STOCK
 		if "fund_family" in raw_data or "nav_price" in raw_data:

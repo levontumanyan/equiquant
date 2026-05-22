@@ -241,6 +241,17 @@ class DatabaseManager:
 				value TEXT,
 				category TEXT,
 				description TEXT,
+				is_secret BOOLEAN DEFAULT 0,
+				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		""")
+
+		# SEC CIK Mapping table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS sec_cik_mapping (
+				ticker TEXT PRIMARY KEY,
+				cik TEXT NOT NULL,
+				title TEXT,
 				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
 			)
 		""")
@@ -259,6 +270,13 @@ class DatabaseManager:
 				metrics_json TEXT
 			)
 		""")
+
+		# Migration: add is_secret to app_settings if missing
+		cursor.execute("PRAGMA table_info(app_settings)")
+		if "is_secret" not in {row[1] for row in cursor.fetchall()}:
+			cursor.execute(
+				"ALTER TABLE app_settings ADD COLUMN is_secret BOOLEAN DEFAULT 0"
+			)
 
 		# Migration: drop legacy profile_weights (superseded by profile_metric_settings)
 		cursor.execute("DROP TABLE IF EXISTS profile_weights")

@@ -30,6 +30,7 @@ interface AppSetting {
 	value: string;
 	category: string;
 	description?: string;
+	is_secret?: boolean;
 	last_updated: string;
 }
 
@@ -476,39 +477,45 @@ const AdminDashboard: React.FC = () => {
 						</div>
 
 						{(() => {
-							const remaining = settings.filter(s => !['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies'].includes(s.key))
-							if (remaining.length === 0) return null
-							return (
-								<div className="admin-table-container">
-									<table className="admin-table settings-table">
-										<thead>
-											<tr>
-												<th>Category</th>
-												<th>Setting Key</th>
-												<th>Value</th>
-												<th>Description</th>
-											</tr>
-										</thead>
-										<tbody>
-											{remaining.map(setting => (
-												<tr key={setting.key}>
-													<td className="dim">{setting.category}</td>
-													<td className="bold">{setting.key}</td>
-													<td>
-														<input
-															type="text"
-															className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
-															value={editingSettings[setting.key] || ''}
-															onChange={e => setEditingSettings({ ...editingSettings, [setting.key]: e.target.value })}
-														/>
-													</td>
-													<td className="dim small">{setting.description}</td>
+							const skipKeys = ['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies']
+							const remainingSettings = settings.filter(s => !skipKeys.includes(s.key))
+							const remainingCategories = Array.from(new Set(remainingSettings.map(s => s.category)))
+							
+							if (remainingCategories.length === 0) return null
+							
+							return remainingCategories.map(cat => (
+								<div key={cat} className="settings-group">
+									<h3 className="settings-group-title">{cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
+									<div className="admin-table-container">
+										<table className="admin-table settings-table">
+											<thead>
+												<tr>
+													<th>Key</th>
+													<th>Value</th>
+													<th>Description</th>
 												</tr>
-											))}
-										</tbody>
-									</table>
+											</thead>
+											<tbody>
+												{remainingSettings.filter(s => s.category === cat).map(setting => (
+													<tr key={setting.key}>
+														<td className="bold">{setting.key}</td>
+														<td>
+															<input
+																type={setting.is_secret ? "password" : "text"}
+																className={`setting-input ${isModified(setting.key) ? 'modified' : ''}`}
+																value={editingSettings[setting.key] || ''}
+																placeholder={setting.is_secret ? "••••••••" : ""}
+																onChange={e => setEditingSettings({ ...editingSettings, [setting.key]: e.target.value })}
+															/>
+														</td>
+														<td className="dim small">{setting.description}</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
 								</div>
-							)
+							))
 						})()}
 
 						<div className="settings-footer">

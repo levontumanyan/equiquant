@@ -3,24 +3,42 @@
     "key": "market_open_ttl_s",
     "value": "900",
     "category": "data_caching",
-    "description": "Cache TTL in seconds when the market is open (default 15m)."
+    "description": "Cache TTL in seconds when the market is open (default 15m).",
+    "is_secret": false
   },
   {
     "key": "market_closed_ttl_s",
     "value": "43200",
     "category": "data_caching",
-    "description": "Cache TTL in seconds when the market is closed (default 12h)."
+    "description": "Cache TTL in seconds when the market is closed (default 12h).",
+    "is_secret": false
   },
   {
     "key": "proxies",
     "value": "",
     "category": "network",
-    "description": "Comma-separated list of proxies (e.g., http://user:pass@host:port)."
+    "description": "Comma-separated list of proxies (e.g., http://user:pass@host:port).",
+    "is_secret": false
   },
   {
     "key": "log_level",
     "value": "INFO",
     "category": "logging",
-    "description": "Global logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)."
+    "description": "Global logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
+    "is_secret": false
+  },
+  {
+    "key": "fred_api_key",
+    "value": "",
+    "category": "credentials",
+    "description": "API Key for Federal Reserve Economic Data (FRED).",
+    "is_secret": true
+  },
+  {
+    "key": "sec_user_agent",
+    "value": "Equiquant admin@equiquant.com",
+    "category": "credentials",
+    "description": "Mandatory User-Agent header for SEC EDGAR (e.g., 'Company admin@email.com').",
+    "is_secret": false
   }
 ]

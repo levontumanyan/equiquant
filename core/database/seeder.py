@@ -47,6 +47,7 @@ class DatabaseSeeder:
 					value=row["value"],
 					category=row.get("category", "general"),
 					description=row.get("description"),
+					is_secret=bool(row.get("is_secret", False)),
 				)
 			logger.info(f"Seeded {len(data)} application settings.")
 		except Exception as e:

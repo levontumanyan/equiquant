@@ -26,6 +26,7 @@ export interface MetricResult {
 	score: number;
 	weight: number;
 	status: string;
+	source?: string;
 }
 
 export interface AssetAnalysis {
@@ -36,5 +37,6 @@ export interface AssetAnalysis {
 	score: number;
 	results: MetricResult[];
 	raw_metrics?: Record<string, unknown> | null;
+	sources?: Record<string, string> | null;
 	market_cap?: number | null;
 }
