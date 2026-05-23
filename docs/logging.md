@@ -140,3 +140,20 @@ worker_processes.worker_2.queue_handler_2 -> main_process.fetch_data.queue_liste
 All logs format their origin process context:
 * **`processName`**: Indicates whether it is the `MainProcess` or a child worker process (e.g. `SpawnProcess-1`).
 * **`process`**: The operating system process ID (PID) of the source execution unit.
+
+# Dynamic Log Level Propagation
+
+You can control the logging level of both the Python backend and the React frontend dev server dynamically when starting the application using the `LOG_LEVEL` environment variable.
+
+## Usage
+Run either target with the desired level prefix:
+```bash
+LOG_LEVEL=warning make dev
+```
+
+## Level Mapping
+The Makefile automatically normalizes and translates the logging level to the standard terminology expected by each framework:
+
+* **Python Backend**: Receives standard uppercase level values (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). `WARN` is automatically mapped to `WARNING`.
+* **Vite Frontend**: Receives native lowercase level values (`info`, `warn`, `error`, `silent`). `DEBUG` maps to `info`, and `CRITICAL` or `SILENT` maps to `silent`.
+
