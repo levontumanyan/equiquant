@@ -130,3 +130,18 @@ def set_log_level(level: str) -> str:
 		for handler in lg.handlers:
 			handler.setLevel(numeric)
 	return normalized
+
+
+class LogQueueDispatcher(logging.Handler):
+	"""
+	Dispatches log records from a queue back into the main process's logging pipeline.
+	"""
+
+	def emit(self, record: logging.LogRecord) -> None:
+		"""
+		Emit a log record by passing it to the appropriate logger in the main process.
+
+		Args:
+			record (logging.LogRecord): The log record to dispatch.
+		"""
+		logging.getLogger(record.name).handle(record)

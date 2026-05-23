@@ -162,6 +162,29 @@ def _tracked_analyze_asset(
 		stats.record_task_complete(worker_time)
 
 
+def _worker_log_initializer(queue: Any) -> None:
+	"""
+	Initialize logging in a ProcessPoolExecutor worker process.
+
+	Args:
+		queue (Any): The multiprocessing queue to send log records to.
+	"""
+	import logging
+	import logging.handlers
+
+	from core.logger import LOG_LEVEL
+
+	root = logging.getLogger()
+	# Clear existing handlers to avoid duplicates/double logging to stderr
+	for handler in list(root.handlers):
+		root.removeHandler(handler)
+
+	# Route everything to the main process via QueueHandler
+	queue_handler = logging.handlers.QueueHandler(queue)
+	root.addHandler(queue_handler)
+	root.setLevel(LOG_LEVEL)
+
+
 def _fetch_batch_process_worker(
 	batch_tickers: List[str],
 	current_cooldown: float = 5.0,
@@ -262,9 +285,27 @@ async def fetch_data(  # noqa: C901
 		return
 
 	loop = asyncio.get_running_loop()
+	# Set up multiprocessing-safe log queue and listener
+	import logging.handlers
+	import multiprocessing
+
+	from core.logger import LogQueueDispatcher
+
+	ctx = multiprocessing.get_context("spawn")
+	log_queue = ctx.Queue()
+
+	dispatcher = LogQueueDispatcher()
+	listener = logging.handlers.QueueListener(log_queue, dispatcher)
+	listener.start()
+
 	# Always use ProcessPoolExecutor to avoid signal issues in threads
 	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
-	pool = ProcessPoolExecutor(max_workers=min(2, len(batches)))
+	pool = ProcessPoolExecutor(
+		max_workers=min(2, len(batches)),
+		mp_context=ctx,
+		initializer=_worker_log_initializer,
+		initargs=(log_queue,),
+	)
 	try:
 		task_to_batch: Dict[asyncio.Future, List[str]] = {}
 		for batch in batches:
@@ -330,6 +371,7 @@ async def fetch_data(  # noqa: C901
 		# If it completed normally, there are no running tasks, so it will return immediately.
 		# If it failed with another exception, we also want to wait/join them.
 		pool.shutdown(wait=True)
+		listener.stop()
 
 	logger.info("Data fetch complete.")
 
