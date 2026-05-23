@@ -162,8 +162,9 @@ class TestHybridOrchestrator(unittest.IsolatedAsyncioTestCase):
 		mock_listener_class.return_value = mock_listener
 
 		batches = []
-		async for batch in fetch_data(["AAPL"], repo=self.repo, use_processes=True):
-			batches.append(batch)
+		with patch("asyncio.sleep"):
+			async for batch in fetch_data(["AAPL"], repo=self.repo, use_processes=True):
+				batches.append(batch)
 
 		self.assertEqual(batches, [["AAPL"]])
 

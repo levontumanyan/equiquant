@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import ROOT_DIR
 
@@ -32,7 +32,7 @@ class JSONFormatter(logging.Formatter):
 
 	def format(self, record):
 		log_record = {
-			"timestamp": datetime.now().isoformat() + "Z",
+			"timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
 			"level": record.levelname,
 			"name": record.name,
 			"process": record.process,
@@ -147,4 +147,6 @@ class LogQueueDispatcher(logging.Handler):
 		Args:
 			record (logging.LogRecord): The log record to dispatch.
 		"""
-		logging.getLogger(record.name).handle(record)
+		logger = logging.getLogger(record.name)
+		if logger.isEnabledFor(record.levelno):
+			logger.handle(record)

@@ -305,80 +305,86 @@ async def fetch_data(  # noqa: C901
 	listener = logging.handlers.QueueListener(log_queue, dispatcher)
 	listener.start()
 
-	# Always use ProcessPoolExecutor to avoid signal issues in threads
-	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
-	pool = ProcessPoolExecutor(
-		max_workers=min(2, len(batches)),
-		mp_context=ctx,
-		initializer=_worker_log_initializer,
-		initargs=(log_queue,),
-	)
+	pool = None
 	try:
-		task_to_batch: Dict[asyncio.Future, List[str]] = {}
-		for batch in batches:
-			task = loop.run_in_executor(
-				pool, _fetch_batch_process_worker, batch, 5.0, db_path_str
-			)
-			task_to_batch[task] = batch
-			# Stagger submission slightly for better responsiveness
-			await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
-
-		# Use asyncio.wait so done futures are the original objects (safe dict lookup)
-		pending = set(task_to_batch.keys())
-		while pending:
-			done, pending = await asyncio.wait(
-				pending, return_when=asyncio.FIRST_COMPLETED
-			)
-			for task in done:
-				batch = task_to_batch[task]
-				try:
-					success, _, data = task.result()
-					if success:
-						stats.api_successes += len(data)
-						if repo:
-							for symbol, payload in data.items():
-								try:
-									repo.upsert_raw_provider_data(
-										symbol, "yfinance", payload
-									)
-								except Exception as e:
-									logger.warning(
-										f"Failed to persist raw data for {symbol}: {e}"
-									)
-						yield batch
-				except Exception as e:
-					logger.error(f"Batch fetch task failed: {e}")
-	except (asyncio.CancelledError, GeneratorExit):
-		logger.info("fetch_data cancelled, terminating worker processes")
+		# Always use ProcessPoolExecutor to avoid signal issues in threads
+		# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
+		pool = ProcessPoolExecutor(
+			max_workers=min(2, len(batches)),
+			mp_context=ctx,
+			initializer=_worker_log_initializer,
+			initargs=(log_queue,),
+		)
 		try:
-			import signal
+			task_to_batch: Dict[asyncio.Future, List[str]] = {}
+			for batch in batches:
+				task = loop.run_in_executor(
+					pool, _fetch_batch_process_worker, batch, 5.0, db_path_str
+				)
+				task_to_batch[task] = batch
+				# Stagger submission slightly for better responsiveness
+				await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
 
-			# Terminate all processes in the pool to avoid blocking
-			for p in list(getattr(pool, "_processes", {}).values()):
-				try:
-					if hasattr(p, "terminate"):
-						p.terminate()
-					elif hasattr(p, "pid") and p.pid:
-						os.kill(p.pid, signal.SIGKILL)
-				except Exception:  # nosec B110 - Safely ignore errors if process is already dead or terminated
-					pass
-			for pid in list(getattr(pool, "_processes", {}).keys()):
-				if isinstance(pid, int):
+			# Use asyncio.wait so done futures are the original objects (safe dict lookup)
+			pending = set(task_to_batch.keys())
+			while pending:
+				done, pending = await asyncio.wait(
+					pending, return_when=asyncio.FIRST_COMPLETED
+				)
+				for task in done:
+					batch = task_to_batch[task]
 					try:
-						os.kill(pid, signal.SIGKILL)
-					except OSError:
-						pass
-		except Exception as e:
-			logger.warning(f"Error during worker process termination: {e}")
-		pool.shutdown(wait=False, cancel_futures=True)
-		raise
+						success, _, data = task.result()
+						if success:
+							stats.api_successes += len(data)
+							if repo:
+								for symbol, payload in data.items():
+									try:
+										repo.upsert_raw_provider_data(
+											symbol, "yfinance", payload
+										)
+									except Exception as e:
+										logger.warning(
+											f"Failed to persist raw data for {symbol}: {e}"
+										)
+							yield batch
+					except Exception as e:
+						logger.error(f"Batch fetch task failed: {e}")
+		except (asyncio.CancelledError, GeneratorExit):
+			logger.info("fetch_data cancelled, terminating worker processes")
+			if pool:
+				try:
+					import signal
+
+					# Terminate all processes in the pool to avoid blocking
+					for p in list(getattr(pool, "_processes", {}).values()):
+						try:
+							if hasattr(p, "terminate"):
+								p.terminate()
+							elif hasattr(p, "pid") and p.pid:
+								os.kill(p.pid, signal.SIGKILL)
+						except Exception:  # nosec B110 - Safely ignore errors if process is already dead or terminated
+							pass
+					for pid in list(getattr(pool, "_processes", {}).keys()):
+						if isinstance(pid, int):
+							try:
+								os.kill(pid, signal.SIGKILL)
+							except OSError:
+								pass
+				except Exception as e:
+					logger.warning(f"Error during worker process termination: {e}")
+				pool.shutdown(wait=False, cancel_futures=True)
+			raise
 	finally:
 		# If it was cancelled, we terminated the processes so they are dead.
 		# pool.shutdown(wait=True) will join them immediately without blocking.
 		# If it completed normally, there are no running tasks, so it will return immediately.
 		# If it failed with another exception, we also want to wait/join them.
-		pool.shutdown(wait=True)
+		if pool:
+			pool.shutdown(wait=True)
 		listener.stop()
+		log_queue.close()
+		log_queue.join_thread()
 
 	logger.info("Data fetch complete.")
 
