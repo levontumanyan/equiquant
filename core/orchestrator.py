@@ -183,6 +183,15 @@ async def fetch_data(  # noqa: C901
 	Fetch data for multiple tickers in parallel batches and yield successful batches.
 	Enables pipelining where analysis can start before all fetching is done.
 	Now supports multi-source fetching (OpenBB + SEC + FRED).
+
+	Parameters:
+		tickers (List[str]): List of ticker symbols to fetch data for.
+		batch_size (int): Size of batches to group tickers for parallel fetching.
+		use_processes (bool): If True, use a ProcessPoolExecutor to fetch batches.
+		repo (Optional[DatabaseRepository]): Database repository for caching and persistence.
+
+	Yields:
+		AsyncIterator[List[str]]: Batches of successfully fetched tickers.
 	"""
 
 	tickers = [t.upper().strip() for t in tickers if t.strip()]
@@ -255,7 +264,8 @@ async def fetch_data(  # noqa: C901
 	loop = asyncio.get_running_loop()
 	# Always use ProcessPoolExecutor to avoid signal issues in threads
 	# Limited to 2 workers for fetching to avoid triggering IP blocks/crumbs
-	with ProcessPoolExecutor(max_workers=min(2, len(batches))) as pool:
+	pool = ProcessPoolExecutor(max_workers=min(2, len(batches)))
+	try:
 		task_to_batch: Dict[asyncio.Future, List[str]] = {}
 		for batch in batches:
 			task = loop.run_in_executor(
@@ -290,6 +300,36 @@ async def fetch_data(  # noqa: C901
 						yield batch
 				except Exception as e:
 					logger.error(f"Batch fetch task failed: {e}")
+	except (asyncio.CancelledError, GeneratorExit):
+		logger.info("fetch_data cancelled, terminating worker processes")
+		try:
+			import signal
+
+			# Terminate all processes in the pool to avoid blocking
+			for p in list(getattr(pool, "_processes", {}).values()):
+				try:
+					if hasattr(p, "terminate"):
+						p.terminate()
+					elif hasattr(p, "pid") and p.pid:
+						os.kill(p.pid, signal.SIGKILL)
+				except Exception:  # nosec B110 - Safely ignore errors if process is already dead or terminated
+					pass
+			for pid in list(getattr(pool, "_processes", {}).keys()):
+				if isinstance(pid, int):
+					try:
+						os.kill(pid, signal.SIGKILL)
+					except OSError:
+						pass
+		except Exception as e:
+			logger.warning(f"Error during worker process termination: {e}")
+		pool.shutdown(wait=False, cancel_futures=True)
+		raise
+	finally:
+		# If it was cancelled, we terminated the processes so they are dead.
+		# pool.shutdown(wait=True) will join them immediately without blocking.
+		# If it completed normally, there are no running tasks, so it will return immediately.
+		# If it failed with another exception, we also want to wait/join them.
+		pool.shutdown(wait=True)
 
 	logger.info("Data fetch complete.")
 
@@ -577,8 +617,11 @@ async def stream_bulk_analysis(  # noqa: C901 — inherent complexity of SSE str
 			if repo and completed_results:
 				try:
 					logger.info(f"Saving {len(completed_results)} results to database…")
-					repo.bulk_save_analyses(
-						completed_results, profile, benchmark_version
+					await asyncio.to_thread(
+						repo.bulk_save_analyses,
+						completed_results,
+						profile,
+						benchmark_version,
 					)
 					stats.db_snapshots += len(completed_results)
 				except Exception as e:

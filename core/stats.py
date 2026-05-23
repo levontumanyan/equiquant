@@ -5,7 +5,7 @@ from typing import Dict, List, Set
 
 class InstrumentedLock:
 	"""
-	A wrapper around threading.Lock that records contention metrics.
+	A wrapper around threading.RLock that records contention metrics.
 
 	Attributes:
 		name (str): The identifier for the lock (e.g., 'db_repo_lock').
@@ -20,7 +20,7 @@ class InstrumentedLock:
 			name (str): Name of the lock for telemetry tracking.
 			stats_instance (SessionStats): The stats tracker to notify of wait times.
 		"""
-		self._lock = threading.Lock()
+		self._lock = threading.RLock()
 		self.name = name
 		self.stats = stats_instance
 

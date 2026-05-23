@@ -361,16 +361,20 @@ class DatabaseManager:
 					range_min REAL,
 					range_max REAL,
 					formula TEXT,
+					is_penalty BOOLEAN DEFAULT 0,
 					PRIMARY KEY (profile_name, metric_key),
 					FOREIGN KEY (profile_name) REFERENCES investor_profiles(name)
 				)
 			""")
 			cursor.execute("""
-				INSERT OR IGNORE INTO profile_metric_settings_new
+				INSERT OR IGNORE INTO profile_metric_settings_new (
+					profile_name, metric_key, weight, range_min, range_max, formula, is_penalty
+				)
 				SELECT profile_name, metric_key, weight,
 					CASE WHEN range_min = 0.0 AND range_max = 100.0 THEN NULL ELSE range_min END,
 					CASE WHEN range_min = 0.0 AND range_max = 100.0 THEN NULL ELSE range_max END,
-					formula
+					formula,
+					is_penalty
 				FROM profile_metric_settings
 			""")
 			cursor.execute("DROP TABLE profile_metric_settings")

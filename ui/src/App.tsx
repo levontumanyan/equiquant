@@ -83,16 +83,16 @@ function App() {
 						Functions
 					</button>
 					<button
-						className={activeTab === 'admin' ? 'active' : ''}
-						onClick={() => setActiveTab('admin')}
-					>
-						Admin
-					</button>
-					<button
 						className={activeTab === 'portfolio' ? 'active' : ''}
 						onClick={() => setActiveTab('portfolio')}
 					>
 						Portfolio
+					</button>
+					<button
+						className={activeTab === 'admin' ? 'active' : ''}
+						onClick={() => setActiveTab('admin')}
+					>
+						Admin
 					</button>
 				</nav>
 
@@ -139,15 +139,15 @@ function App() {
 					</section>
 				)}
 
-				{activeTab === 'admin' && (
-					<section className="admin-section">
-						<AdminDashboard />
-					</section>
-				)}
-
 				{activeTab === 'portfolio' && (
 					<section className="portfolio-section">
 						<PortfolioDashboard />
+					</section>
+				)}
+
+				{activeTab === 'admin' && (
+					<section className="admin-section">
+						<AdminDashboard />
 					</section>
 				)}
 

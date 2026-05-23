@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from core.api.deps import repo
@@ -127,7 +129,7 @@ async def refresh_portfolio_scores(portfolio_id: int, profile: str = "balanced")
 			profile=profile,
 			repo=repo,
 		)
-		repo.bulk_save_analyses(results, profile=profile)
+		await asyncio.to_thread(repo.bulk_save_analyses, results, profile=profile)
 
 		updated_holdings = repo.get_holdings(portfolio_id)
 		return {"refreshed": len(results), "holdings": updated_holdings}

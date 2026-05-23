@@ -76,6 +76,62 @@ class TestHybridOrchestrator(unittest.IsolatedAsyncioTestCase):
 		self.assertIn("fred", providers)
 		self.assertIn("yfinance", providers)
 
+	@patch(
+		"core.providers.sec_provider.SECProvider.is_configured",
+		new_callable=PropertyMock,
+	)
+	@patch(
+		"core.providers.fred_provider.FREDProvider.is_configured",
+		new_callable=PropertyMock,
+	)
+	@patch("core.providers.sec_provider.SECProvider.get_data")
+	@patch("core.providers.fred_provider.FREDProvider.get_data")
+	@patch("core.orchestrator.ProcessPoolExecutor")
+	async def test_fetch_data_cancellation(
+		self, mock_executor_class, mock_fred, mock_sec, mock_fred_conf, mock_sec_conf
+	):
+		"""
+		Test that fetch_data terminates worker processes and shuts down the executor
+		cleanly when the fetching task is cancelled.
+
+		Parameters:
+			mock_executor_class (MagicMock): Mocked ProcessPoolExecutor class.
+			mock_fred (MagicMock): Mocked FRED get_data method.
+			mock_sec (MagicMock): Mocked SEC get_data method.
+			mock_fred_conf (PropertyMock): Mocked FRED configuration status.
+			mock_sec_conf (PropertyMock): Mocked SEC configuration status.
+		"""
+		import asyncio
+		from concurrent.futures import Future
+
+		mock_fred_conf.return_value = False
+		mock_sec_conf.return_value = False
+
+		mock_pool = MagicMock()
+		mock_executor_class.return_value = mock_pool
+
+		# Mock submit() to return a real concurrent.futures.Future
+		# to satisfy loop.run_in_executor and wrap_future assertions
+		mock_pool.submit.return_value = Future()
+
+		mock_process = MagicMock()
+		mock_process.pid = 12345
+		mock_pool._processes = {12345: mock_process}
+
+		# Simulate cancellation by raising CancelledError during asyncio.sleep
+		with patch("asyncio.sleep", side_effect=asyncio.CancelledError()):
+			with self.assertRaises(asyncio.CancelledError):
+				async for _ in fetch_data(
+					["AAPL", "MSFT"], repo=self.repo, use_processes=True
+				):
+					pass
+
+		# Verify that the process was terminated/killed
+		mock_process.terminate.assert_called_once()
+		# Verify that the executor was shutdown properly
+		mock_pool.shutdown.assert_any_call(wait=False, cancel_futures=True)
+		mock_pool.shutdown.assert_any_call(wait=True)
+
 
 if __name__ == "__main__":
 	unittest.main()
