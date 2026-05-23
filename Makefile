@@ -145,6 +145,9 @@ stop:
 	@pkill -f "honcho start" 2>/dev/null || true
 	@pkill -f "uvicorn core.api" 2>/dev/null || true
 	@pkill -f "vite.*--port $(UI_PORT)" 2>/dev/null || true
+	@pkill -f "equiquant-api" 2>/dev/null || true
+	@pkill -f "equiquant-ui" 2>/dev/null || true
+	@pkill -f "equiquant-worker" 2>/dev/null || true
 	@sleep 0.5
 
 start: ensure-uv stop

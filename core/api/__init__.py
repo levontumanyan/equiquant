@@ -33,6 +33,13 @@ def _warmup_sec_sync():
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
 	"""Configure logging and perform background warmup of providers."""
+	try:
+		import setproctitle
+
+		setproctitle.setproctitle("equiquant-api")
+	except ImportError:
+		pass
+
 	setup_logging(force_console=True, log_file=SERVER_LOG_FILE)
 
 	# Restore persisted log level from DB

@@ -169,6 +169,13 @@ def _worker_log_initializer(queue: Any) -> None:
 	Args:
 		queue (Any): The multiprocessing queue to send log records to.
 	"""
+	try:
+		import setproctitle
+
+		setproctitle.setproctitle("equiquant-worker")
+	except ImportError:
+		pass
+
 	import logging
 	import logging.handlers
 
