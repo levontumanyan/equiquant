@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
 from core.stats import InstrumentedLock, stats
@@ -1186,6 +1187,78 @@ class DatabaseRepository:
 			conn.commit()
 			return "deleted"
 
+	def get_fx_rate(self, from_currency: str, to_currency: str) -> Optional[float]:
+		"""Return a cached FX rate if it exists and is less than 24 hours old.
+
+		Supports bidirectional lookup: if the stored direction is (A→B), querying
+		(B→A) returns the mathematical inverse without a separate DB row.
+
+		Args:
+			from_currency: Source currency code (e.g. 'USD').
+			to_currency: Target currency code (e.g. 'CAD').
+
+		Returns:
+			Optional[float]: The exchange rate, or None if not cached / stale.
+		"""
+		if from_currency == to_currency:
+			return 1.0
+
+		cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+
+		def _query(frm: str, to: str) -> Optional[tuple]:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"SELECT rate, updated_at FROM fx_rates WHERE from_currency = ? AND to_currency = ?",
+				(frm, to),
+			)
+			return cursor.fetchone()
+
+		row = _query(from_currency, to_currency)
+		if row:
+			updated_at = datetime.fromisoformat(row["updated_at"]).replace(
+				tzinfo=timezone.utc
+			)
+			if updated_at >= cutoff:
+				return row["rate"]
+
+		# Try the inverse direction
+		row = _query(to_currency, from_currency)
+		if row:
+			updated_at = datetime.fromisoformat(row["updated_at"]).replace(
+				tzinfo=timezone.utc
+			)
+			if updated_at >= cutoff:
+				return 1.0 / row["rate"]
+
+		return None
+
+	def upsert_fx_rate(self, from_currency: str, to_currency: str, rate: float) -> None:
+		"""Store or refresh a currency pair rate, always in the canonical direction.
+
+		The canonical direction is whichever (from_currency, to_currency) pair is
+		passed. Inverse queries are handled transparently by get_fx_rate.
+
+		Args:
+			from_currency: Source currency code (e.g. 'USD').
+			to_currency: Target currency code (e.g. 'CAD').
+			rate: Exchange rate (1 unit of from_currency in to_currency).
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+			cursor.execute(
+				"""
+				INSERT INTO fx_rates (from_currency, to_currency, rate, updated_at)
+				VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(from_currency, to_currency) DO UPDATE SET
+					rate = excluded.rate,
+					updated_at = CURRENT_TIMESTAMP
+				""",
+				(from_currency, to_currency, rate),
+			)
+			conn.commit()
+
 	def _resolve_account_id(
 		self,
 		cursor: any,
@@ -1207,8 +1280,13 @@ class DatabaseRepository:
 		if not account and not bank:
 			return None
 
-		bank_name = (bank or "Default").strip()
-		account_name = (account or "Default").strip()
+		if bool(account) != bool(bank):
+			raise ValueError(
+				"Both 'account' and 'bank' must be provided together, or neither."
+			)
+
+		bank_name = bank.strip()
+		account_name = account.strip()
 
 		# Resolve bank
 		cursor.execute("SELECT id FROM banks WHERE name = ?", (bank_name,))

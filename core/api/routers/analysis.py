@@ -103,6 +103,19 @@ async def _stream_results(
 		}
 
 
+def _track_analyzed_symbol(event: dict, analyzed_symbols: set) -> None:
+	"""Extract the symbol from a result event and record it as successfully analyzed.
+
+	Args:
+		event: SSE event dict with a 'data' key containing JSON.
+		analyzed_symbols: Mutable set to add the symbol to.
+	"""
+	try:
+		analyzed_symbols.add(json.loads(event["data"])["symbol"].upper())
+	except Exception:
+		pass
+
+
 async def event_generator(tickers: List[str], request: AnalysisRequest, db_path):  # noqa: C901
 	"""Generate analysis events for streaming."""
 	cached_tickers, missing_tickers = _split_tickers(tickers)
@@ -137,11 +150,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 				tickers, request, executor, cancel_event
 			):
 				analyzed_count += 1
-				try:
-					data_dict = json.loads(event["data"])
-					analyzed_symbols.add(data_dict["symbol"].upper())
-				except Exception:
-					pass
+				_track_analyzed_symbol(event, analyzed_symbols)
 				yield event
 			stats.end_stage("Analysis & Scoring")
 		else:
@@ -151,11 +160,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 					cached_tickers, request, executor, cancel_event
 				):
 					analyzed_count += 1
-					try:
-						data_dict = json.loads(event["data"])
-						analyzed_symbols.add(data_dict["symbol"].upper())
-					except Exception:
-						pass
+					_track_analyzed_symbol(event, analyzed_symbols)
 					yield event
 				stats.end_stage("Analysis & Scoring (Cached)")
 
@@ -174,11 +179,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 						batch, request, executor, cancel_event
 					):
 						analyzed_count += 1
-						try:
-							data_dict = json.loads(event["data"])
-							analyzed_symbols.add(data_dict["symbol"].upper())
-						except Exception:
-							pass
+						_track_analyzed_symbol(event, analyzed_symbols)
 						yield event
 				stats.end_stage("Data Acquisition & Scoring")
 

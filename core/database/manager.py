@@ -9,9 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-	def __init__(
-		self, db_path: str = "market_analysis.db", skip_auto_seed: bool = False
-	):
+	def __init__(self, db_path: str = "equiquant.db", skip_auto_seed: bool = False):
 		self.db_path = Path(db_path)
 		self.conn: Optional[sqlite3.Connection] = None
 		self._lock = InstrumentedLock("database_manager", stats)
@@ -281,6 +279,28 @@ class DatabaseManager:
 			)
 		""")
 
+		# FX Rates table — cached currency pair rates with 24-hour TTL
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS fx_rates (
+				from_currency TEXT NOT NULL,
+				to_currency TEXT NOT NULL,
+				rate REAL NOT NULL,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (from_currency, to_currency)
+			)
+		""")
+
+		# Portfolios table — must exist before accounts (FK dependency)
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS portfolios (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT UNIQUE NOT NULL,
+				description TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		""")
+
 		# Banks table
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS banks (
@@ -289,7 +309,7 @@ class DatabaseManager:
 			)
 		""")
 
-		# Accounts table
+		# Accounts table — depends on portfolios and banks
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS accounts (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -299,17 +319,6 @@ class DatabaseManager:
 				UNIQUE(portfolio_id, name, bank_id),
 				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
 				FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
-			)
-		""")
-
-		# Portfolios table
-		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS portfolios (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				name TEXT UNIQUE NOT NULL,
-				description TEXT,
-				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 			)
 		""")
 

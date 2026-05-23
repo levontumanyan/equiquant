@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 PROVIDER = "yfinance"
 
 
-def run_migration(db_path: str = "market_analysis.db") -> None:
+def run_migration(db_path: str = "equiquant.db") -> None:
 	"""
 	Backfill raw_provider_data from the local yfinance file cache.
 
@@ -60,5 +60,5 @@ def run_migration(db_path: str = "market_analysis.db") -> None:
 
 
 if __name__ == "__main__":
-	db_arg = sys.argv[1] if len(sys.argv) > 1 else "market_analysis.db"
+	db_arg = sys.argv[1] if len(sys.argv) > 1 else "equiquant.db"
 	run_migration(db_arg)

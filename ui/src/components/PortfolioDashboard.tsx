@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
+import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import { API_BASE_URL } from '../config'
+import type { AssetAnalysis } from '../types'
+import RawMetricsDrawer from './RawMetricsDrawer'
+import ScoreWaterfallModal from './ScoreWaterfallModal'
 import './PortfolioDashboard.css'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -54,7 +59,7 @@ interface Transaction {
 	created_at: string
 }
 
-type ActiveView = 'holdings' | 'transactions'
+type ActiveView = 'holdings' | 'accounts' | 'transactions'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -77,6 +82,14 @@ function fmtCurrencyMoney(n: number, currency: string): string {
 	const prefix = currency === 'CAD' ? 'C$' : '$'
 	return `${prefix}${fmtMoney(n)}`
 }
+
+function convertToDisplay(value: number, fromCurrency: string, displayCurrency: string, usdcadRate: number): number {
+	if (fromCurrency === displayCurrency) return value
+	if (fromCurrency === 'USD' && displayCurrency === 'CAD') return value * usdcadRate
+	if (fromCurrency === 'CAD' && displayCurrency === 'USD') return value / usdcadRate
+	return value
+}
+
 
 // ── Confirm-delete modal ───────────────────────────────────────────────────
 
@@ -341,9 +354,94 @@ function AddTransactionModal({
 	)
 }
 
-// ── Holdings table ─────────────────────────────────────────────────────────
+// ── Palette for pie slices ─────────────────────────────────────────────────
 
-function HoldingsTable({ holdings }: { holdings: Holding[] }) {
+const PIE_COLORS = [
+	'#9ea0ff', '#4caf50', '#ff9800', '#f06292', '#4dd0e1',
+	'#aed581', '#ffb74d', '#ba68c8', '#4db6ac', '#e57373',
+	'#64b5f6', '#ffd54f', '#a1887f', '#90a4ae', '#81c784',
+]
+
+// ── Holdings pie chart ─────────────────────────────────────────────────────
+
+function HoldingsPieChart({ rows, displayCurrency }: {
+	rows: { symbol: string; value: number }[]
+	displayCurrency: string
+}) {
+	const [active, setActive] = useState<string | null>(null)
+	const prefix = displayCurrency === 'CAD' ? 'C$' : '$'
+
+	return (
+		<div className="pd-pie-wrap">
+			<div style={{ width: 220, height: 220, flexShrink: 0 }}>
+				<PieChart width={220} height={220}>
+					<Pie
+						data={rows}
+						dataKey="value"
+						nameKey="symbol"
+						cx="50%"
+						cy="50%"
+						innerRadius={60}
+						outerRadius={100}
+						strokeWidth={2}
+						stroke="#141414"
+						onMouseEnter={(_: unknown, idx: number) => setActive(rows[idx].symbol)}
+						onMouseLeave={() => setActive(null)}
+					>
+						{rows.map((r, i) => (
+							<Cell
+								key={r.symbol}
+								fill={PIE_COLORS[i % PIE_COLORS.length]}
+								opacity={active === null || active === r.symbol ? 1 : 0.35}
+							/>
+						))}
+					</Pie>
+					<Tooltip
+						content={({ active, payload }) => {
+							if (!active || !payload?.length) return null
+							const { name, value } = payload[0]
+							return (
+								<div className="pd-pie-tooltip">
+									<span className="pd-pie-tooltip-sym">{name}</span>
+									<span>{prefix}{fmtMoney(value as number)}</span>
+								</div>
+							)
+						}}
+					/>
+				</PieChart>
+			</div>
+			<div className="pd-pie-legend">
+				{rows.map((r, i) => {
+					const total = rows.reduce((s, x) => s + x.value, 0)
+					const pct = total > 0 ? (r.value / total) * 100 : 0
+					return (
+						<div
+							key={r.symbol}
+							className={`pd-pie-legend-item${active === r.symbol ? ' pd-pie-legend-active' : ''}`}
+							onMouseEnter={() => setActive(r.symbol)}
+							onMouseLeave={() => setActive(null)}
+						>
+							<span className="pd-pie-dot" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+							<span className="pd-pie-sym">{r.symbol}</span>
+							<span className="pd-pie-pct pd-muted">{pct.toFixed(1)}%</span>
+						</div>
+					)
+				})}
+			</div>
+		</div>
+	)
+}
+
+// ── Holdings table (collapsed by symbol) ──────────────────────────────────
+
+function HoldingsTable({ holdings, displayCurrency, usdcadRate, fullscreen, onTickerClick, onScoreClick }: {
+	holdings: Holding[]
+	displayCurrency: 'USD' | 'CAD'
+	usdcadRate: number | null
+	fullscreen: boolean
+	onTickerClick: (h: Holding) => void
+	onScoreClick: (symbol: string) => void
+}) {
 	if (holdings.length === 0) {
 		return (
 			<div className="pd-empty">
@@ -352,9 +450,57 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 		)
 	}
 
-	const totalMarketValue = holdings.reduce((sum, h) => sum + (h.market_value ?? h.cost_basis), 0)
+	const conv = (v: number, fromCurrency: string) =>
+		usdcadRate !== null ? convertToDisplay(v, fromCurrency, displayCurrency, usdcadRate) : v
+	const fmt = (v: number) => fmtCurrencyMoney(v, displayCurrency)
+
+	// Collapse rows by symbol — aggregate cost/value in displayCurrency
+	type AggRow = {
+		symbol: string; name: string | null; sector: string | null
+		asset_type: string | null; latest_score: number | null
+		totalShares: number; costBasis: number; marketValue: number | null
+		pnl: number | null; pnlPct: number | null
+		currentPrice: number | null
+		accounts: string[]; representative: Holding
+	}
+
+	const rows = useMemo<AggRow[]>(() => {
+		const symbolMap = new Map<string, Holding[]>()
+		for (const h of holdings) {
+			const hs = symbolMap.get(h.symbol) ?? []
+			hs.push(h)
+			symbolMap.set(h.symbol, hs)
+		}
+		return [...symbolMap.entries()].map(([symbol, hs]) => {
+			const totalShares = hs.reduce((s, h) => s + h.total_shares, 0)
+			const costBasis = hs.reduce((s, h) => s + conv(h.cost_basis, h.currency), 0)
+			const hasPrice = hs.some(h => h.market_value !== null)
+			const marketValue = hasPrice ? hs.reduce((s, h) => s + conv(h.market_value ?? h.cost_basis, h.currency), 0) : null
+			const pnl = marketValue !== null ? marketValue - costBasis : null
+			const pnlPct = pnl !== null && costBasis > 0 ? (pnl / costBasis) * 100 : null
+			const first = hs[0]
+			const priceRow = hs.find(h => h.current_price !== null)
+			const currentPrice = priceRow ? conv(priceRow.current_price!, priceRow.currency) : null
+			const accounts = [...new Set(hs.map(h => h.account_name).filter(Boolean))] as string[]
+			return { symbol, name: first.name, sector: first.sector, asset_type: first.asset_type,
+				latest_score: first.latest_score, totalShares, costBasis, marketValue,
+				pnl, pnlPct, currentPrice, accounts, representative: first }
+		})
+	}, [holdings, displayCurrency, usdcadRate])
+
+	const totalMV = useMemo(() => rows.reduce((s, r) => s + (r.marketValue ?? r.costBasis), 0), [rows])
+
+	const pieData = useMemo(() =>
+		rows.map(r => ({ symbol: r.symbol, value: r.marketValue ?? r.costBasis }))
+			.sort((a, b) => b.value - a.value),
+		[rows]
+	)
 
 	return (
+		<>
+		{!fullscreen && usdcadRate !== null && pieData.length > 0 && (
+			<HoldingsPieChart rows={pieData} displayCurrency={displayCurrency} />
+		)}
 		<div className="pd-table-wrap">
 			<table className="pd-table">
 				<thead>
@@ -362,10 +508,8 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 						<th>Symbol</th>
 						<th>Name</th>
 						<th>Type</th>
-						<th>Account</th>
-						<th>Bank</th>
+						<th>Accounts</th>
 						<th className="pd-right">Shares</th>
-						<th className="pd-right">Avg Cost</th>
 						<th className="pd-right">Cost Basis</th>
 						<th className="pd-right">Price</th>
 						<th className="pd-right">Market Value</th>
@@ -375,44 +519,40 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 					</tr>
 				</thead>
 				<tbody>
-					{holdings.map(h => {
-						const pnlColor = h.unrealized_pnl === null ? '#888' : h.unrealized_pnl >= 0 ? '#4caf50' : '#f44336'
-						const weightPct = totalMarketValue > 0 ? ((h.market_value ?? h.cost_basis) / totalMarketValue) * 100 : 0
+					{rows.map(r => {
+						const pnlColor = r.pnl === null ? '#888' : r.pnl >= 0 ? '#4caf50' : '#f44336'
+						const weightPct = totalMV > 0 ? ((r.marketValue ?? r.costBasis) / totalMV) * 100 : 0
 						return (
-							<tr key={`${h.symbol}-${h.account_name ?? 'default'}-${h.currency}`}>
-								<td className="pd-symbol">{h.symbol}</td>
-								<td>{h.name ?? '—'}</td>
+							<tr key={r.symbol}>
+								<td className="pd-symbol">
+									<button className="pd-ticker-link" onClick={() => onTickerClick(r.representative)}>{r.symbol}</button>
+								</td>
+								<td>{r.name ?? '—'}</td>
 								<td>
-									{h.asset_type ? (
-										<span className={`pd-badge pd-badge-${h.asset_type.toLowerCase()}`}>
-											{h.asset_type === 'STOCK' ? 'Stock' : h.asset_type}
+									{r.asset_type ? (
+										<span className={`pd-badge pd-badge-${r.asset_type.toLowerCase()}`}>
+											{r.asset_type === 'STOCK' ? 'Stock' : r.asset_type}
 										</span>
-									) : (
-										<span className="pd-muted">—</span>
-									)}
+									) : <span className="pd-muted">—</span>}
 								</td>
 								<td>
-									<span className="pd-badge pd-badge-account">{h.account_name ?? '—'}</span>
+									{r.accounts.length === 0
+										? <span className="pd-muted">—</span>
+										: r.accounts.map(a => <span key={a} className="pd-badge pd-badge-account" style={{ marginRight: '3px' }}>{a}</span>)}
 								</td>
-								<td className="pd-muted">{h.bank_name ?? '—'}</td>
-								<td className="pd-right">{h.total_shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-								<td className="pd-right">{fmtCurrencyMoney(h.average_cost, h.currency)}</td>
-								<td className="pd-right">{fmtCurrencyMoney(h.cost_basis, h.currency)}</td>
-								<td className="pd-right">
-									{h.current_price !== null ? fmtCurrencyMoney(h.current_price, h.currency) : <span className="pd-muted">—</span>}
-								</td>
-								<td className="pd-right">
-									{h.market_value !== null ? fmtCurrencyMoney(h.market_value, h.currency) : <span className="pd-muted">—</span>}
-								</td>
+								<td className="pd-right">{r.totalShares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+								<td className="pd-right">{fmt(r.costBasis)}</td>
+								<td className="pd-right">{r.currentPrice !== null ? fmt(r.currentPrice) : <span className="pd-muted">—</span>}</td>
+								<td className="pd-right">{r.marketValue !== null ? fmt(r.marketValue) : <span className="pd-muted">—</span>}</td>
 								<td className="pd-right" style={{ color: pnlColor }}>
-									{h.unrealized_pnl !== null
-										? `${h.unrealized_pnl >= 0 ? '+' : ''}${fmtCurrencyMoney(h.unrealized_pnl, h.currency)}${h.unrealized_pnl_pct != null ? ` (${h.unrealized_pnl_pct.toFixed(1)}%)` : ''}`
+									{r.pnl !== null
+										? `${r.pnl >= 0 ? '+' : ''}${fmt(r.pnl)}${r.pnlPct != null ? ` (${r.pnlPct.toFixed(1)}%)` : ''}`
 										: <span className="pd-muted">—</span>}
 								</td>
 								<td className="pd-right pd-muted">{weightPct.toFixed(1)}%</td>
 								<td className="pd-right">
-									{h.latest_score !== null
-										? <span className="pd-score-chip" style={{ color: scoreColor(h.latest_score) }}>{h.latest_score.toFixed(1)}</span>
+									{r.latest_score !== null
+										? <button className="pd-score-chip" style={{ color: scoreColor(r.latest_score) }} onClick={() => onScoreClick(r.symbol)}>{r.latest_score.toFixed(1)}</button>
 										: <span className="pd-score-chip pd-score-na">—</span>}
 								</td>
 							</tr>
@@ -420,6 +560,116 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 					})}
 				</tbody>
 			</table>
+		</div>
+		</>
+	)
+}
+
+// ── Accounts table (grouped by account + currency) ─────────────────────────
+
+function AccountsTable({ holdings, onTickerClick, onScoreClick }: {
+	holdings: Holding[]
+	onTickerClick: (h: Holding) => void
+	onScoreClick: (symbol: string) => void
+}) {
+	if (holdings.length === 0) {
+		return (
+			<div className="pd-empty">
+				<p>No holdings yet. Use <strong>+ Transaction</strong> to record your first trade.</p>
+			</div>
+		)
+	}
+
+	// Group by account+currency — values stay in native currency per group
+	type GroupKey = string
+	const groupMap = new Map<GroupKey, Holding[]>()
+	for (const h of holdings) {
+		const key = `${h.account_name ?? '—'}||${h.bank_name ?? '—'}||${h.currency}`
+		const rows = groupMap.get(key) ?? []
+		rows.push(h)
+		groupMap.set(key, rows)
+	}
+
+	// Sort groups: by account name then currency
+	const groups = [...groupMap.entries()].sort(([a], [b]) => a.localeCompare(b))
+
+	return (
+		<div className="pd-accounts-wrap">
+			{groups.map(([key, hs]) => {
+				const [accountName, bankName, currency] = key.split('||')
+				const totalCost = hs.reduce((s, h) => s + h.cost_basis, 0)
+				const hasPrice = hs.some(h => h.market_value !== null)
+				const totalMV = hasPrice ? hs.reduce((s, h) => s + (h.market_value ?? h.cost_basis), 0) : null
+				const totalPnl = totalMV !== null ? totalMV - totalCost : null
+				const totalPnlPct = totalPnl !== null && totalCost > 0 ? (totalPnl / totalCost) * 100 : null
+				const nat = (v: number) => fmtCurrencyMoney(v, currency)
+				const pnlColor = totalPnl === null ? '#888' : totalPnl >= 0 ? '#4caf50' : '#f44336'
+
+				return (
+					<div key={key} className="pd-account-group">
+						<div className="pd-account-group-header">
+							<div className="pd-account-group-title">
+								<span className="pd-badge pd-badge-account">{accountName}</span>
+								{bankName !== '—' && <span className="pd-muted" style={{ fontSize: '0.78rem' }}>{bankName}</span>}
+								<span className={`pd-badge pd-badge-currency pd-badge-currency-${currency.toLowerCase()}`}>{currency}</span>
+							</div>
+							<div className="pd-account-group-totals">
+								<span className="pd-account-stat"><span className="pd-muted">Cost</span> {nat(totalCost)}</span>
+								<span className="pd-account-stat"><span className="pd-muted">Value</span> {totalMV !== null ? nat(totalMV) : '—'}</span>
+								<span className="pd-account-stat" style={{ color: pnlColor }}>
+									{totalPnl !== null ? `${totalPnl >= 0 ? '+' : ''}${nat(totalPnl)}${totalPnlPct != null ? ` (${totalPnlPct.toFixed(1)}%)` : ''}` : '—'}
+								</span>
+							</div>
+						</div>
+						<div className="pd-table-wrap">
+						<table className="pd-table">
+							<thead>
+								<tr>
+									<th>Symbol</th>
+									<th>Name</th>
+									<th className="pd-right">Shares</th>
+									<th className="pd-right">Avg Cost</th>
+									<th className="pd-right">Cost Basis</th>
+									<th className="pd-right">Price</th>
+									<th className="pd-right">Market Value</th>
+									<th className="pd-right">P&L</th>
+									<th className="pd-right">Score</th>
+								</tr>
+							</thead>
+							<tbody>
+								{hs.map(h => {
+									const pnl = h.unrealized_pnl
+									const pColor = pnl === null ? '#888' : pnl >= 0 ? '#4caf50' : '#f44336'
+									return (
+										<tr key={`${h.symbol}-${h.currency}`}>
+											<td className="pd-symbol">
+												<button className="pd-ticker-link" onClick={() => onTickerClick(h)}>{h.symbol}</button>
+											</td>
+											<td>{h.name ?? '—'}</td>
+											<td className="pd-right">{h.total_shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+											<td className="pd-right">{nat(h.average_cost)}</td>
+											<td className="pd-right">{nat(h.cost_basis)}</td>
+											<td className="pd-right">{h.current_price !== null ? nat(h.current_price) : <span className="pd-muted">—</span>}</td>
+											<td className="pd-right">{h.market_value !== null ? nat(h.market_value) : <span className="pd-muted">—</span>}</td>
+											<td className="pd-right" style={{ color: pColor }}>
+												{pnl !== null
+													? `${pnl >= 0 ? '+' : ''}${nat(pnl)}${h.unrealized_pnl_pct != null ? ` (${h.unrealized_pnl_pct.toFixed(1)}%)` : ''}`
+													: <span className="pd-muted">—</span>}
+											</td>
+											<td className="pd-right">
+												{h.latest_score !== null
+													? <button className="pd-score-chip" style={{ color: scoreColor(h.latest_score) }} onClick={() => onScoreClick(h.symbol)}>{h.latest_score.toFixed(1)}</button>
+													: <span className="pd-score-chip pd-score-na">—</span>}
+											</td>
+										</tr>
+									)
+								})}
+							</tbody>
+						</table>
+						</div>
+					</div>
+				)
+			})}
 		</div>
 	)
 }
@@ -515,6 +765,20 @@ export default function PortfolioDashboard() {
 	const [pendingDelete, setPendingDelete] = useState<Portfolio | null>(null)
 	const [deleting, setDeleting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'CAD'>('CAD')
+	const [usdcadRate, setUsdcadRate] = useState<number | null>(null)
+	const [rawDrawerAsset, setRawDrawerAsset] = useState<AssetAnalysis | null>(null)
+	const [waterfallAsset, setWaterfallAsset] = useState<AssetAnalysis | null>(null)
+	const [loadingWaterfall, setLoadingWaterfall] = useState<string | null>(null)
+	const waterfallAbortRef = useRef<AbortController | null>(null)
+
+	// Fetch USD/CAD rate once on mount; cached for 24h server-side
+	useEffect(() => {
+		fetch(`${API_BASE_URL}/api/fx/rate?from=USD&to=CAD`)
+			.then(r => r.ok ? r.json() : null)
+			.then(data => { if (data?.rate) setUsdcadRate(data.rate) })
+			.catch(() => {})
+	}, [])
 
 	// Fetch portfolios list — no dependency on activePortfolio to avoid stale closure
 	const fetchPortfolios = useCallback(async () => {
@@ -617,13 +881,55 @@ export default function PortfolioDashboard() {
 		setActiveView('holdings')
 	}
 
-	// Summary stats
-	const totalCost = holdings.reduce((sum, h) => sum + h.cost_basis, 0)
+	function openRawDrawer(h: { symbol: string; name: string | null; sector: string | null; latest_score: number | null }) {
+		setRawDrawerAsset({ symbol: h.symbol, name: h.name ?? h.symbol, sector: h.sector, industry: null, score: h.latest_score ?? 0, results: [] })
+	}
+
+	function openWaterfall(symbol: string) {
+		waterfallAbortRef.current?.abort()
+		const controller = new AbortController()
+		waterfallAbortRef.current = controller
+		setLoadingWaterfall(symbol)
+		setWaterfallAsset(null)
+
+		fetchEventSource(`${API_BASE_URL}/api/analyze/stream`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ tickers: [symbol], profile: 'balanced', context: 'global' }),
+			signal: controller.signal,
+			openWhenHidden: true,
+			onmessage(ev) {
+				if (ev.event === 'result') {
+					setWaterfallAsset(JSON.parse(ev.data))
+					setLoadingWaterfall(null)
+					controller.abort()
+				} else if (ev.event === 'error') {
+					setLoadingWaterfall(null)
+					controller.abort()
+				}
+			},
+			onerror(err) {
+				if (!controller.signal.aborted) setLoadingWaterfall(null)
+				throw err
+			},
+			onclose() { setLoadingWaterfall(null) },
+		})
+	}
+
+	// Summary stats — all converted to displayCurrency before summing
+	const toDisplayStat = (v: number, fromCurrency: string) =>
+		usdcadRate !== null ? convertToDisplay(v, fromCurrency, displayCurrency, usdcadRate) : v
+
+	const totalCost = holdings.reduce((sum, h) => sum + toDisplayStat(h.cost_basis, h.currency), 0)
 	const totalMarketValue = holdings.every(h => h.market_value === null)
 		? null
-		: holdings.reduce((sum, h) => sum + (h.market_value ?? h.cost_basis), 0)
+		: holdings.reduce((sum, h) => sum + toDisplayStat(h.market_value ?? h.cost_basis, h.currency), 0)
 	const totalPnl = totalMarketValue !== null ? totalMarketValue - totalCost : null
 	const totalPnlPct = totalPnl !== null && totalCost > 0 ? (totalPnl / totalCost) * 100 : null
+	const displayPrefix = displayCurrency === 'CAD' ? 'C$' : '$'
+	const fxNote = usdcadRate !== null
+		? `Converted at 1 USD = C$${usdcadRate.toFixed(4)}`
+		: 'FX rate unavailable — showing native totals'
 	const scoredHoldings = holdings.filter(h => h.latest_score !== null)
 	const avgScore = scoredHoldings.length > 0
 		? scoredHoldings.reduce((sum, h) => sum + (h.latest_score ?? 0), 0) / scoredHoldings.length
@@ -695,12 +1001,12 @@ export default function PortfolioDashboard() {
 								<div className="pd-stat-card">
 									<span className="pd-stat-label">Market Value</span>
 									<span className="pd-stat-value">
-										{totalMarketValue !== null ? `$${fmtMoney(totalMarketValue)}` : '—'}
+										{totalMarketValue !== null ? `${displayPrefix}${fmtMoney(totalMarketValue)}` : '—'}
 									</span>
 								</div>
 								<div className="pd-stat-card">
 									<span className="pd-stat-label">Cost Basis</span>
-									<span className="pd-stat-value">${fmtMoney(totalCost)}</span>
+									<span className="pd-stat-value">{displayPrefix}{fmtMoney(totalCost)}</span>
 								</div>
 								<div className="pd-stat-card">
 									<span className="pd-stat-label">Unrealized P&L</span>
@@ -709,13 +1015,13 @@ export default function PortfolioDashboard() {
 										style={{ color: totalPnl === null ? '#888' : totalPnl >= 0 ? '#4caf50' : '#f44336' }}
 									>
 										{totalPnl !== null
-											? `${totalPnl >= 0 ? '+' : ''}$${fmtMoney(totalPnl)}${totalPnlPct != null ? ` (${totalPnlPct.toFixed(1)}%)` : ''}`
+											? `${totalPnl >= 0 ? '+' : ''}${displayPrefix}${fmtMoney(totalPnl)}${totalPnlPct != null ? ` (${totalPnlPct.toFixed(1)}%)` : ''}`
 											: '—'}
 									</span>
 								</div>
 								<div className="pd-stat-card">
 									<span className="pd-stat-label">Total Fees</span>
-									<span className="pd-stat-value pd-stat-fees">${fmtMoney(activePortfolio.total_fees ?? 0)}</span>
+									<span className="pd-stat-value pd-stat-fees">{displayPrefix}{fmtMoney(activePortfolio.total_fees ?? 0)}</span>
 								</div>
 								<div className="pd-stat-card">
 									<span className="pd-stat-label">Avg Score</span>
@@ -723,6 +1029,19 @@ export default function PortfolioDashboard() {
 										{avgScore !== null ? avgScore.toFixed(1) : '—'}
 									</span>
 								</div>
+							</div>
+							<div className="pd-fx-bar">
+								<div className="pd-currency-toggle">
+									<button
+										className={`pd-currency-btn${displayCurrency === 'CAD' ? ' pd-currency-active' : ''}`}
+										onClick={() => setDisplayCurrency('CAD')}
+									>CAD</button>
+									<button
+										className={`pd-currency-btn${displayCurrency === 'USD' ? ' pd-currency-active' : ''}`}
+										onClick={() => setDisplayCurrency('USD')}
+									>USD</button>
+								</div>
+								<span className="pd-fx-note">{fxNote}</span>
 							</div>
 						</div>
 
@@ -734,6 +1053,12 @@ export default function PortfolioDashboard() {
 									onClick={() => setActiveView('holdings')}
 								>
 									Holdings ({holdings.length})
+								</button>
+								<button
+									className={`pd-view-tab${activeView === 'accounts' ? ' pd-tab-active' : ''}`}
+									onClick={() => setActiveView('accounts')}
+								>
+									Accounts
 								</button>
 								<button
 									className={`pd-view-tab${activeView === 'transactions' ? ' pd-tab-active' : ''}`}
@@ -768,7 +1093,20 @@ export default function PortfolioDashboard() {
 						{loadingDetail ? (
 							<div className="pd-loading">Loading…</div>
 						) : activeView === 'holdings' ? (
-							<HoldingsTable holdings={holdings} />
+							<HoldingsTable
+								holdings={holdings}
+								displayCurrency={displayCurrency}
+								usdcadRate={usdcadRate}
+								fullscreen={fullscreen}
+								onTickerClick={openRawDrawer}
+								onScoreClick={openWaterfall}
+							/>
+						) : activeView === 'accounts' ? (
+							<AccountsTable
+								holdings={holdings}
+								onTickerClick={openRawDrawer}
+								onScoreClick={openWaterfall}
+							/>
 						) : (
 							<TransactionLedger transactions={transactions} />
 						)}
@@ -797,6 +1135,19 @@ export default function PortfolioDashboard() {
 					onClose={() => setShowTxModal(false)}
 					onAdded={handleTransactionAdded}
 				/>
+			)}
+			<RawMetricsDrawer
+				asset={rawDrawerAsset}
+				onClose={() => setRawDrawerAsset(null)}
+			/>
+			<ScoreWaterfallModal
+				asset={waterfallAsset}
+				onClose={() => setWaterfallAsset(null)}
+			/>
+			{loadingWaterfall && (
+				<div className="pd-waterfall-loading">
+					Scoring {loadingWaterfall}…
+				</div>
 			)}
 		</div>
 	)

@@ -162,8 +162,6 @@ def parse_row(row: dict) -> Optional[dict]:
 	if not ticker:
 		print("Skipping row: missing ticker symbol")
 		return None
-	if ticker == "GSI":
-		ticker = "GSI.V"
 
 	account = row.get("Account", "").strip()
 	currency = row.get("Currency", "").strip() or "USD"
@@ -203,8 +201,15 @@ def parse_row(row: dict) -> Optional[dict]:
 def main() -> None:
 	"""
 	Main execution function to load trades from TSV, parse them, and write them to SQLite.
+
+	Usage:
+		uv run python scratch/convert_trades.py path/to/trades.tsv
 	"""
-	tsv_path = "/Users/levontumanyan/.gemini/antigravity-cli/brain/d11930fd-c474-44ad-89cd-33e5484173a1/scratch/trades.tsv"
+	if len(sys.argv) < 2:
+		print("Usage: uv run python scratch/convert_trades.py path/to/trades.tsv")
+		sys.exit(1)
+
+	tsv_path = sys.argv[1]
 	if not os.path.exists(tsv_path):
 		print(f"Error: trades.tsv not found at {tsv_path}")
 		return

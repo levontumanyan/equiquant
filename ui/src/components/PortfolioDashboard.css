@@ -126,6 +126,17 @@
 .pd-main.pd-fullscreen .pd-table-wrap {
 	min-height: 0;
 	flex: 1;
+	overflow: auto;
+}
+
+.pd-main.pd-fullscreen .pd-accounts-wrap {
+	flex: 1;
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.pd-account-group .pd-table-wrap {
+	flex: none;
 }
 
 .pd-no-selection {
@@ -193,6 +204,49 @@
 	color: #ff9800;
 }
 
+/* ── FX bar (toggle + rate note) ─────────────────────────────────────────── */
+
+.pd-fx-bar {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: 0.5rem;
+}
+
+.pd-currency-toggle {
+	display: flex;
+	background: #1a1a1a;
+	border: 1px solid #2e2e2e;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.pd-currency-btn {
+	background: none;
+	border: none;
+	color: #888;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	padding: 0.25rem 0.65rem;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.pd-currency-btn:hover {
+	color: #ccc;
+}
+
+.pd-currency-btn.pd-currency-active {
+	background: #2e2e2e;
+	color: #fff;
+}
+
+.pd-fx-note {
+	font-size: 0.68rem;
+	color: #555;
+}
+
 /* ── View tabs bar ────────────────────────────────────────────────────────── */
 
 .pd-view-bar {
@@ -249,6 +303,10 @@
 }
 
 .pd-table th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: #141414;
 	text-align: left;
 	padding: 0.5rem 0.75rem;
 	font-size: 0.72rem;
@@ -280,6 +338,38 @@
 	color: #9ea0ff;
 }
 
+.pd-waterfall-loading {
+	position: fixed;
+	bottom: 1.5rem;
+	right: 1.5rem;
+	background: #1e1e1e;
+	border: 1px solid #2e2e2e;
+	border-radius: 8px;
+	padding: 0.6rem 1.1rem;
+	font-size: 0.82rem;
+	color: #aaa;
+	z-index: 1000;
+}
+
+.pd-ticker-link {
+	background: none;
+	border: none;
+	padding: 0;
+	font-weight: 700;
+	font-family: 'SF Mono', 'Fira Code', monospace;
+	color: #9ea0ff;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-color: rgba(158, 160, 255, 0.35);
+	text-underline-offset: 2px;
+	transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.pd-ticker-link:hover {
+	color: #bdbfff;
+	text-decoration-color: rgba(189, 191, 255, 0.7);
+}
+
 .pd-muted {
 	color: #666;
 	font-size: 0.82rem;
@@ -288,8 +378,17 @@
 /* ── Score chip ───────────────────────────────────────────────────────────── */
 
 .pd-score-chip {
+	background: none;
+	border: none;
+	padding: 0;
 	font-weight: 700;
 	font-size: 0.85rem;
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.pd-score-chip:hover {
+	opacity: 0.75;
 }
 
 .pd-score-na {
@@ -564,4 +663,151 @@
 
 .pd-icon-btn:hover {
 	color: #ccc;
+}
+
+/* ── Currency badges ──────────────────────────────────────────────────────── */
+
+.pd-badge-currency {
+	font-size: 0.68rem;
+	font-weight: 700;
+	padding: 0.1rem 0.45rem;
+	border-radius: 4px;
+	letter-spacing: 0.06em;
+}
+
+.pd-badge-currency-cad {
+	background: rgba(255, 193, 7, 0.12);
+	color: #ffc107;
+	border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.pd-badge-currency-usd {
+	background: rgba(76, 175, 80, 0.12);
+	color: #4caf50;
+	border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+/* ── Accounts view ────────────────────────────────────────────────────────── */
+
+.pd-accounts-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+	padding-top: 0.5rem;
+}
+
+.pd-account-group {
+	border: 1px solid #2e2e2e;
+	border-radius: 8px;
+	overflow: clip; /* clips visually without trapping scroll events */
+}
+
+.pd-account-group-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.65rem 1rem;
+	background: #1a1a1a;
+	border-bottom: 1px solid #2e2e2e;
+	gap: 0.75rem;
+}
+
+.pd-account-group-title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.pd-account-group-totals {
+	display: flex;
+	gap: 1.25rem;
+	font-size: 0.82rem;
+}
+
+.pd-account-stat {
+	display: flex;
+	gap: 0.4rem;
+	align-items: baseline;
+}
+
+.pd-account-group .pd-table {
+	border-radius: 0;
+	border: none;
+}
+
+.pd-account-group .pd-table-wrap {
+	min-height: 0;
+	overflow-x: auto;
+	overflow-y: visible;
+}
+
+/* ── Holdings pie chart ───────────────────────────────────────────────────── */
+
+.pd-pie-wrap {
+	display: flex;
+	align-items: flex-start;
+	gap: 1.5rem;
+	padding: 1rem 0.5rem 0.5rem;
+}
+
+.pd-pie-legend {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	gap: 0.15rem 2rem;
+	max-height: 220px;
+}
+
+.pd-pie-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	font-size: 0.78rem;
+	cursor: default;
+	padding: 0.1rem 0.3rem;
+	border-radius: 4px;
+	transition: background 0.1s;
+}
+
+.pd-pie-legend-item.pd-pie-legend-active {
+	background: #1e1e1e;
+}
+
+.pd-pie-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.pd-pie-sym {
+	font-family: 'SF Mono', 'Fira Code', monospace;
+	font-weight: 700;
+	color: #ccc;
+	min-width: 60px;
+}
+
+.pd-pie-pct {
+	font-size: 0.72rem;
+}
+
+.pd-pie-tooltip {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: #1e1e1e;
+	border: 1px solid #2e2e2e;
+	border-radius: 6px;
+	padding: 0.35rem 0.7rem;
+	font-size: 0.78rem;
+	color: #ccc;
+	white-space: nowrap;
+}
+
+.pd-pie-tooltip-sym {
+	font-family: 'SF Mono', 'Fira Code', monospace;
+	font-weight: 700;
+	color: #fff;
 }

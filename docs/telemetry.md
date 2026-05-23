@@ -21,7 +21,7 @@ The telemetry system tracks metrics across several categories:
 Telemetry is orchestrated by the `SessionStats` class in `core/stats.py`.
 
 -   **Instrumentation**: Key components (Database, Providers, ThreadPool) are instrumented to record events.
--   **Persistence**: At the end of every run, telemetry is saved to the `session_telemetry` table in `market_analysis.db`.
+-   **Persistence**: At the end of every run, telemetry is saved to the `session_telemetry` table in `equiquant.db`.
 -   **Visualization**: Diagnostics can be inspected via the **Admin Dashboard** in the Web UI.
 
 ---
@@ -71,5 +71,5 @@ LIMIT 5;
 Telemetry records are lightweight, but for long-running deployments, you can prune old records:
 
 ```bash
-sqlite3 market_analysis.db "DELETE FROM session_telemetry WHERE timestamp < date('now', '-90 days');"
+sqlite3 equiquant.db "DELETE FROM session_telemetry WHERE timestamp < date('now', '-90 days');"
 ```

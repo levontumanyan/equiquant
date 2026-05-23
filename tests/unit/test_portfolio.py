@@ -260,3 +260,21 @@ class TestRecordTransactionMultiAccountAndCurrency:
 		account = cursor.fetchone()
 		assert account is not None
 		assert account["name"] == "FHSA"
+
+	def test_account_without_bank_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(
+			ValueError, match="Both 'account' and 'bank' must be provided"
+		):
+			repo.record_transaction(
+				1, "AAPL", "BUY", 5, 100.0, "2024-01-01", account="TFSA"
+			)
+
+	def test_bank_without_account_raises(self, repo):
+		repo.create_portfolio("P")
+		with pytest.raises(
+			ValueError, match="Both 'account' and 'bank' must be provided"
+		):
+			repo.record_transaction(
+				1, "AAPL", "BUY", 5, 100.0, "2024-01-01", bank="RBC"
+			)
