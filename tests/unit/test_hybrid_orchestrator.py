@@ -132,6 +132,54 @@ class TestHybridOrchestrator(unittest.IsolatedAsyncioTestCase):
 		mock_pool.shutdown.assert_any_call(wait=False, cancel_futures=True)
 		mock_pool.shutdown.assert_any_call(wait=True)
 
+	@patch(
+		"core.providers.sec_provider.SECProvider.is_configured",
+		new_callable=PropertyMock,
+	)
+	@patch(
+		"core.providers.fred_provider.FREDProvider.is_configured",
+		new_callable=PropertyMock,
+	)
+	@patch("core.orchestrator.ProcessPoolExecutor")
+	@patch("logging.handlers.QueueListener")
+	async def test_fetch_data_logging_setup(
+		self, mock_listener_class, mock_executor_class, mock_fred_conf, mock_sec_conf
+	):
+		"""Verify that fetch_data initializes the logging queue listener and pool initializer."""
+		mock_fred_conf.return_value = False
+		mock_sec_conf.return_value = False
+
+		mock_pool = MagicMock()
+		mock_executor_class.return_value = mock_pool
+
+		from concurrent.futures import Future
+
+		fut = Future()
+		fut.set_result((True, 5.0, {"AAPL": {"price": 150}}))
+		mock_pool.submit.return_value = fut
+
+		mock_listener = MagicMock()
+		mock_listener_class.return_value = mock_listener
+
+		batches = []
+		with patch("asyncio.sleep"):
+			async for batch in fetch_data(["AAPL"], repo=self.repo, use_processes=True):
+				batches.append(batch)
+
+		self.assertEqual(batches, [["AAPL"]])
+
+		# Assert listener was started and stopped
+		mock_listener.start.assert_called_once()
+		mock_listener.stop.assert_called_once()
+
+		# Assert ProcessPoolExecutor was called with initializer and initargs
+		mock_executor_class.assert_called_once()
+		_, kwargs = mock_executor_class.call_args
+		self.assertIn("initializer", kwargs)
+		self.assertIn("initargs", kwargs)
+		self.assertEqual(kwargs["initializer"].__name__, "_worker_log_initializer")
+		self.assertEqual(len(kwargs["initargs"]), 1)
+
 
 if __name__ == "__main__":
 	unittest.main()

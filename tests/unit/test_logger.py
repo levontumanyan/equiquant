@@ -47,3 +47,30 @@ def test_setup_logging_idempotency():
 	# Run again, count should be the same (not doubled)
 	setup_logging(verbose=True)
 	assert len(logging.getLogger().handlers) == initial_count
+
+
+def test_log_queue_dispatcher():
+	"""Verify LogQueueDispatcher dispatches records to the correct logger."""
+	from unittest.mock import MagicMock, patch
+
+	from core.logger import LogQueueDispatcher
+
+	dispatcher = LogQueueDispatcher()
+	record = logging.LogRecord(
+		name="test_logger",
+		level=logging.INFO,
+		pathname="test_file.py",
+		lineno=10,
+		msg="Test log message",
+		args=(),
+		exc_info=None,
+	)
+
+	with patch("logging.getLogger") as mock_get_logger:
+		mock_logger = MagicMock()
+		mock_get_logger.return_value = mock_logger
+
+		dispatcher.emit(record)
+
+		mock_get_logger.assert_called_once_with("test_logger")
+		mock_logger.handle.assert_called_once_with(record)

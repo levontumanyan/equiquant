@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import ROOT_DIR
 
@@ -32,9 +32,11 @@ class JSONFormatter(logging.Formatter):
 
 	def format(self, record):
 		log_record = {
-			"timestamp": datetime.now().isoformat() + "Z",
+			"timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
 			"level": record.levelname,
 			"name": record.name,
+			"process": record.process,
+			"processName": record.processName,
 		}
 
 		# If the message is a dict, merge it, otherwise use 'message' key
@@ -89,7 +91,8 @@ def setup_logging(
 	if verbose or force_console:
 		console_handler = logging.StreamHandler(sys.stdout)
 		console_fmt = logging.Formatter(
-			"%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
+			"%(asctime)s - [%(processName)s:%(process)d] - %(name)s - %(levelname)s - %(message)s",
+			datefmt="%H:%M:%S",
 		)
 		console_handler.setFormatter(console_fmt)
 		# Console shows INFO by default unless LOG_LEVEL is DEBUG
@@ -130,3 +133,20 @@ def set_log_level(level: str) -> str:
 		for handler in lg.handlers:
 			handler.setLevel(numeric)
 	return normalized
+
+
+class LogQueueDispatcher(logging.Handler):
+	"""
+	Dispatches log records from a queue back into the main process's logging pipeline.
+	"""
+
+	def emit(self, record: logging.LogRecord) -> None:
+		"""
+		Emit a log record by passing it to the appropriate logger in the main process.
+
+		Args:
+			record (logging.LogRecord): The log record to dispatch.
+		"""
+		logger = logging.getLogger(record.name)
+		if logger.isEnabledFor(record.levelno):
+			logger.handle(record)

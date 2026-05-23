@@ -8,6 +8,10 @@ PROFILE ?= balanced
 BENCHMARK_VERSION ?= 1.0.0
 API_PORT ?= 8000
 UI_PORT  ?= 8888
+# Logging Configuration
+LOG_LEVEL ?= info
+VITE_LOG_LEVEL = $(shell echo $(LOG_LEVEL) | tr '[:upper:]' '[:lower:]' | sed 's/warning/warn/; s/debug/info/; s/critical/silent/')
+PYTHON_LOG_LEVEL = $(shell echo $(LOG_LEVEL) | tr '[:lower:]' '[:upper:]' | sed 's/^WARN$$/WARNING/; s/^SILENT$$/CRITICAL/')
 BACKUP_DIR ?= $(shell if [ -d "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com" ]; then echo "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com/My Drive/equiquant_backups"; else echo "backups"; fi)
 
 # Podman Configuration
@@ -133,20 +137,23 @@ ui-server: ensure-uv
 	@uv run uvicorn core.api:app --reload --reload-dir core --host 0.0.0.0 --port $(API_PORT)
 
 ui-dev: ensure-uv
-	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
-	@cd ui && uv run pnpm run dev -- --host 0.0.0.0 --port $(UI_PORT)
+	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT) with log level $(VITE_LOG_LEVEL)"
+	@cd ui && uv run pnpm run dev -- --host 0.0.0.0 --port $(UI_PORT) --logLevel $(VITE_LOG_LEVEL)
 
 stop:
 	@echo "Stopping EquiQuant processes..."
 	@pkill -f "honcho start" 2>/dev/null || true
 	@pkill -f "uvicorn core.api" 2>/dev/null || true
 	@pkill -f "vite.*--port $(UI_PORT)" 2>/dev/null || true
+	@pkill -f "equiquant-api" 2>/dev/null || true
+	@pkill -f "equiquant-ui" 2>/dev/null || true
+	@pkill -f "equiquant-worker" 2>/dev/null || true
 	@sleep 0.5
 
 start: ensure-uv stop
 	@echo "Starting EquiQuant in background..."
 	@mkdir -p logs
-	@nohup uv run honcho start > logs/orchestrator.log 2>&1 &
+	@nohup env LOG_LEVEL=$(PYTHON_LOG_LEVEL) uv run honcho start > logs/orchestrator.log 2>&1 &
 	@echo "Servers are running. Check logs/orchestrator.log for details."
 	@echo "API: http://localhost:$(API_PORT)"
 	@echo "UI:  http://localhost:$(UI_PORT)"
@@ -155,7 +162,8 @@ start: ensure-uv stop
 dev: ensure-uv stop
 	@echo "Ensuring OpenBB is primed (building extensions)..."
 	@uv run python -c "from openbb import obb; _ = obb.equity"
-	@uv run honcho start
+	@mkdir -p logs
+	@env LOG_LEVEL=$(PYTHON_LOG_LEVEL) uv run honcho start
 
 ui-restart: stop start
 
