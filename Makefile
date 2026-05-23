@@ -130,7 +130,7 @@ setup: ensure-uv
 # UI & API Management
 ui-server: ensure-uv
 	@echo "Starting EquiQuant API Server on http://0.0.0.0:$(API_PORT)"
-	@uv run uvicorn core.api:app --reload --reload-exclude ".venv" --reload-exclude "tests" --host 0.0.0.0 --port $(API_PORT)
+	@uv run uvicorn core.api:app --reload --reload-dir core --host 0.0.0.0 --port $(API_PORT)
 
 ui-dev: ensure-uv
 	@echo "Starting EquiQuant Frontend on http://0.0.0.0:$(UI_PORT)"
@@ -190,7 +190,7 @@ restore:
 	sqlite3 equiquant.db ".restore '$$FILE'"; \
 	echo "Database restored successfully."
 
-clean:
+clean: stop
 	@echo "Cleaning development and cache artifacts..."
 	rm -rf .venv ui/node_modules
 	find . -type d -name "__pycache__" -exec rm -rf {} +
