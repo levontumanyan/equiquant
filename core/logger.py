@@ -35,6 +35,8 @@ class JSONFormatter(logging.Formatter):
 			"timestamp": datetime.now().isoformat() + "Z",
 			"level": record.levelname,
 			"name": record.name,
+			"process": record.process,
+			"processName": record.processName,
 		}
 
 		# If the message is a dict, merge it, otherwise use 'message' key
@@ -89,7 +91,8 @@ def setup_logging(
 	if verbose or force_console:
 		console_handler = logging.StreamHandler(sys.stdout)
 		console_fmt = logging.Formatter(
-			"%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
+			"%(asctime)s - [%(processName)s:%(process)d] - %(name)s - %(levelname)s - %(message)s",
+			datefmt="%H:%M:%S",
 		)
 		console_handler.setFormatter(console_fmt)
 		# Console shows INFO by default unless LOG_LEVEL is DEBUG
