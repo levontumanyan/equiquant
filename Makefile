@@ -146,7 +146,7 @@ stop:
 start: ensure-uv stop
 	@echo "Starting EquiQuant in background..."
 	@mkdir -p logs
-	@nohup uv run honcho start --logdir logs > logs/orchestrator.log 2>&1 &
+	@nohup uv run honcho start > logs/orchestrator.log 2>&1 &
 	@echo "Servers are running. Check logs/orchestrator.log for details."
 	@echo "API: http://localhost:$(API_PORT)"
 	@echo "UI:  http://localhost:$(UI_PORT)"
@@ -155,7 +155,8 @@ start: ensure-uv stop
 dev: ensure-uv stop
 	@echo "Ensuring OpenBB is primed (building extensions)..."
 	@uv run python -c "from openbb import obb; _ = obb.equity"
-	@uv run honcho start --logdir logs
+	@mkdir -p logs
+	@uv run honcho start
 
 ui-restart: stop start
 
