@@ -92,13 +92,13 @@ def test_fetch_openbb_data_bulk_rate_limit(mocker):
 	mock_obb.equity.estimates.consensus.__name__ = "consensus"
 	mock_obb.equity.ownership.share_statistics.__name__ = "ownership"
 	mock_obb.etf.info.__name__ = "etf_info"
-	mock_obb.equity.fundamental.metrics.side_effect = Exception("429 Rate Limit")
+	mock_obb.equity.profile.side_effect = Exception("429 Rate Limit")
 
 	success, data = fetch_openbb_data_bulk(["AAPL", "MSFT"])
 
 	assert success is False
 	assert data == {}
-	assert mock_obb.equity.profile.call_count == 0
+	assert mock_obb.equity.fundamental.metrics.call_count == 0
 
 
 def test_fetch_openbb_data_bulk(mocker):
@@ -145,3 +145,67 @@ def test_fetch_openbb_data_bulk(mocker):
 	assert "MSFT" in data
 	assert data["AAPL"]["pe_ratio"] == 25
 	assert data["AAPL"]["name"] == "Apple"
+
+
+def test_fetch_with_retry_bulk_permanent_failure(mocker):
+	"""_fetch_with_retry_bulk immediately raises PermanentFetchError on 404/not found errors."""
+	from core.openbb_client import PermanentFetchError, _fetch_with_retry_bulk
+
+	mocker.patch("time.sleep")
+	mock_func = mocker.Mock()
+	mock_func.side_effect = Exception("HTTP Error 404: Not Found for symbol INVALID")
+
+	with pytest.raises(PermanentFetchError):
+		_fetch_with_retry_bulk(mock_func, "INVALID", "yfinance")
+
+	assert mock_func.call_count == 1
+
+	# Test with "[Empty] -> No data was returned"
+	mock_func.reset_mock()
+	mock_func.side_effect = Exception(
+		"[Empty] -> No data was returned for the given symbol(s)."
+	)
+
+	with pytest.raises(PermanentFetchError):
+		_fetch_with_retry_bulk(mock_func, "INVALID", "yfinance")
+
+	assert mock_func.call_count == 1
+
+
+def test_fetch_batch_with_backoff_permanent_failure(mocker):
+	"""fetch_batch_with_backoff aborts immediately without retrying on PermanentFetchError."""
+	from core.openbb_client import PermanentFetchError, fetch_batch_with_backoff
+
+	mocker.patch("time.sleep")
+	mocker.patch(
+		"core.openbb_client.fetch_openbb_data_bulk",
+		side_effect=PermanentFetchError("mock permanent error"),
+	)
+
+	success, cooldown, data = fetch_batch_with_backoff(["INVALID"], 5.0)
+
+	assert success is False
+	assert data == {}
+
+
+def test_fetch_batch_with_backoff_empty_response_integration(mocker):
+	"""Integration test: fetch_batch_with_backoff aborts immediately on empty response exception."""
+	from core.openbb_client import fetch_batch_with_backoff
+
+	mock_sleep = mocker.patch("time.sleep")
+	# Mock the OpenBB SDK object imported inside fetch_openbb_data_bulk
+	mock_obb = mocker.patch("openbb.obb")
+	# Mock the profile endpoint (which is called first) to throw the [Empty] exception
+	mock_obb.equity.profile.side_effect = Exception(
+		"[Empty] -> No data was returned for the given symbol(s)."
+	)
+	mock_obb.equity.profile.__name__ = "profile"
+
+	success, cooldown, data = fetch_batch_with_backoff(["INVALID"], 5.0)
+
+	assert success is False
+	assert data == {}
+	# Ensure sleep was never called for cooldown or probes
+	assert mock_sleep.call_count == 0
+	# Ensure the profile endpoint was called exactly once (no retry attempt 2/2)
+	assert mock_obb.equity.profile.call_count == 1

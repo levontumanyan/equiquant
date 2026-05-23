@@ -281,6 +281,27 @@ class DatabaseManager:
 			)
 		""")
 
+		# Banks table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS banks (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT UNIQUE NOT NULL
+			)
+		""")
+
+		# Accounts table
+		cursor.execute("""
+			CREATE TABLE IF NOT EXISTS accounts (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				portfolio_id INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				bank_id INTEGER NOT NULL,
+				UNIQUE(portfolio_id, name, bank_id),
+				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+				FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
+			)
+		""")
+
 		# Portfolios table
 		cursor.execute("""
 			CREATE TABLE IF NOT EXISTS portfolios (
@@ -292,36 +313,107 @@ class DatabaseManager:
 			)
 		""")
 
-		# Portfolio Holdings table — cached derived state, updated on every transaction
-		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS portfolio_holdings (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				portfolio_id INTEGER NOT NULL,
-				symbol TEXT NOT NULL,
-				total_shares REAL NOT NULL DEFAULT 0,
-				average_cost REAL NOT NULL DEFAULT 0,
-				last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-				UNIQUE(portfolio_id, symbol),
-				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
-			)
-		""")
+		# Transactions table migration & creation
+		cursor.execute("PRAGMA table_info(transactions)")
+		tx_cols = {row[1] for row in cursor.fetchall()}
+		if tx_cols and "account_id" not in tx_cols:
+			logger.info("Migrating transactions table to Option 2 schema...")
+			cursor.execute("""
+				CREATE TABLE transactions_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					portfolio_id INTEGER NOT NULL,
+					account_id INTEGER,
+					symbol TEXT NOT NULL,
+					transaction_type TEXT NOT NULL,
+					quantity REAL NOT NULL,
+					price_per_share REAL NOT NULL,
+					transaction_date TEXT NOT NULL,
+					fees REAL DEFAULT 0.0,
+					currency TEXT NOT NULL DEFAULT 'USD',
+					total_amount REAL,
+					dividend_amount REAL,
+					total_cost_cad REAL,
+					notes TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+					FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL
+				)
+			""")
+			cursor.execute("""
+				INSERT INTO transactions_new (id, portfolio_id, symbol, transaction_type, quantity, price_per_share, transaction_date, fees, notes, created_at, total_amount)
+				SELECT id, portfolio_id, symbol, transaction_type, quantity, price_per_share, transaction_date, fees, notes, created_at, quantity * price_per_share
+				FROM transactions
+			""")
+			cursor.execute("DROP TABLE transactions")
+			cursor.execute("ALTER TABLE transactions_new RENAME TO transactions")
+		else:
+			cursor.execute("""
+				CREATE TABLE IF NOT EXISTS transactions (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					portfolio_id INTEGER NOT NULL,
+					account_id INTEGER,
+					symbol TEXT NOT NULL,
+					transaction_type TEXT NOT NULL,
+					quantity REAL NOT NULL,
+					price_per_share REAL NOT NULL,
+					transaction_date TEXT NOT NULL,
+					fees REAL DEFAULT 0.0,
+					currency TEXT NOT NULL DEFAULT 'USD',
+					total_amount REAL,
+					dividend_amount REAL,
+					total_cost_cad REAL,
+					notes TEXT,
+					created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+					FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+					FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL
+				)
+			""")
 
-		# Transactions table — full immutable ledger
-		cursor.execute("""
-			CREATE TABLE IF NOT EXISTS transactions (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				portfolio_id INTEGER NOT NULL,
-				symbol TEXT NOT NULL,
-				transaction_type TEXT NOT NULL,
-				quantity REAL NOT NULL,
-				price_per_share REAL NOT NULL,
-				transaction_date TEXT NOT NULL,
-				fees REAL DEFAULT 0.0,
-				notes TEXT,
-				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-				FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+		# Portfolio Holdings table migration & creation
+		cursor.execute("PRAGMA table_info(portfolio_holdings)")
+		ph_cols = {row[1] for row in cursor.fetchall()}
+		if ph_cols and "account_id" not in ph_cols:
+			logger.info("Migrating portfolio_holdings table to Option 2 schema...")
+			cursor.execute("""
+				CREATE TABLE portfolio_holdings_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					portfolio_id INTEGER NOT NULL,
+					symbol TEXT NOT NULL,
+					account_id INTEGER,
+					currency TEXT NOT NULL DEFAULT 'USD',
+					total_shares REAL NOT NULL DEFAULT 0,
+					average_cost REAL NOT NULL DEFAULT 0,
+					last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(portfolio_id, symbol, account_id, currency),
+					FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+					FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+				)
+			""")
+			cursor.execute("""
+				INSERT INTO portfolio_holdings_new (id, portfolio_id, symbol, total_shares, average_cost, last_updated)
+				SELECT id, portfolio_id, symbol, total_shares, average_cost, last_updated
+				FROM portfolio_holdings
+			""")
+			cursor.execute("DROP TABLE portfolio_holdings")
+			cursor.execute(
+				"ALTER TABLE portfolio_holdings_new RENAME TO portfolio_holdings"
 			)
-		""")
+		else:
+			cursor.execute("""
+				CREATE TABLE IF NOT EXISTS portfolio_holdings (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					portfolio_id INTEGER NOT NULL,
+					symbol TEXT NOT NULL,
+					account_id INTEGER,
+					currency TEXT NOT NULL DEFAULT 'USD',
+					total_shares REAL NOT NULL DEFAULT 0,
+					average_cost REAL NOT NULL DEFAULT 0,
+					last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(portfolio_id, symbol, account_id, currency),
+					FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+					FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+				)
+			""")
 
 		# Migration: add is_secret to app_settings if missing
 		cursor.execute("PRAGMA table_info(app_settings)")

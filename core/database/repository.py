@@ -346,6 +346,31 @@ class DatabaseRepository:
 		with self._lock:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
+
+			# Ensure the symbol exists in the assets table first to satisfy the FOREIGN KEY constraint
+			name = data.get("name") if isinstance(data, dict) else None
+			asset_type = data.get("asset_type") if isinstance(data, dict) else None
+			sector = data.get("sector") if isinstance(data, dict) else None
+			industry = data.get("industry") if isinstance(data, dict) else None
+			exchange = data.get("exchange") if isinstance(data, dict) else None
+			currency_val = data.get("currency") if isinstance(data, dict) else None
+
+			cursor.execute(
+				"""
+				INSERT INTO assets (symbol, name, asset_type, sector, industry, exchange, currency, last_updated)
+				VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(symbol) DO UPDATE SET
+					name = COALESCE(excluded.name, assets.name),
+					asset_type = COALESCE(excluded.asset_type, assets.asset_type),
+					sector = COALESCE(excluded.sector, assets.sector),
+					industry = COALESCE(excluded.industry, assets.industry),
+					exchange = COALESCE(excluded.exchange, assets.exchange),
+					currency = COALESCE(excluded.currency, assets.currency),
+					last_updated = CURRENT_TIMESTAMP
+			""",
+				(symbol, name, asset_type, sector, industry, exchange, currency_val),
+			)
+
 			cursor.execute(
 				"""
 				INSERT INTO raw_provider_data (symbol, provider, data_json)
@@ -1161,6 +1186,176 @@ class DatabaseRepository:
 			conn.commit()
 			return "deleted"
 
+	def _resolve_account_id(
+		self,
+		cursor: any,
+		portfolio_id: int,
+		account: Optional[str],
+		bank: Optional[str],
+	) -> Optional[int]:
+		"""Resolve or create a bank and account, returning the account_id.
+
+		Args:
+			cursor: The database cursor.
+			portfolio_id: Owning portfolio primary key.
+			account: Optional account name.
+			bank: Optional bank name.
+
+		Returns:
+			Optional[int]: The resolved account ID, or None.
+		"""
+		if not account and not bank:
+			return None
+
+		bank_name = (bank or "Default").strip()
+		account_name = (account or "Default").strip()
+
+		# Resolve bank
+		cursor.execute("SELECT id FROM banks WHERE name = ?", (bank_name,))
+		row = cursor.fetchone()
+		if row:
+			bank_id = row["id"]
+		else:
+			cursor.execute("INSERT INTO banks (name) VALUES (?)", (bank_name,))
+			bank_id = cursor.lastrowid
+
+		# Resolve account
+		cursor.execute(
+			"SELECT id FROM accounts WHERE portfolio_id = ? AND name = ? AND bank_id = ?",
+			(portfolio_id, account_name, bank_id),
+		)
+		row = cursor.fetchone()
+		if row:
+			return row["id"]
+
+		cursor.execute(
+			"INSERT INTO accounts (portfolio_id, name, bank_id) VALUES (?, ?, ?)",
+			(portfolio_id, account_name, bank_id),
+		)
+		return cursor.lastrowid
+
+	def _update_portfolio_holdings(
+		self,
+		cursor: any,
+		portfolio_id: int,
+		symbol: str,
+		transaction_type: str,
+		quantity: float,
+		price_per_share: float,
+		fees: float,
+		account_id: Optional[int],
+		currency: str,
+	) -> None:
+		"""Update portfolio holdings for a BUY or SELL transaction.
+
+		Args:
+			cursor: The database cursor.
+			portfolio_id: Owning portfolio primary key.
+			symbol: Normalised ticker symbol.
+			transaction_type: One of 'BUY', 'SELL'.
+			quantity: Number of shares.
+			price_per_share: Price per share.
+			fees: Brokerage fees.
+			account_id: Optional account ID.
+			currency: Currency of the holding.
+		"""
+		if transaction_type == "BUY":
+			effective_cost = quantity * price_per_share + fees
+			cursor.execute(
+				"""
+				SELECT total_shares, average_cost FROM portfolio_holdings 
+				WHERE portfolio_id = ? AND symbol = ? 
+				AND (account_id = ? OR (account_id IS NULL AND ? IS NULL))
+				AND currency = ?
+				""",
+				(portfolio_id, symbol, account_id, account_id, currency),
+			)
+			row = cursor.fetchone()
+			if row:
+				old_shares = row["total_shares"]
+				old_avg = row["average_cost"]
+				new_shares = old_shares + quantity
+				new_avg = (old_shares * old_avg + effective_cost) / new_shares
+				cursor.execute(
+					"""
+					UPDATE portfolio_holdings
+					SET total_shares = ?, average_cost = ?, last_updated = CURRENT_TIMESTAMP
+					WHERE portfolio_id = ? AND symbol = ?
+					AND (account_id = ? OR (account_id IS NULL AND ? IS NULL))
+					AND currency = ?
+					""",
+					(
+						new_shares,
+						new_avg,
+						portfolio_id,
+						symbol,
+						account_id,
+						account_id,
+						currency,
+					),
+				)
+			else:
+				cursor.execute(
+					"""
+					INSERT INTO portfolio_holdings (portfolio_id, symbol, account_id, currency, total_shares, average_cost)
+					VALUES (?, ?, ?, ?, ?, ?)
+					""",
+					(
+						portfolio_id,
+						symbol,
+						account_id,
+						currency,
+						quantity,
+						effective_cost / quantity,
+					),
+				)
+
+		elif transaction_type == "SELL":
+			cursor.execute(
+				"""
+				SELECT total_shares FROM portfolio_holdings 
+				WHERE portfolio_id = ? AND symbol = ?
+				AND (account_id = ? OR (account_id IS NULL AND ? IS NULL))
+				AND currency = ?
+				""",
+				(portfolio_id, symbol, account_id, account_id, currency),
+			)
+			row = cursor.fetchone()
+			current_shares = row["total_shares"] if row else 0.0
+			if quantity > current_shares:
+				raise ValueError(
+					f"Cannot sell {quantity} shares of {symbol}: only {current_shares} held in the selected account/currency"
+				)
+			new_shares = current_shares - quantity
+			if new_shares <= 0:
+				cursor.execute(
+					"""
+					DELETE FROM portfolio_holdings 
+					WHERE portfolio_id = ? AND symbol = ?
+					AND (account_id = ? OR (account_id IS NULL AND ? IS NULL))
+					AND currency = ?
+					""",
+					(portfolio_id, symbol, account_id, account_id, currency),
+				)
+			else:
+				cursor.execute(
+					"""
+					UPDATE portfolio_holdings
+					SET total_shares = ?, last_updated = CURRENT_TIMESTAMP
+					WHERE portfolio_id = ? AND symbol = ?
+					AND (account_id = ? OR (account_id IS NULL AND ? IS NULL))
+					AND currency = ?
+					""",
+					(
+						new_shares,
+						portfolio_id,
+						symbol,
+						account_id,
+						account_id,
+						currency,
+					),
+				)
+
 	def record_transaction(
 		self,
 		portfolio_id: int,
@@ -1171,6 +1366,12 @@ class DatabaseRepository:
 		transaction_date: str,
 		fees: float = 0.0,
 		notes: Optional[str] = None,
+		account: Optional[str] = None,
+		bank: Optional[str] = None,
+		currency: str = "USD",
+		total_amount: Optional[float] = None,
+		dividend_amount: Optional[float] = None,
+		total_cost_cad: Optional[float] = None,
 	) -> dict:
 		"""Record a transaction and update the portfolio_holdings cache.
 
@@ -1186,6 +1387,12 @@ class DatabaseRepository:
 			transaction_date: ISO-8601 date string (e.g. '2024-01-15').
 			fees: Optional brokerage fees.
 			notes: Optional free-text note.
+			account: Optional account name (e.g. 'TFSA').
+			bank: Optional bank name (e.g. 'RBC').
+			currency: Currency of the transaction (e.g. 'USD').
+			total_amount: Optional explicit total gross amount.
+			dividend_amount: Optional dividend payout amount.
+			total_cost_cad: Optional CAD total cost.
 
 		Returns:
 			The inserted transaction row as a dict.
@@ -1209,80 +1416,43 @@ class DatabaseRepository:
 			conn = self.db.get_connection()
 			cursor = conn.cursor()
 
-			if transaction_type == "BUY":
-				# Fees are included in cost basis — amortised across the shares acquired
-				effective_cost = quantity * price_per_share + fees
-				cursor.execute(
-					"SELECT total_shares, average_cost FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
-					(portfolio_id, symbol),
-				)
-				row = cursor.fetchone()
-				if row:
-					old_shares = row["total_shares"]
-					old_avg = row["average_cost"]
-					new_shares = old_shares + quantity
-					new_avg = (old_shares * old_avg + effective_cost) / new_shares
-					cursor.execute(
-						"""
-						UPDATE portfolio_holdings
-						SET total_shares = ?, average_cost = ?, last_updated = CURRENT_TIMESTAMP
-						WHERE portfolio_id = ? AND symbol = ?
-						""",
-						(new_shares, new_avg, portfolio_id, symbol),
-					)
-				else:
-					cursor.execute(
-						"""
-						INSERT INTO portfolio_holdings (portfolio_id, symbol, total_shares, average_cost)
-						VALUES (?, ?, ?, ?)
-						""",
-						(portfolio_id, symbol, quantity, effective_cost / quantity),
-					)
+			# Resolve account_id if account/bank is specified
+			account_id = self._resolve_account_id(cursor, portfolio_id, account, bank)
 
-			elif transaction_type == "SELL":
-				cursor.execute(
-					"SELECT total_shares FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
-					(portfolio_id, symbol),
-				)
-				row = cursor.fetchone()
-				current_shares = row["total_shares"] if row else 0.0
-				if quantity > current_shares:
-					raise ValueError(
-						f"Cannot sell {quantity} shares of {symbol}: only {current_shares} held"
-					)
-				new_shares = current_shares - quantity
-				if new_shares <= 0:
-					cursor.execute(
-						"DELETE FROM portfolio_holdings WHERE portfolio_id = ? AND symbol = ?",
-						(portfolio_id, symbol),
-					)
-				else:
-					cursor.execute(
-						"""
-						UPDATE portfolio_holdings
-						SET total_shares = ?, last_updated = CURRENT_TIMESTAMP
-						WHERE portfolio_id = ? AND symbol = ?
-						""",
-						(new_shares, portfolio_id, symbol),
-					)
+			# Update holdings
+			self._update_portfolio_holdings(
+				cursor,
+				portfolio_id,
+				symbol,
+				transaction_type,
+				quantity,
+				price_per_share,
+				fees,
+				account_id,
+				currency,
+			)
 
-			# DIVIDEND: no holding change — only the ledger entry is written
-
+			# Record transaction
 			cursor.execute(
 				"""
 				INSERT INTO transactions
-				(portfolio_id, symbol, transaction_type, quantity, price_per_share,
-				transaction_date, fees, notes)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				(portfolio_id, account_id, symbol, transaction_type, quantity, price_per_share,
+				transaction_date, fees, currency, total_amount, dividend_amount, total_cost_cad, notes)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				(
 					portfolio_id,
+					account_id,
 					symbol,
 					transaction_type,
 					quantity,
 					price_per_share,
 					transaction_date,
 					fees,
+					currency,
+					total_amount,
+					dividend_amount,
+					total_cost_cad,
 					notes,
 				),
 			)
@@ -1293,7 +1463,16 @@ class DatabaseRepository:
 			)
 			conn.commit()
 
-			cursor.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+			cursor.execute(
+				"""
+				SELECT t.*, acc.name AS account_name, b.name AS bank_name
+				FROM transactions t
+				LEFT JOIN accounts acc ON acc.id = t.account_id
+				LEFT JOIN banks b ON b.id = acc.bank_id
+				WHERE t.id = ?
+				""",
+				(tx_id,),
+			)
 			return dict(cursor.fetchone())
 
 	def get_transactions(self, portfolio_id: int) -> List[dict]:
@@ -1310,9 +1489,12 @@ class DatabaseRepository:
 			cursor = conn.cursor()
 			cursor.execute(
 				"""
-				SELECT * FROM transactions
-				WHERE portfolio_id = ?
-				ORDER BY transaction_date DESC, created_at DESC
+				SELECT t.*, acc.name AS account_name, b.name AS bank_name
+				FROM transactions t
+				LEFT JOIN accounts acc ON acc.id = t.account_id
+				LEFT JOIN banks b ON b.id = acc.bank_id
+				WHERE t.portfolio_id = ?
+				ORDER BY t.transaction_date DESC, t.created_at DESC
 				""",
 				(portfolio_id,),
 			)
@@ -1340,8 +1522,12 @@ class DatabaseRepository:
 					ph.total_shares,
 					ph.average_cost,
 					ph.last_updated,
+					ph.currency,
 					a.name,
 					a.sector,
+					a.asset_type,
+					acc.name AS account_name,
+					b.name AS bank_name,
 					CAST(json_extract(
 						(
 							SELECT data_json FROM raw_provider_data
@@ -1360,6 +1546,8 @@ class DatabaseRepository:
 					) AS latest_score
 				FROM portfolio_holdings ph
 				LEFT JOIN assets a ON a.symbol = ph.symbol
+				LEFT JOIN accounts acc ON acc.id = ph.account_id
+				LEFT JOIN banks b ON b.id = acc.bank_id
 				WHERE ph.portfolio_id = ?
 				ORDER BY ph.symbol
 				""",

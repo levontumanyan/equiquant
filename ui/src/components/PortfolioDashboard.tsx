@@ -27,18 +27,29 @@ interface Holding {
 	last_updated: string
 	name: string | null
 	sector: string | null
+	asset_type: string | null
 	latest_score: number | null
+	account_name: string | null
+	bank_name: string | null
+	currency: string
 }
 
 interface Transaction {
 	id: number
 	portfolio_id: number
+	account_id: number | null
+	account_name: string | null
+	bank_name: string | null
 	symbol: string
 	transaction_type: 'BUY' | 'SELL' | 'DIVIDEND'
 	quantity: number
 	price_per_share: number
 	transaction_date: string
 	fees: number
+	currency: string
+	total_amount: number | null
+	dividend_amount: number | null
+	total_cost_cad: number | null
 	notes: string | null
 	created_at: string
 }
@@ -60,6 +71,11 @@ function fmtDate(iso: string): string {
 
 function fmtMoney(n: number): string {
 	return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function fmtCurrencyMoney(n: number, currency: string): string {
+	const prefix = currency === 'CAD' ? 'C$' : '$'
+	return `${prefix}${fmtMoney(n)}`
 }
 
 // ── Confirm-delete modal ───────────────────────────────────────────────────
@@ -179,13 +195,22 @@ function AddTransactionModal({
 	const [price, setPrice] = useState('')
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
 	const [fees, setFees] = useState('0')
+	const [account, setAccount] = useState('TFSA')
+	const [bank, setBank] = useState('RBC')
+	const [currency, setCurrency] = useState('CAD')
+	const [dividendAmount, setDividendAmount] = useState('')
+	const [totalCostCad, setTotalCostCad] = useState('')
 	const [notes, setNotes] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
-		if (!symbol.trim() || !quantity || !price) { setError('Symbol, quantity, and price are required'); return }
+		if (type === 'DIVIDEND') {
+			if (!symbol.trim() || !dividendAmount) { setError('Symbol and Dividend Amount are required'); return }
+		} else {
+			if (!symbol.trim() || !quantity || !price) { setError('Symbol, quantity, and price are required'); return }
+		}
 		setLoading(true)
 		setError(null)
 		try {
@@ -195,10 +220,15 @@ function AddTransactionModal({
 				body: JSON.stringify({
 					symbol: symbol.trim().toUpperCase(),
 					transaction_type: type,
-					quantity: parseFloat(quantity),
-					price_per_share: parseFloat(price),
+					quantity: type === 'DIVIDEND' ? 1.0 : parseFloat(quantity),
+					price_per_share: type === 'DIVIDEND' ? parseFloat(dividendAmount) : parseFloat(price),
 					transaction_date: date,
 					fees: parseFloat(fees) || 0,
+					account: account.trim() || null,
+					bank: bank.trim() || null,
+					currency: currency,
+					dividend_amount: type === 'DIVIDEND' ? parseFloat(dividendAmount) : null,
+					total_cost_cad: parseFloat(totalCostCad) || null,
 					notes: notes.trim() || null,
 				}),
 			})
@@ -244,22 +274,54 @@ function AddTransactionModal({
 					</div>
 					<div className="pd-form-row">
 						<label>
-							Quantity
-							<input type="number" min="0.0001" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="100" />
+							Account
+							<input value={account} onChange={e => setAccount(e.target.value)} placeholder="TFSA, RRSP, FHSA…" />
 						</label>
 						<label>
-							Price / Share
-							<input type="number" min="0.0001" step="any" value={price} onChange={e => setPrice(e.target.value)} placeholder="150.00" />
+							Bank
+							<input value={bank} onChange={e => setBank(e.target.value)} placeholder="RBC, TD, Schwab…" />
 						</label>
 					</div>
 					<div className="pd-form-row">
 						<label>
+							Currency
+							<select value={currency} onChange={e => setCurrency(e.target.value)}>
+								<option value="CAD">CAD</option>
+								<option value="USD">USD</option>
+							</select>
+						</label>
+						<label>
 							Date
 							<input type="date" value={date} onChange={e => setDate(e.target.value)} />
 						</label>
+					</div>
+					{type !== 'DIVIDEND' ? (
+						<div className="pd-form-row">
+							<label>
+								Quantity
+								<input type="number" min="0.0001" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="100" />
+							</label>
+							<label>
+								Price / Share
+								<input type="number" min="0.0001" step="any" value={price} onChange={e => setPrice(e.target.value)} placeholder="150.00" />
+							</label>
+						</div>
+					) : (
+						<div className="pd-form-row">
+							<label>
+								Dividend Amount
+								<input type="number" min="0.0001" step="any" value={dividendAmount} onChange={e => setDividendAmount(e.target.value)} placeholder="11.50" />
+							</label>
+						</div>
+					)}
+					<div className="pd-form-row">
 						<label>
 							Fees
 							<input type="number" min="0" step="any" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" />
+						</label>
+						<label>
+							Total Cost CAD <span className="pd-optional">(optional)</span>
+							<input type="number" min="0" step="any" value={totalCostCad} onChange={e => setTotalCostCad(e.target.value)} placeholder="0.00" />
 						</label>
 					</div>
 					<label>
@@ -290,6 +352,8 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 		)
 	}
 
+	const totalMarketValue = holdings.reduce((sum, h) => sum + (h.market_value ?? h.cost_basis), 0)
+
 	return (
 		<div className="pd-table-wrap">
 			<table className="pd-table">
@@ -297,36 +361,55 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
 					<tr>
 						<th>Symbol</th>
 						<th>Name</th>
-						<th>Sector</th>
+						<th>Type</th>
+						<th>Account</th>
+						<th>Bank</th>
 						<th className="pd-right">Shares</th>
 						<th className="pd-right">Avg Cost</th>
+						<th className="pd-right">Cost Basis</th>
 						<th className="pd-right">Price</th>
 						<th className="pd-right">Market Value</th>
 						<th className="pd-right">Unrealized P&L</th>
+						<th className="pd-right">Weight</th>
 						<th className="pd-right">Score</th>
 					</tr>
 				</thead>
 				<tbody>
 					{holdings.map(h => {
 						const pnlColor = h.unrealized_pnl === null ? '#888' : h.unrealized_pnl >= 0 ? '#4caf50' : '#f44336'
+						const weightPct = totalMarketValue > 0 ? ((h.market_value ?? h.cost_basis) / totalMarketValue) * 100 : 0
 						return (
-							<tr key={h.symbol}>
+							<tr key={`${h.symbol}-${h.account_name ?? 'default'}-${h.currency}`}>
 								<td className="pd-symbol">{h.symbol}</td>
 								<td>{h.name ?? '—'}</td>
-								<td>{h.sector ?? '—'}</td>
+								<td>
+									{h.asset_type ? (
+										<span className={`pd-badge pd-badge-${h.asset_type.toLowerCase()}`}>
+											{h.asset_type === 'STOCK' ? 'Stock' : h.asset_type}
+										</span>
+									) : (
+										<span className="pd-muted">—</span>
+									)}
+								</td>
+								<td>
+									<span className="pd-badge pd-badge-account">{h.account_name ?? '—'}</span>
+								</td>
+								<td className="pd-muted">{h.bank_name ?? '—'}</td>
 								<td className="pd-right">{h.total_shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-								<td className="pd-right">${fmtMoney(h.average_cost)}</td>
+								<td className="pd-right">{fmtCurrencyMoney(h.average_cost, h.currency)}</td>
+								<td className="pd-right">{fmtCurrencyMoney(h.cost_basis, h.currency)}</td>
 								<td className="pd-right">
-									{h.current_price !== null ? `$${fmtMoney(h.current_price)}` : <span className="pd-muted">—</span>}
+									{h.current_price !== null ? fmtCurrencyMoney(h.current_price, h.currency) : <span className="pd-muted">—</span>}
 								</td>
 								<td className="pd-right">
-									{h.market_value !== null ? `$${fmtMoney(h.market_value)}` : <span className="pd-muted">—</span>}
+									{h.market_value !== null ? fmtCurrencyMoney(h.market_value, h.currency) : <span className="pd-muted">—</span>}
 								</td>
 								<td className="pd-right" style={{ color: pnlColor }}>
 									{h.unrealized_pnl !== null
-										? `${h.unrealized_pnl >= 0 ? '+' : ''}$${fmtMoney(h.unrealized_pnl)}${h.unrealized_pnl_pct != null ? ` (${h.unrealized_pnl_pct.toFixed(1)}%)` : ''}`
+										? `${h.unrealized_pnl >= 0 ? '+' : ''}${fmtCurrencyMoney(h.unrealized_pnl, h.currency)}${h.unrealized_pnl_pct != null ? ` (${h.unrealized_pnl_pct.toFixed(1)}%)` : ''}`
 										: <span className="pd-muted">—</span>}
 								</td>
+								<td className="pd-right pd-muted">{weightPct.toFixed(1)}%</td>
 								<td className="pd-right">
 									{h.latest_score !== null
 										? <span className="pd-score-chip" style={{ color: scoreColor(h.latest_score) }}>{h.latest_score.toFixed(1)}</span>
@@ -360,10 +443,13 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 						<th>Date</th>
 						<th>Symbol</th>
 						<th>Type</th>
+						<th>Account</th>
+						<th>Bank</th>
 						<th className="pd-right">Qty</th>
 						<th className="pd-right">Price</th>
 						<th className="pd-right">Fees</th>
 						<th className="pd-right">Total</th>
+						<th className="pd-right">Total (CAD)</th>
 						<th>Notes</th>
 					</tr>
 				</thead>
@@ -375,6 +461,7 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 							: tx.transaction_type === 'DIVIDEND'
 							? gross
 							: gross + tx.fees
+						const displayTotal = tx.total_amount !== null ? tx.total_amount : total
 						return (
 							<tr key={tx.id}>
 								<td className="pd-muted">{fmtDate(tx.transaction_date)}</td>
@@ -384,10 +471,23 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 										{tx.transaction_type}
 									</span>
 								</td>
-								<td className="pd-right">{tx.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-								<td className="pd-right">${fmtMoney(tx.price_per_share)}</td>
-								<td className="pd-right">${fmtMoney(tx.fees)}</td>
-								<td className="pd-right">${fmtMoney(total)}</td>
+								<td>
+									<span className="pd-badge pd-badge-account">{tx.account_name ?? '—'}</span>
+								</td>
+								<td className="pd-muted">{tx.bank_name ?? '—'}</td>
+								<td className="pd-right">
+									{tx.transaction_type === 'DIVIDEND' ? '—' : tx.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+								</td>
+								<td className="pd-right">
+									{tx.transaction_type === 'DIVIDEND' && tx.dividend_amount !== null
+										? fmtCurrencyMoney(tx.dividend_amount, tx.currency)
+										: fmtCurrencyMoney(tx.price_per_share, tx.currency)}
+								</td>
+								<td className="pd-right">{tx.fees > 0 ? fmtCurrencyMoney(tx.fees, tx.currency) : '—'}</td>
+								<td className="pd-right">{fmtCurrencyMoney(displayTotal, tx.currency)}</td>
+								<td className="pd-right pd-muted">
+									{tx.total_cost_cad !== null ? `C$${fmtMoney(tx.total_cost_cad)}` : '—'}
+								</td>
 								<td className="pd-muted">{tx.notes ?? '—'}</td>
 							</tr>
 						)

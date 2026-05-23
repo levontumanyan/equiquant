@@ -78,12 +78,14 @@ class TestDeletePortfolio:
 class TestRecordTransaction:
 	def test_buy_creates_holding(self, repo):
 		repo.create_portfolio("P")
+		repo.upsert_asset(symbol="AAPL", name="Apple Inc.", asset_type="STOCK")
 		repo.record_transaction(1, "AAPL", "BUY", 10, 150.0, "2024-01-01")
 		holdings = repo.get_holdings(1)
 		assert len(holdings) == 1
 		assert holdings[0]["symbol"] == "AAPL"
 		assert holdings[0]["total_shares"] == 10
 		assert holdings[0]["average_cost"] == pytest.approx(150.0)
+		assert holdings[0]["asset_type"] == "STOCK"
 
 	def test_buy_fees_included_in_cost_basis(self, repo):
 		repo.create_portfolio("P")
@@ -204,3 +206,57 @@ class TestCascadeDelete:
 		# Holdings and transactions should be gone (cascade)
 		assert repo.get_holdings(1) == []
 		assert repo.get_transactions(1) == []
+
+
+class TestRecordTransactionMultiAccountAndCurrency:
+	def test_separate_holdings_by_account(self, repo):
+		repo.create_portfolio("P")
+		repo.record_transaction(
+			1, "AAPL", "BUY", 5, 100.0, "2024-01-01", account="TFSA", bank="RBC"
+		)
+		repo.record_transaction(
+			1, "AAPL", "BUY", 3, 110.0, "2024-01-02", account="RRSP", bank="RBC"
+		)
+		holdings = repo.get_holdings(1)
+		assert len(holdings) == 2
+		assert holdings[0]["symbol"] == "AAPL"
+		assert holdings[0]["account_name"] in ("TFSA", "RRSP")
+		assert holdings[1]["account_name"] in ("TFSA", "RRSP")
+		assert holdings[0]["account_name"] != holdings[1]["account_name"]
+
+	def test_separate_holdings_by_currency(self, repo):
+		repo.create_portfolio("P")
+		repo.record_transaction(
+			1, "GOOG", "BUY", 5, 100.0, "2024-01-01", currency="USD"
+		)
+		repo.record_transaction(
+			1, "GOOG", "BUY", 3, 110.0, "2024-01-02", currency="CAD"
+		)
+		holdings = repo.get_holdings(1)
+		assert len(holdings) == 2
+		assert holdings[0]["symbol"] == "GOOG"
+		assert holdings[0]["currency"] in ("USD", "CAD")
+		assert holdings[1]["currency"] in ("USD", "CAD")
+		assert holdings[0]["currency"] != holdings[1]["currency"]
+
+	def test_auto_creates_bank_and_account(self, repo):
+		repo.create_portfolio("P")
+		repo.record_transaction(
+			1, "AAPL", "BUY", 5, 100.0, "2024-01-01", account="FHSA", bank="TD"
+		)
+
+		# Check database tables
+		conn = repo.db.get_connection()
+		cursor = conn.cursor()
+
+		cursor.execute("SELECT * FROM banks WHERE name = 'TD'")
+		bank = cursor.fetchone()
+		assert bank is not None
+		assert bank["name"] == "TD"
+
+		cursor.execute(
+			"SELECT * FROM accounts WHERE name = 'FHSA' AND bank_id = ?", (bank["id"],)
+		)
+		account = cursor.fetchone()
+		assert account is not None
+		assert account["name"] == "FHSA"

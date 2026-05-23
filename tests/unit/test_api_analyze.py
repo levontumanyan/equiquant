@@ -251,3 +251,36 @@ def test_stream_result_schema(mock_stream_orchestrator):
 	assert data["symbol"] == "AAPL"
 	assert data["score"] == 85.0
 	assert "results" in data
+
+
+def test_stream_failed_ticker_yields_error(mock_stream_orchestrator):
+	"""SSE stream yields an error event if a requested ticker fails to be fetched/analyzed."""
+	import json as _json
+
+	mock_fetch, mock_stream, mock_cache = mock_stream_orchestrator
+	mock_cache.return_value = False
+
+	async def empty_fetch(tickers, repo=None):
+		return
+		yield
+
+	mock_fetch.side_effect = empty_fetch
+
+	async def empty_stream(tickers, *args, **kwargs):
+		return
+		yield
+
+	mock_stream.side_effect = empty_stream
+
+	payload = {"tickers": ["INVALID"], "profile": "balanced"}
+	with client.stream("POST", "/api/analyze/stream", json=payload) as response:
+		assert response.status_code == 200
+		body = response.read().decode()
+
+	events = _parse_sse_lines(body)
+	event_types = [e["event"] for e in events]
+
+	assert "error" in event_types
+	error_event = next(e for e in events if e["event"] == "error")
+	error_data = _json.loads(error_event["data"])
+	assert "Could not analyze ticker(s): INVALID" in error_data["message"]

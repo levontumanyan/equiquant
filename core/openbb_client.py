@@ -63,6 +63,12 @@ class RateLimitError(Exception):
 	pass
 
 
+class PermanentFetchError(Exception):
+	"""Raised when a fetch fails permanently (e.g. invalid ticker or missing data) and should not be retried."""
+
+	pass
+
+
 class ProxyManager:
 	"""Handles rotation and selection of HTTP proxies."""
 
@@ -148,13 +154,42 @@ def _fetch_with_retry(func, symbol: str, provider: str, max_retries: int = 3) ->
 	return None
 
 
+def _merge_bulk_results(
+	results: List[Any], bulk_combined: Dict[str, Dict[str, Any]]
+) -> None:
+	"""Merge bulk results into the combined results dict.
+
+	Parameters:
+		results: List of raw result objects.
+		bulk_combined: Combined data dictionary to update.
+	"""
+	for r in results:
+		s = r.symbol.upper()
+		if s in bulk_combined:
+			# Safe merge: only overwrite if value is not None
+			data = r.model_dump()
+			for k, v in data.items():
+				if v is not None or k not in bulk_combined[s]:
+					bulk_combined[s][k] = v
+
+
 def _fetch_bulk_endpoints(
 	obb: Any, symbol_str: str, provider: str, bulk_combined: Dict[str, Dict[str, Any]]
 ) -> bool:
-	"""Fetch critical bulk endpoints for common stock data."""
+	"""Fetch critical bulk endpoints for common stock data.
+
+	Parameters:
+		obb: OpenBB SDK instance.
+		symbol_str: Comma-separated ticker symbols.
+		provider: Data provider name.
+		bulk_combined: Dictionary to accumulate bulk details.
+
+	Returns:
+		bool: True if critical profile endpoint succeeded, False otherwise.
+	"""
 	endpoints = [
-		(obb.equity.fundamental.metrics, "Fundamental Metrics"),
 		(obb.equity.profile, "Company Profile"),
+		(obb.equity.fundamental.metrics, "Fundamental Metrics"),
 		(obb.equity.estimates.consensus, "Analyst Consensus"),
 		(obb.equity.ownership.share_statistics, "Share Statistics"),
 	]
@@ -165,14 +200,7 @@ def _fetch_bulk_endpoints(
 			logger.info(f"Bulk fetching {label}...")
 			res = _fetch_with_retry_bulk(func, symbol_str, provider)
 			if res and hasattr(res, "results") and res.results:
-				for r in res.results:
-					s = r.symbol.upper()
-					if s in bulk_combined:
-						# Safe merge: only overwrite if value is not None
-						data = r.model_dump()
-						for k, v in data.items():
-							if v is not None or k not in bulk_combined[s]:
-								bulk_combined[s][k] = v
+				_merge_bulk_results(res.results, bulk_combined)
 			else:
 				logger.warning(f"No results returned for bulk {label}")
 				# If even basic profile fails, we mark partial failure
@@ -180,6 +208,11 @@ def _fetch_bulk_endpoints(
 					critical_success = False
 		except RateLimitError:
 			raise
+		except PermanentFetchError as e:
+			if label == "Company Profile":
+				raise
+			else:
+				logger.warning(f"Non-critical permanent fetch failure for {label}: {e}")
 		except Exception as e:
 			logger.error(f"Error in bulk fetch for {label}: {e}")
 			critical_success = False
@@ -208,6 +241,19 @@ def _fetch_with_retry_bulk(
 				proxy_manager.rotate()
 				if attempt == max_retries - 1:
 					raise RateLimitError("Max retries reached for bulk fetch")
+			elif any(
+				x in err_str
+				for x in [
+					"not found",
+					"404",
+					"no fundamentals data found",
+					"[empty]",
+					"no data was returned",
+				]
+			):
+				raise PermanentFetchError(
+					f"Permanent fetch failure for {symbol_str}: {e}"
+				)
 			else:
 				raise e
 	return None
@@ -273,6 +319,8 @@ def fetch_openbb_data_bulk(
 		except RateLimitError as e:
 			logger.error(f"Bulk fetch RATE LIMITED: {e}")
 			return False, {}
+		except PermanentFetchError:
+			raise
 
 		_fetch_etf_info_bulk(obb, bulk_combined, provider)
 
@@ -283,6 +331,8 @@ def fetch_openbb_data_bulk(
 		stats.api_successes += 1
 		return critical_success, result
 
+	except PermanentFetchError:
+		raise
 	except Exception as e:
 		logger.error(f"OpenBB bulk fetch critical failure: {e}")
 		stats.errors += 1
@@ -458,6 +508,9 @@ def fetch_batch_with_backoff(
 			current_cooldown = min(current_cooldown * 2, max_cooldown)
 			logger.info(f"Probe successful for {probe_ticker}. Resuming bulk fetch.")
 
+		except PermanentFetchError as e:
+			logger.error(f"Permanent batch fetch failure (skipping retries): {e}")
+			return False, current_cooldown, {}
 		except Exception as e:
 			logger.warning(f"Fetch error for {batch_tickers}: {e}")
 			time.sleep(current_cooldown)

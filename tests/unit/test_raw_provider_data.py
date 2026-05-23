@@ -92,3 +92,38 @@ def test_bulk_save_analyses_omits_results_json(repo):
 	row = cursor.fetchone()
 	assert row is not None
 	assert row["results_json"] is None
+
+
+def test_upsert_raw_provider_data_unseeded_symbol(repo):
+	"""Upserting data for a completely new, unseeded symbol registers it in the assets table first."""
+	# Ensure the symbol does not exist in the assets table first
+	conn = repo.db.get_connection()
+	cursor = conn.cursor()
+	cursor.execute("SELECT * FROM assets WHERE symbol = 'NEWTICKER'")
+	assert cursor.fetchone() is None
+
+	payload = {
+		"name": "New Ticker Inc.",
+		"asset_type": "STOCK",
+		"sector": "Technology",
+		"industry": "Software",
+		"exchange": "NASDAQ",
+		"currency": "USD",
+	}
+
+	# This must succeed without raising foreign key constraint errors
+	repo.upsert_raw_provider_data("NEWTICKER", "yfinance", payload)
+
+	# Verify it has been added to the raw_provider_data table
+	raw_data = repo.get_raw_provider_data("NEWTICKER", "yfinance")
+	assert raw_data is not None
+	assert raw_data["data"]["name"] == "New Ticker Inc."
+
+	# Verify it has been added to the assets table with metadata
+	cursor.execute("SELECT * FROM assets WHERE symbol = 'NEWTICKER'")
+	asset = cursor.fetchone()
+	assert asset is not None
+	assert asset["name"] == "New Ticker Inc."
+	assert asset["asset_type"] == "STOCK"
+	assert asset["sector"] == "Technology"
+	assert asset["industry"] == "Software"

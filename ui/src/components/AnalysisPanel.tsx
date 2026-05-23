@@ -303,11 +303,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 						if (remaining.length > 0) setResults(prev => [...prev, ...remaining])
 						setIsLoading(false)
 						setProgress(null)
+						controller.abort()
 					} else if (ev.event === 'error') {
 						const err = JSON.parse(ev.data)
 						setError(err.message || 'Analysis failed')
 						setIsLoading(false)
 						setProgress(null)
+						controller.abort()
 					}
 				},
 				onerror(err) {
