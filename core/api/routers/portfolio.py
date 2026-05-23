@@ -158,6 +158,12 @@ async def record_transaction(portfolio_id: int, request: TransactionCreate):
 			transaction_date=request.transaction_date,
 			fees=request.fees,
 			notes=request.notes,
+			account=request.account,
+			bank=request.bank,
+			currency=request.currency,
+			total_amount=request.total_amount,
+			dividend_amount=request.dividend_amount,
+			total_cost_cad=request.total_cost_cad,
 		)
 	except ValueError as e:
 		raise HTTPException(status_code=422, detail=str(e))

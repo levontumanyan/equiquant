@@ -81,6 +81,16 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		loadGroups()
 	}, [loadGroups])
 
+	// Listen for ticker navigation from other panels (e.g. portfolio holdings click)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const symbol = (e as CustomEvent<string>).detail
+			if (symbol) addTicker(symbol)
+		}
+		window.addEventListener('add-ticker', handler)
+		return () => window.removeEventListener('add-ticker', handler)
+	}, [])
+
 	const addGroup = async (group: Group) => {
 		if (selectedGroups.has(group.name)) {
 			const cached = groupTickerCache.current.get(group.name) ?? []
@@ -303,11 +313,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 						if (remaining.length > 0) setResults(prev => [...prev, ...remaining])
 						setIsLoading(false)
 						setProgress(null)
+						controller.abort()
 					} else if (ev.event === 'error') {
 						const err = JSON.parse(ev.data)
 						setError(err.message || 'Analysis failed')
 						setIsLoading(false)
 						setProgress(null)
+						controller.abort()
 					}
 				},
 				onerror(err) {

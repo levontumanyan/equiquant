@@ -77,7 +77,7 @@ def get_cik(ticker: str, repo: Optional[DatabaseRepository] = None) -> Optional[
 	# Handle repo initialization if not provided
 	owns_repo = False
 	if not repo:
-		db_path = os.environ.get("DB_PATH", "market_analysis.db")
+		db_path = os.environ.get("DB_PATH", "equiquant.db")
 		db = DatabaseManager(db_path, skip_auto_seed=True)
 		repo = DatabaseRepository(db)
 		owns_repo = True

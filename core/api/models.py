@@ -153,6 +153,12 @@ class TransactionCreate(BaseModel):
 	transaction_date: str
 	fees: float = 0.0
 	notes: Optional[str] = None
+	account: Optional[str] = None
+	bank: Optional[str] = None
+	currency: str = "USD"
+	total_amount: Optional[float] = None
+	dividend_amount: Optional[float] = None
+	total_cost_cad: Optional[float] = None
 
 	@field_validator("symbol")
 	@classmethod
@@ -182,12 +188,19 @@ class TransactionResponse(BaseModel):
 
 	id: int
 	portfolio_id: int
+	account_id: Optional[int] = None
+	account_name: Optional[str] = None
+	bank_name: Optional[str] = None
 	symbol: str
 	transaction_type: str
 	quantity: float
 	price_per_share: float
 	transaction_date: str
 	fees: float
+	currency: str
+	total_amount: Optional[float] = None
+	dividend_amount: Optional[float] = None
+	total_cost_cad: Optional[float] = None
 	notes: Optional[str] = None
 	created_at: str
 
@@ -201,4 +214,8 @@ class HoldingResponse(BaseModel):
 	last_updated: str
 	name: Optional[str] = None
 	sector: Optional[str] = None
+	asset_type: Optional[str] = None
 	latest_score: Optional[float] = None
+	account_name: Optional[str] = None
+	bank_name: Optional[str] = None
+	currency: str = "USD"

@@ -1,7 +1,8 @@
 cache/
 logs/
 reports/
-market_analysis.db
+equiquant.db
+.antigravitycli/
 test-results/
 ui/test-results/
 reports-analyst/

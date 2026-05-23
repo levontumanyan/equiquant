@@ -103,10 +103,24 @@ async def _stream_results(
 		}
 
 
+def _track_analyzed_symbol(event: dict, analyzed_symbols: set) -> None:
+	"""Extract the symbol from a result event and record it as successfully analyzed.
+
+	Args:
+		event: SSE event dict with a 'data' key containing JSON.
+		analyzed_symbols: Mutable set to add the symbol to.
+	"""
+	try:
+		analyzed_symbols.add(json.loads(event["data"])["symbol"].upper())
+	except Exception:
+		pass
+
+
 async def event_generator(tickers: List[str], request: AnalysisRequest, db_path):  # noqa: C901
 	"""Generate analysis events for streaming."""
 	cached_tickers, missing_tickers = _split_tickers(tickers)
 	analyzed_count = 0
+	analyzed_symbols = set()
 	cancel_event = threading.Event()
 	executor = ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) + 4))
 
@@ -136,6 +150,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 				tickers, request, executor, cancel_event
 			):
 				analyzed_count += 1
+				_track_analyzed_symbol(event, analyzed_symbols)
 				yield event
 			stats.end_stage("Analysis & Scoring")
 		else:
@@ -145,6 +160,7 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 					cached_tickers, request, executor, cancel_event
 				):
 					analyzed_count += 1
+					_track_analyzed_symbol(event, analyzed_symbols)
 					yield event
 				stats.end_stage("Analysis & Scoring (Cached)")
 
@@ -163,8 +179,23 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 						batch, request, executor, cancel_event
 					):
 						analyzed_count += 1
+						_track_analyzed_symbol(event, analyzed_symbols)
 						yield event
 				stats.end_stage("Data Acquisition & Scoring")
+
+		# Yield errors for tickers that could not be analyzed
+		failed_tickers = [
+			t for t in tickers if t.upper().strip() not in analyzed_symbols
+		]
+		if failed_tickers:
+			yield {
+				"event": "error",
+				"data": json.dumps(
+					{
+						"message": f"Could not analyze ticker(s): {', '.join(failed_tickers)}. Please verify that they are valid symbols containing fundamental data."
+					}
+				),
+			}
 
 		executor.shutdown(wait=False)
 		await _finalize_stats(analyzed_count, db_path, tickers)

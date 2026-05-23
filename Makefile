@@ -38,7 +38,7 @@ help:
 	@echo "  make podman-init Initialize and start Podman machine"
 	@echo "  make pr          Run container tests and create a PR"
 	@echo "  make db-shell    Open sqlite3 shell for data inspection"
-	@echo "  make backup      Backup market_analysis.db to backups/"
+	@echo "  make backup      Backup equiquant.db to backups/"
 	@echo "  make restore     Restore database (defaults to latest backup, or FILE=<path>)"
 	@echo "  make clean       Cleanup environment and temporary files"
 
@@ -161,20 +161,20 @@ ui-restart: stop start
 
 # Tools
 db-shell:
-	@sqlite3 market_analysis.db
+	@sqlite3 equiquant.db
 
 backup:
 	@mkdir -p "$(BACKUP_DIR)"
 	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
-	sqlite3 market_analysis.db ".backup '$(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db'"; \
-	cp "$(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db" "$(BACKUP_DIR)/market_analysis_latest.db"; \
-	echo "Database backup created: $(BACKUP_DIR)/market_analysis_$$TIMESTAMP.db"; \
-	echo "Latest backup link updated: $(BACKUP_DIR)/market_analysis_latest.db"
+	sqlite3 equiquant.db ".backup '$(BACKUP_DIR)/equiquant_$$TIMESTAMP.db'"; \
+	cp "$(BACKUP_DIR)/equiquant_$$TIMESTAMP.db" "$(BACKUP_DIR)/equiquant_latest.db"; \
+	echo "Database backup created: $(BACKUP_DIR)/equiquant_$$TIMESTAMP.db"; \
+	echo "Latest backup link updated: $(BACKUP_DIR)/equiquant_latest.db"
 
 restore:
 	@if [ -z "$(FILE)" ]; then \
-		if [ -f "$(BACKUP_DIR)/market_analysis_latest.db" ]; then \
-			FILE="$(BACKUP_DIR)/market_analysis_latest.db"; \
+		if [ -f "$(BACKUP_DIR)/equiquant_latest.db" ]; then \
+			FILE="$(BACKUP_DIR)/equiquant_latest.db"; \
 		else \
 			echo "Usage: make restore FILE=path/to/backup.db"; \
 			exit 1; \
@@ -187,7 +187,7 @@ restore:
 		exit 1; \
 	fi; \
 	echo "Restoring database from $$FILE..."; \
-	sqlite3 market_analysis.db ".restore '$$FILE'"; \
+	sqlite3 equiquant.db ".restore '$$FILE'"; \
 	echo "Database restored successfully."
 
 clean:
@@ -197,10 +197,10 @@ clean:
 	rm -rf .pytest_cache .ruff_cache
 	rm -rf logs/*.log
 	podman image prune -f || true
-	@echo "Cleanup complete. (Note: market_analysis.db and global OpenBB cache preserved)"
+	@echo "Cleanup complete. (Note: equiquant.db and global OpenBB cache preserved)"
 
 clean-all-data: clean
 	@echo "Wiping ALL data including local database and global OpenBB platform cache..."
-	rm -f market_analysis.db
+	rm -f equiquant.db
 	rm -rf ~/.openbb_platform
 	@echo "All data wiped."

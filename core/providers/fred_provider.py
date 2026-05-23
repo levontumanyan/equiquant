@@ -43,7 +43,7 @@ class FREDProvider(BaseProvider):
 			if self.repo:
 				key = self.repo.get_setting("fred_api_key")
 			else:
-				db_path = os.environ.get("DB_PATH", "market_analysis.db")
+				db_path = os.environ.get("DB_PATH", "equiquant.db")
 				db = DatabaseManager(db_path, skip_auto_seed=True)
 				repo = DatabaseRepository(db)
 				key = repo.get_setting("fred_api_key")

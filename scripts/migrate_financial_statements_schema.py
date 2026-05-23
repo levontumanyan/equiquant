@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def migrate_financial_statements():
-	conn = sqlite3.connect("market_analysis.db")
+	conn = sqlite3.connect("equiquant.db")
 	cursor = conn.cursor()
 
 	try:

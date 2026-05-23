@@ -1,6 +1,6 @@
 # Configuration (Database-Driven)
 
-The "Investment Brain" stores all logic in `market_analysis.db`. You can visualize and manage these rules using the **Admin Dashboard** (`/admin` in the Web UI):
+The "Investment Brain" stores all logic in `equiquant.db`. You can visualize and manage these rules using the **Admin Dashboard** (`/admin` in the Web UI):
 
 - **Benchmarks Explorer**: View master scoring rules (STOCK vs ETF).
 - **Profile Manager**: View and edit investment strategies.
