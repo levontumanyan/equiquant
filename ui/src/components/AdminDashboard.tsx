@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE_URL } from '../config'
-import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText, Copy, Check, Settings, Save } from 'lucide-react'
+import { Activity, Database, Server, RefreshCw, AlertCircle, X, FileText, Copy, Check, Settings, Save, FolderOpen, HardDrive } from 'lucide-react'
 import './AdminDashboard.css'
 
 interface AggregateStats {
@@ -86,6 +86,9 @@ const AdminDashboard: React.FC = () => {
 	const [isLoading, setIsLoading] = useState(false)
 	const [savingKey, setSavingKey] = useState<string | null>(null)
 	const [error, setError] = useState<string | null>(null)
+	const [backupStatus, setBackupStatus] = useState<{ path: string; ts: string; size_bytes: number } | null>(null)
+	const [isBackingUp, setIsBackingUp] = useState(false)
+	const [isBrowsing, setIsBrowsing] = useState(false)
 
 	const isModified = (key: string) => editingSettings[key] !== settings.find(s => s.key === key)?.value
 	const hasChanges = settings.some(s => isModified(s.key))
@@ -203,6 +206,40 @@ const AdminDashboard: React.FC = () => {
 	const selectLogLevel = (level: string) => {
 		setCurrentLogLevel(level)
 		setEditingSettings(prev => ({ ...prev, log_level: level }))
+	}
+
+	const browseDirectory = async () => {
+		setIsBrowsing(true)
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/browse-directory`, { method: 'POST' })
+			if (res.ok) {
+				const data = await res.json()
+				if (!data.cancelled && data.path) {
+					setEditingSettings(prev => ({ ...prev, backup_dir: data.path }))
+				}
+			}
+		} finally {
+			setIsBrowsing(false)
+		}
+	}
+
+	const runBackup = async () => {
+		setIsBackingUp(true)
+		setBackupStatus(null)
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/admin/backup`, { method: 'POST' })
+			if (res.ok) {
+				const data = await res.json()
+				setBackupStatus({ path: data.path, ts: new Date().toLocaleString(), size_bytes: data.size_bytes })
+			} else {
+				const err = await res.json()
+				setError(err.detail || 'Backup failed')
+			}
+		} catch {
+			setError('Network error during backup')
+		} finally {
+			setIsBackingUp(false)
+		}
 	}
 
 	useEffect(() => {
@@ -342,6 +379,60 @@ const AdminDashboard: React.FC = () => {
 					</div>
 				) : activeSubTab === 'database' ? (
 					<div className="database-view">
+						<div className="backup-card">
+							<div className="backup-card-header">
+								<HardDrive size={16} className="text-cyan" />
+								<span>Database Backup</span>
+							</div>
+							<div className="backup-dir-row">
+								<input
+									type="text"
+									className="proxy-input"
+									placeholder="Backup directory (default: ./backups)"
+									value={editingSettings['backup_dir'] ?? ''}
+									onChange={e => setEditingSettings(prev => ({ ...prev, backup_dir: e.target.value }))}
+									disabled={isBrowsing}
+								/>
+								<button className="browse-btn" onClick={browseDirectory} disabled={isBrowsing} title="Open folder picker">
+									{isBrowsing ? <RefreshCw size={14} className="spin" /> : <FolderOpen size={14} />}
+								</button>
+								<button
+									className="save-dir-btn"
+									onClick={async () => {
+										await fetch(`${API_BASE_URL}/api/admin/settings/backup_dir`, {
+											method: 'PUT',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({ value: editingSettings['backup_dir'] ?? '' })
+										})
+										await fetchSettings()
+									}}
+									disabled={!isModified('backup_dir')}
+									title="Save directory"
+								>
+									<Save size={14} />
+								</button>
+							</div>
+							<div className="backup-actions">
+								<button className="backup-now-btn" onClick={runBackup} disabled={isBackingUp}>
+									{isBackingUp ? <RefreshCw size={14} className="spin" /> : <HardDrive size={14} />}
+									{isBackingUp ? 'Backing up…' : 'Backup Now'}
+								</button>
+								{backupStatus && (() => {
+									const bytes = backupStatus.size_bytes
+									const size = !bytes ? null
+										: bytes >= 1073741824 ? `${(bytes / 1073741824).toFixed(2)} GB`
+										: bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB`
+										: `${(bytes / 1024).toFixed(0)} KB`
+									const filename = backupStatus.path.split('/').pop()
+									return (
+										<span className="backup-success">
+											<Check size={13} /> {filename}{size ? ` · ${size}` : ''} · {backupStatus.ts}
+										</span>
+									)
+								})()}
+							</div>
+						</div>
+
 						<div className="section-header">
 							<div className="table-selector">
 								<Database size={14} />
@@ -477,7 +568,7 @@ const AdminDashboard: React.FC = () => {
 						</div>
 
 						{(() => {
-							const skipKeys = ['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies']
+							const skipKeys = ['log_level', 'market_open_ttl_s', 'market_closed_ttl_s', 'proxies', 'backup_dir']
 							const remainingSettings = settings.filter(s => !skipKeys.includes(s.key))
 							const remainingCategories = Array.from(new Set(remainingSettings.map(s => s.category)))
 							

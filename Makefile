@@ -12,7 +12,7 @@ UI_PORT  ?= 8888
 LOG_LEVEL ?= info
 VITE_LOG_LEVEL = $(shell echo $(LOG_LEVEL) | tr '[:upper:]' '[:lower:]' | sed 's/warning/warn/; s/debug/info/; s/critical/silent/')
 PYTHON_LOG_LEVEL = $(shell echo $(LOG_LEVEL) | tr '[:lower:]' '[:upper:]' | sed 's/^WARN$$/WARNING/; s/^SILENT$$/CRITICAL/')
-BACKUP_DIR ?= $(shell if [ -d "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com" ]; then echo "/Users/levontumanyan/Library/CloudStorage/GoogleDrive-ltfibonacci@gmail.com/My Drive/equiquant_backups"; else echo "backups"; fi)
+BACKUP_DIR ?= $(or $(shell grep -s '^BACKUP_DIR=' .env | cut -d'=' -f2-),backups)
 
 # Podman Configuration
 PODMAN_CPUS ?= 1
@@ -42,8 +42,8 @@ help:
 	@echo "  make podman-init Initialize and start Podman machine"
 	@echo "  make pr          Run container tests and create a PR"
 	@echo "  make db-shell    Open sqlite3 shell for data inspection"
-	@echo "  make backup      Backup equiquant.db to backups/"
-	@echo "  make restore     Restore database (defaults to latest backup, or FILE=<path>)"
+	@echo "  make backup      Backup equiquant.db (via scripts/backup.sh)"
+	@echo "  make restore     Restore database (via scripts/restore.sh, or FILE=<path>)"
 	@echo "  make clean       Cleanup environment and temporary files"
 
 # Quality Checks
@@ -172,31 +172,10 @@ db-shell:
 	@sqlite3 equiquant.db
 
 backup:
-	@mkdir -p "$(BACKUP_DIR)"
-	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
-	sqlite3 equiquant.db ".backup '$(BACKUP_DIR)/equiquant_$$TIMESTAMP.db'"; \
-	cp "$(BACKUP_DIR)/equiquant_$$TIMESTAMP.db" "$(BACKUP_DIR)/equiquant_latest.db"; \
-	echo "Database backup created: $(BACKUP_DIR)/equiquant_$$TIMESTAMP.db"; \
-	echo "Latest backup link updated: $(BACKUP_DIR)/equiquant_latest.db"
+	@BACKUP_DIR="$(BACKUP_DIR)" scripts/backup.sh
 
 restore:
-	@if [ -z "$(FILE)" ]; then \
-		if [ -f "$(BACKUP_DIR)/equiquant_latest.db" ]; then \
-			FILE="$(BACKUP_DIR)/equiquant_latest.db"; \
-		else \
-			echo "Usage: make restore FILE=path/to/backup.db"; \
-			exit 1; \
-		fi; \
-	else \
-		FILE="$(FILE)"; \
-	fi; \
-	if [ ! -f "$$FILE" ]; then \
-		echo "Error: File '$$FILE' not found."; \
-		exit 1; \
-	fi; \
-	echo "Restoring database from $$FILE..."; \
-	sqlite3 equiquant.db ".restore '$$FILE'"; \
-	echo "Database restored successfully."
+	@BACKUP_DIR="$(BACKUP_DIR)" scripts/restore.sh $(FILE)
 
 clean: stop
 	@echo "Cleaning development and cache artifacts..."
