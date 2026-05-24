@@ -118,6 +118,13 @@ analysis_snapshots(symbol, profile, total_score, benchmark_version, timestamp)
 4. Orchestrator writes dict to `raw_provider_data` **before** yielding the batch
 5. `_tracked_analyze_asset` reads from DB via `get_cached_stock_data(ticker, repo)`
 
+## Backup
+
+- **UI**: Admin → Database Explorer has a backup card — directory picker + "Backup Now" button.
+- **API**: `POST /api/admin/backup` (Python `sqlite3.backup()`), `POST /api/admin/browse-directory` (macOS AppleScript). Backup dir stored in `app_settings` as `backup_dir`; defaults to `./backups`.
+- **CLI**: `make backup` / `make restore` delegate to `scripts/backup.sh` / `scripts/restore.sh`. `BACKUP_DIR` read from `.env`, fallback `./backups`.
+- **Rule**: Never use `make backup` from the API — the API uses inline Python sqlite3 for reliability.
+
 ## DB schema — static config tables
 `global_benchmarks`, `sector_benchmarks`, `investor_profiles`, `profile_metric_settings`, `groups`, `group_constituents`
 

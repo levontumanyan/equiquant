@@ -28,6 +28,13 @@
     "is_secret": false
   },
   {
+    "key": "backup_dir",
+    "value": "",
+    "category": "backup",
+    "description": "Directory where database backups are stored. Leave blank to use ./backups.",
+    "is_secret": false
+  },
+  {
     "key": "fred_api_key",
     "value": "",
     "category": "credentials",

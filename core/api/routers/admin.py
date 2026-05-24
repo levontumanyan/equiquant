@@ -1,11 +1,16 @@
 import logging
 import os
+import sqlite3
+import subprocess
+from datetime import datetime
+from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from config import ROOT_DIR
 from core.api.deps import repo
 from core.api.models import AppSetting, ExportRequest, SettingUpdate
 from core.logger import set_log_level
@@ -70,7 +75,6 @@ async def update_log_level(request: LogLevelRequest):
 	"""Dynamically change the server log level without a restart."""
 	try:
 		applied = set_log_level(request.level)
-		# Also update the setting in the DB for persistence
 		repo.upsert_app_setting("log_level", applied, category="logging")
 		return {"level": applied}
 	except ValueError as e:
@@ -88,11 +92,17 @@ async def get_all_settings_admin():
 
 @router.put("/admin/settings/{key}")
 async def update_setting_admin(key: str, update: SettingUpdate):
-	"""Update a specific application setting."""
+	"""Upsert a specific application setting."""
 	try:
-		repo.update_setting_value(key, update.value)
+		existing = next((s for s in repo.get_all_settings() if s["key"] == key), None)
+		repo.upsert_app_setting(
+			key=key,
+			value=update.value,
+			category=existing["category"] if existing else "general",
+			description=existing.get("description") if existing else None,
+			is_secret=bool(existing.get("is_secret")) if existing else False,
+		)
 
-		# Apply certain settings immediately
 		if key == "log_level":
 			try:
 				set_log_level(update.value)
@@ -104,6 +114,51 @@ async def update_setting_admin(key: str, update: SettingUpdate):
 		raise
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/browse-directory")
+async def browse_directory():
+	"""Open a native macOS folder picker and return the selected path."""
+	result = subprocess.run(
+		[
+			"osascript",
+			"-e",
+			'POSIX path of (choose folder with prompt "Select backup directory:")',
+		],
+		capture_output=True,
+		text=True,
+	)
+	if result.returncode != 0:
+		return {"cancelled": True, "path": None}
+	return {"cancelled": False, "path": result.stdout.strip()}
+
+
+@router.post("/admin/backup")
+async def create_backup():
+	"""Perform a hot backup of equiquant.db to the configured backup directory."""
+	backup_dir_setting = repo.get_setting("backup_dir", "")
+	backup_dir = (
+		Path(backup_dir_setting) if backup_dir_setting else ROOT_DIR / "backups"
+	)
+	backup_dir.mkdir(parents=True, exist_ok=True)
+
+	db_path = ROOT_DIR / "equiquant.db"
+	if not db_path.exists():
+		raise HTTPException(status_code=404, detail="equiquant.db not found")
+
+	timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+	dest_path = backup_dir / f"equiquant_{timestamp}.db"
+
+	try:
+		src = sqlite3.connect(str(db_path))
+		dst = sqlite3.connect(str(dest_path))
+		src.backup(dst)
+		dst.close()
+		src.close()
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
+
+	return {"path": str(dest_path), "size_bytes": dest_path.stat().st_size}
 
 
 @router.get("/admin/db/tables", response_model=List[str])
