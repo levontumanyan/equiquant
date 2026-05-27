@@ -342,10 +342,12 @@ async def fetch_data(  # noqa: C901
 			# All retry scheduling and cooldown live here in the async event loop so
 			# a single shared cooldown prevents both workers stalling independently.
 			FETCH_CONCURRENCY = 2
+			MAX_BATCH_RETRIES = 5
 			global_cooldown = 5.0
 			max_cooldown = 60.0
 			pending_batches = list(batches)
 			retry_queue: List[List[str]] = []
+			retry_counts: Dict[str, int] = {}  # keyed by first ticker in batch
 
 			while pending_batches or retry_queue:
 				combined = retry_queue + pending_batches
@@ -382,10 +384,17 @@ async def fetch_data(  # noqa: C901
 									)
 						yield batch
 					elif is_rate_limited:
-						logger.warning(
-							f"Rate-limited on batch [{batch[0]}…]. Queuing for retry."
-						)
-						rate_limited_batches.append(batch)
+						key = batch[0]
+						retry_counts[key] = retry_counts.get(key, 0) + 1
+						if retry_counts[key] > MAX_BATCH_RETRIES:
+							logger.error(
+								f"Batch [{key}…] rate-limited {retry_counts[key]} times, exceeding max {MAX_BATCH_RETRIES}. Dropping."
+							)
+						else:
+							logger.warning(
+								f"Rate-limited on batch [{key}…] (attempt {retry_counts[key]}/{MAX_BATCH_RETRIES}). Queuing for retry."
+							)
+							rate_limited_batches.append(batch)
 					else:
 						logger.error(
 							f"Permanent failure for batch of {len(batch)} tickers: {batch}. Skipping."

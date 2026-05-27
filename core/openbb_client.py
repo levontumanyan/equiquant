@@ -554,7 +554,13 @@ def fetch_batch_single_attempt(
 		success, data = fetch_openbb_data_bulk(batch_tickers)
 		if success:
 			return True, False, data
-		# fetch_openbb_data_bulk returns (False, {}) on RateLimitError
+		# Partial data present despite success=False — persist what we have, not a rate-limit
+		if data:
+			logger.warning(
+				f"fetch_openbb_data_bulk returned success=False but non-empty data for batch starting {batch_tickers[0]}. Treating as partial success."
+			)
+			return True, False, data
+		# Empty data with success=False → rate-limit
 		return False, True, {}
 	except PermanentFetchError as e:
 		logger.error(

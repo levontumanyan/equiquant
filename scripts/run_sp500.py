@@ -89,13 +89,18 @@ def stream_analysis(
 				elif event_type == "result":
 					analyzed += 1
 					symbol = payload_obj.get("symbol", "?")
-					score = payload_obj.get("score", "?")
+					score = payload_obj.get("score")
+					score_str = (
+						f"{score:>6.1f}"
+						if isinstance(score, (int, float))
+						else f"{'?':>6}"
+					)
 					sector = payload_obj.get("sector") or ""
 					elapsed = time.perf_counter() - start
 					rate = analyzed / elapsed if elapsed > 0 else 0
 					eta = (len(tickers) - analyzed) / rate if rate > 0 else 0
 					print(
-						f"[{ts()}] RESULT  {symbol:<6} score={score:>6.1f}  {sector:<30}  #{analyzed}/{len(tickers)}  rate={rate:.1f}/s  ETA={eta:.0f}s"
+						f"[{ts()}] RESULT  {symbol:<6} score={score_str}  {sector:<30}  #{analyzed}/{len(tickers)}  rate={rate:.1f}/s  ETA={eta:.0f}s"
 					)
 
 				elif event_type == "error":
