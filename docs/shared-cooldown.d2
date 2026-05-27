@@ -1,0 +1,86 @@
+direction: right
+
+caller: API Request {shape: rectangle}
+
+coordinator: "fetch_data coordinator\n(async event loop)" {
+  shape: rectangle
+  style.fill: "#1e293b"
+  style.font-color: "#e2e8f0"
+}
+
+pool: "ProcessPoolExecutor\n(2 workers)" {
+  shape: rectangle
+  style.fill: "#0f172a"
+  style.font-color: "#94a3b8"
+}
+
+w1: "Worker 1\nfetch_batch_single_attempt" {
+  shape: rectangle
+  style.fill: "#172554"
+  style.font-color: "#93c5fd"
+}
+
+w2: "Worker 2\nfetch_batch_single_attempt" {
+  shape: rectangle
+  style.fill: "#172554"
+  style.font-color: "#93c5fd"
+}
+
+openbb: "OpenBB / yfinance" {
+  shape: cylinder
+  style.fill: "#1c1917"
+  style.font-color: "#d6d3d1"
+}
+
+db: "SQLite DB\nraw_provider_data" {
+  shape: cylinder
+  style.fill: "#14532d"
+  style.font-color: "#86efac"
+}
+
+sleep: "asyncio.sleep\n(non-blocking)" {
+  shape: rectangle
+  style.fill: "#431407"
+  style.font-color: "#fb923c"
+  style.border-radius: 8
+}
+
+probe: "probe_api\n(anyio.to_thread)" {
+  shape: rectangle
+  style.fill: "#3b0764"
+  style.font-color: "#d8b4fe"
+}
+
+caller -> coordinator: tickers
+
+coordinator -> pool: "round N\n2 batches at once"
+pool -> w1: batch A
+pool -> w2: batch B
+
+w1 -> openbb: fetch A
+w2 -> openbb: fetch B
+
+openbb -> w1: "success=True"
+openbb -> w2: "rate-limited"
+
+w1 -> coordinator: "success: persist + yield"
+w2 -> coordinator: "is_rate_limited=True"
+
+coordinator -> db: "upsert batch A symbols"
+
+coordinator -> sleep: "global_cooldown=5s\nshared for both workers"
+
+sleep -> probe: "API healthy?"
+probe -> openbb: probe ticker
+openbb -> probe: "200 OK"
+
+probe -> coordinator: "probe_ok=True\ncooldown bumped to 10s"
+
+coordinator -> pool: "round N+1\nretry batch B only"
+pool -> w1: "retry batch B"
+w1 -> openbb: fetch B
+openbb -> w1: "success=True"
+w1 -> coordinator: "success: persist + yield"
+coordinator -> db: "upsert batch B symbols"
+
+coordinator -> caller: "yield batches as SSE results"

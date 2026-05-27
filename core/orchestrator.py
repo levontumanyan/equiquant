@@ -1,6 +1,5 @@
 import asyncio
 import os
-import random
 import threading
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -203,6 +202,27 @@ def _fetch_batch_process_worker(
 	return fetch_batch_with_backoff(batch_tickers, current_cooldown, db_path=db_path)
 
 
+def _fetch_batch_single_attempt_worker(
+	batch_tickers: List[str],
+	db_path: Optional[str] = None,
+) -> Tuple[bool, bool, Dict[str, Any]]:
+	"""
+	Stateless subprocess worker: one attempt, no sleep, no retry.
+
+	All cooldown and retry logic lives in the async fetch_data coordinator.
+
+	Args:
+		batch_tickers: List of ticker symbols to fetch.
+		db_path: Optional path to the database for dynamic proxy refresh.
+
+	Returns:
+		Tuple of (success, is_rate_limited, data_dict).
+	"""
+	from core.openbb_client import fetch_batch_single_attempt
+
+	return fetch_batch_single_attempt(batch_tickers, db_path=db_path)
+
+
 async def fetch_data(  # noqa: C901
 	tickers: List[str],
 	batch_size: int = 20,
@@ -293,10 +313,12 @@ async def fetch_data(  # noqa: C901
 
 	loop = asyncio.get_running_loop()
 	# Set up multiprocessing-safe log queue and listener
+	import functools
 	import logging.handlers
 	import multiprocessing
 
 	from core.logger import LogQueueDispatcher
+	from core.openbb_client import probe_api
 
 	ctx = multiprocessing.get_context("spawn")
 	log_queue = ctx.Queue()
@@ -316,40 +338,97 @@ async def fetch_data(  # noqa: C901
 			initargs=(log_queue,),
 		)
 		try:
-			task_to_batch: Dict[asyncio.Future, List[str]] = {}
-			for batch in batches:
-				task = loop.run_in_executor(
-					pool, _fetch_batch_process_worker, batch, 5.0, db_path_str
-				)
-				task_to_batch[task] = batch
-				# Stagger submission slightly for better responsiveness
-				await asyncio.sleep(random.uniform(0.2, 0.5))  # nosec B311
+			# Round-based coordinator: workers are stateless (single attempt, no sleep).
+			# All retry scheduling and cooldown live here in the async event loop so
+			# a single shared cooldown prevents both workers stalling independently.
+			FETCH_CONCURRENCY = 2
+			global_cooldown = 5.0
+			max_cooldown = 60.0
+			pending_batches = list(batches)
+			retry_queue: List[List[str]] = []
 
-			# Use asyncio.wait so done futures are the original objects (safe dict lookup)
-			pending = set(task_to_batch.keys())
-			while pending:
-				done, pending = await asyncio.wait(
-					pending, return_when=asyncio.FIRST_COMPLETED
-				)
-				for task in done:
-					batch = task_to_batch[task]
-					try:
-						success, _, data = task.result()
-						if success:
-							stats.api_successes += len(data)
-							if repo:
-								for symbol, payload in data.items():
-									try:
-										repo.upsert_raw_provider_data(
-											symbol, "yfinance", payload
-										)
-									except Exception as e:
-										logger.warning(
-											f"Failed to persist raw data for {symbol}: {e}"
-										)
-							yield batch
-					except Exception as e:
-						logger.error(f"Batch fetch task failed: {e}")
+			while pending_batches or retry_queue:
+				combined = retry_queue + pending_batches
+				current_round = combined[:FETCH_CONCURRENCY]
+				remaining = combined[FETCH_CONCURRENCY:]
+				retry_queue = []
+				pending_batches = remaining
+
+				tasks = [
+					loop.run_in_executor(
+						pool, _fetch_batch_single_attempt_worker, b, db_path_str
+					)
+					for b in current_round
+				]
+				results = await asyncio.gather(*tasks, return_exceptions=True)
+
+				rate_limited_batches: List[List[str]] = []
+				for result, batch in zip(results, current_round):
+					if isinstance(result, Exception):
+						logger.error(f"Batch fetch task raised exception: {result}")
+						continue
+					success, is_rate_limited, data = result
+					if success:
+						stats.api_successes += len(data)
+						if repo:
+							for symbol, payload in data.items():
+								try:
+									repo.upsert_raw_provider_data(
+										symbol, "yfinance", payload
+									)
+								except Exception as e:
+									logger.warning(
+										f"Failed to persist raw data for {symbol}: {e}"
+									)
+						yield batch
+					elif is_rate_limited:
+						logger.warning(
+							f"Rate-limited on batch [{batch[0]}…]. Queuing for retry."
+						)
+						rate_limited_batches.append(batch)
+					else:
+						logger.error(
+							f"Permanent failure for batch of {len(batch)} tickers: {batch}. Skipping."
+						)
+
+				if rate_limited_batches:
+					# Single shared cooldown: all workers hit the same IP limit.
+					logger.warning(
+						f"Global rate-limit cooldown: {global_cooldown:.0f}s ({len(rate_limited_batches)} batch(es) queued for retry)"
+					)
+					stats.record_cooldown(global_cooldown)
+					await asyncio.sleep(global_cooldown)
+
+					# Probe to confirm the API is healthy before resuming
+					probe_ticker = rate_limited_batches[0][0]
+					probe_ok = await anyio.to_thread.run_sync(
+						functools.partial(probe_api, probe_ticker)
+					)
+					probe_attempts = 0
+					while not probe_ok and probe_attempts < 10:
+						probe_attempts += 1
+						global_cooldown = min(global_cooldown * 2, max_cooldown)
+						logger.warning(
+							f"Probe failed ({probe_attempts}/10). Cooldown → {global_cooldown:.0f}s"
+						)
+						stats.record_cooldown(global_cooldown)
+						await asyncio.sleep(global_cooldown)
+						probe_ok = await anyio.to_thread.run_sync(
+							functools.partial(probe_api, probe_ticker)
+						)
+
+					if probe_ok:
+						# Bump cooldown so next round starts conservatively
+						global_cooldown = min(global_cooldown * 2, max_cooldown)
+						logger.info(
+							f"Probe succeeded. Resuming with global_cooldown={global_cooldown:.0f}s"
+						)
+						retry_queue = rate_limited_batches
+					else:
+						logger.error(
+							f"Probe exhausted after 10 attempts. Dropping {len(rate_limited_batches)} batch(es)."
+						)
+
 		except (asyncio.CancelledError, GeneratorExit):
 			logger.info("fetch_data cancelled, terminating worker processes")
 			if pool:

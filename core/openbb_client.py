@@ -517,3 +517,54 @@ def fetch_batch_with_backoff(
 			current_cooldown = min(current_cooldown * 2, max_cooldown)
 			break
 	return False, current_cooldown, {}
+
+
+def fetch_batch_single_attempt(
+	batch_tickers: List[str],
+	db_path: Optional[str] = None,
+) -> Tuple[bool, bool, Dict[str, Any]]:
+	"""
+	Single-attempt batch fetch with no internal retry or sleep.
+
+	Designed for use with an async coordinator that owns the global cooldown.
+	The caller is responsible for all retry scheduling and backoff.
+
+	Args:
+		batch_tickers: List of ticker symbols to fetch.
+		db_path: Optional path to the database for dynamic proxy refresh.
+
+	Returns:
+		Tuple of (success, is_rate_limited, data_dict) where success=True means data
+		was fetched, is_rate_limited=True means a 429 was hit (retry after cooldown),
+		and success=False/is_rate_limited=False means a permanent/unknown failure.
+	"""
+	if db_path:
+		try:
+			from core.database.manager import DatabaseManager
+			from core.database.repository import DatabaseRepository
+
+			db = DatabaseManager(db_path, skip_auto_seed=True)
+			repo = DatabaseRepository(db)
+			proxy_manager.refresh_from_db(repo)
+			db.close()
+		except Exception as e:
+			logger.warning(f"Failed to refresh proxies from DB in worker: {e}")
+
+	try:
+		success, data = fetch_openbb_data_bulk(batch_tickers)
+		if success:
+			return True, False, data
+		# fetch_openbb_data_bulk returns (False, {}) on RateLimitError
+		return False, True, {}
+	except PermanentFetchError as e:
+		logger.error(
+			f"Permanent fetch error for batch starting {batch_tickers[0]}: {e}"
+		)
+		return False, False, {}
+	except Exception as e:
+		err_str = str(e).lower()
+		is_rate = any(x in err_str for x in ["429", "rate limit", "too many requests"])
+		logger.warning(
+			f"Transient fetch error for batch starting {batch_tickers[0]}: {e}"
+		)
+		return False, is_rate, {}

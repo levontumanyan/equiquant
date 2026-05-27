@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core.api import app
+from core.api.routers.analysis import _fetch_params
 
 client = TestClient(app)
 
@@ -19,7 +20,7 @@ def mock_orchestrator():
 		) as mock_cache,
 	):
 		# Setup mock_fetch as an async generator
-		async def mock_fetch_gen(tickers, repo=None):
+		async def mock_fetch_gen(tickers, repo=None, **kwargs):
 			yield tickers
 
 		mock_fetch.side_effect = mock_fetch_gen
@@ -122,7 +123,7 @@ _MOCK_RESULT = {
 def mock_stream_orchestrator():
 	"""Fixture providing mocked orchestrator dependencies for the stream endpoint."""
 
-	async def mock_fetch_gen(tickers, repo=None):
+	async def mock_fetch_gen(tickers, repo=None, **kwargs):
 		# Yield one batch containing all tickers (mirrors fetch_data behaviour)
 		yield tickers
 
@@ -260,7 +261,7 @@ def test_stream_failed_ticker_yields_error(mock_stream_orchestrator):
 	mock_fetch, mock_stream, mock_cache = mock_stream_orchestrator
 	mock_cache.return_value = False
 
-	async def empty_fetch(tickers, repo=None):
+	async def empty_fetch(tickers, repo=None, **kwargs):
 		return
 		yield
 
@@ -284,3 +285,101 @@ def test_stream_failed_ticker_yields_error(mock_stream_orchestrator):
 	error_event = next(e for e in events if e["event"] == "error")
 	error_data = _json.loads(error_event["data"])
 	assert "Could not analyze ticker(s): INVALID" in error_data["message"]
+
+
+# ---------------------------------------------------------------------------
+# force_refresh tests
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# _fetch_params dynamic batch sizing tests
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_params_small_request_no_processes():
+	"""Requests of 20 or fewer tickers skip subprocess workers entirely."""
+	for n in [1, 5, 10, 20]:
+		batch_size, use_processes = _fetch_params(n)
+		assert use_processes is False, f"n={n} should not use processes"
+		assert batch_size == 20
+
+
+def test_fetch_params_large_request_uses_processes():
+	"""Requests over 20 tickers use subprocess workers."""
+	batch_size, use_processes = _fetch_params(21)
+	assert use_processes is True
+
+
+def test_fetch_params_batch_size_scales_with_count():
+	"""Batch size scales linearly with ticker count, capped at 50."""
+	assert _fetch_params(200)[0] == 20  # 200//10 = 20
+	assert _fetch_params(300)[0] == 30  # 300//10 = 30
+	assert _fetch_params(500)[0] == 50  # 500//10 = 50 (cap)
+	assert _fetch_params(1000)[0] == 50  # capped at 50
+
+
+def test_fetch_params_batch_size_floor():
+	"""Batch size never falls below 20."""
+	assert _fetch_params(21)[0] == 20  # 21//10 = 2, floor kicks in → 20
+	assert _fetch_params(100)[0] == 20  # 100//10 = 10, floor kicks in → 20
+
+
+def test_force_refresh_bypasses_cache(mock_orchestrator):
+	"""When force_refresh=True, cached tickers are still fetched fresh."""
+	mock_fetch, mock_analyze, mock_cache = mock_orchestrator
+	mock_cache.return_value = True  # Cache says all hits…
+	mock_analyze.return_value = [
+		{
+			"symbol": "AAPL",
+			"name": "Apple Inc.",
+			"score": 90.0,
+			"asset_type": "STOCK",
+			"results": [],
+		}
+	]
+
+	payload = {"tickers": ["AAPL"], "profile": "balanced", "force_refresh": True}
+	response = client.post("/api/analyze", json=payload)
+
+	assert response.status_code == 200
+	# …but fetch should still be called because force_refresh overrides the cache
+	mock_fetch.assert_called_once()
+
+
+def test_no_force_refresh_respects_cache(mock_orchestrator):
+	"""When force_refresh is absent (default False), cache hits skip fetching."""
+	mock_fetch, mock_analyze, mock_cache = mock_orchestrator
+	mock_cache.return_value = True
+	mock_analyze.return_value = [
+		{
+			"symbol": "AAPL",
+			"name": "Apple Inc.",
+			"score": 90.0,
+			"asset_type": "STOCK",
+			"results": [],
+		}
+	]
+
+	payload = {"tickers": ["AAPL"], "profile": "balanced"}
+	response = client.post("/api/analyze", json=payload)
+
+	assert response.status_code == 200
+	mock_fetch.assert_not_called()
+
+
+def test_stream_force_refresh_bypasses_cache(mock_stream_orchestrator):
+	"""SSE stream with force_refresh=True triggers fetch even for cached tickers."""
+	mock_fetch, mock_stream, mock_cache = mock_stream_orchestrator
+	mock_cache.return_value = True  # All cached…
+
+	payload = {"tickers": ["AAPL"], "profile": "balanced", "force_refresh": True}
+	with client.stream("POST", "/api/analyze/stream", json=payload) as response:
+		assert response.status_code == 200
+		body = response.read().decode()
+
+	events = _parse_sse_lines(body)
+	event_types = [e["event"] for e in events]
+	assert "done" in event_types
+	# …but fetch must still be called
+	mock_fetch.assert_called_once()

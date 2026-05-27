@@ -67,12 +67,39 @@ async def _finalize_stats(
 		)
 
 
-def _split_tickers(tickers: List[str]):
-	"""Split tickers into cached and missing, updating stats accordingly."""
+def _fetch_params(n: int) -> tuple[int, bool]:
+	"""
+	Compute optimal batch_size and use_processes for a given ticker count.
+
+	Batch size scales linearly with n (capped at 50) so large runs use fewer,
+	larger batches and reduce coordinator round-trip overhead. Subprocess workers
+	are skipped entirely for tiny requests to avoid the ~300-500ms spawn cost.
+
+	Args:
+		n: Number of tickers to fetch.
+
+	Returns:
+		Tuple of (batch_size, use_processes).
+	"""
+	use_processes = n > 20
+	batch_size = max(20, min(50, n // 10))
+	return batch_size, use_processes
+
+
+def _split_tickers(tickers: List[str], force_refresh: bool = False):
+	"""Split tickers into cached and missing, updating stats accordingly.
+
+	Args:
+		tickers: List of ticker symbols to split.
+		force_refresh: When True, all tickers are treated as missing regardless of cache state.
+
+	Returns:
+		Tuple of (cached_tickers, missing_tickers).
+	"""
 	missing_tickers = []
 	cached_tickers = []
 	for t in tickers:
-		if repo.should_use_db_cache(t):
+		if not force_refresh and repo.should_use_db_cache(t):
 			stats.cache_hits += 1
 			cached_tickers.append(t)
 		else:
@@ -118,7 +145,9 @@ def _track_analyzed_symbol(event: dict, analyzed_symbols: set) -> None:
 
 async def event_generator(tickers: List[str], request: AnalysisRequest, db_path):  # noqa: C901
 	"""Generate analysis events for streaming."""
-	cached_tickers, missing_tickers = _split_tickers(tickers)
+	cached_tickers, missing_tickers = _split_tickers(
+		tickers, force_refresh=request.force_refresh
+	)
 	analyzed_count = 0
 	analyzed_symbols = set()
 	cancel_event = threading.Event()
@@ -134,8 +163,14 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 					{"message": f"Fetching data for {len(missing_tickers)} ticker(s)…"}
 				),
 			}
+			batch_size, use_processes = _fetch_params(len(missing_tickers))
 			stats.start_stage("Data Acquisition")
-			async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+			async for batch in orchestrator_fetch_data(
+				missing_tickers,
+				batch_size=batch_size,
+				use_processes=use_processes,
+				repo=repo,
+			):
 				yield {
 					"event": "status",
 					"data": json.dumps(
@@ -173,8 +208,14 @@ async def event_generator(tickers: List[str], request: AnalysisRequest, db_path)
 						}
 					),
 				}
+				batch_size, use_processes = _fetch_params(len(missing_tickers))
 				stats.start_stage("Data Acquisition & Scoring")
-				async for batch in orchestrator_fetch_data(missing_tickers, repo=repo):
+				async for batch in orchestrator_fetch_data(
+					missing_tickers,
+					batch_size=batch_size,
+					use_processes=use_processes,
+					repo=repo,
+				):
 					async for event in _stream_results(
 						batch, request, executor, cancel_event
 					):
@@ -229,11 +270,19 @@ async def analyze_assets(request: AnalysisRequest):
 
 	db_path = _initialize_stats(tickers)
 	# _split_tickers also records cache_hits / api_attempts on stats as a side effect
-	_cached_tickers, missing_tickers = _split_tickers(tickers)
+	_cached_tickers, missing_tickers = _split_tickers(
+		tickers, force_refresh=request.force_refresh
+	)
 
 	if missing_tickers:
+		batch_size, use_processes = _fetch_params(len(missing_tickers))
 		stats.start_stage("Data Acquisition")
-		async for _ in orchestrator_fetch_data(missing_tickers, repo=repo):
+		async for _ in orchestrator_fetch_data(
+			missing_tickers,
+			batch_size=batch_size,
+			use_processes=use_processes,
+			repo=repo,
+		):
 			pass
 		stats.end_stage("Data Acquisition")
 

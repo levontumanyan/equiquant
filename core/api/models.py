@@ -38,6 +38,7 @@ class AnalysisRequest(BaseModel):
 	profile: str = "balanced"
 	benchmark_version: str = "1.0.0"
 	context: Literal["global", "sector", "batch"] = "global"
+	force_refresh: bool = False
 
 
 class ExportRequest(BaseModel):
