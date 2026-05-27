@@ -10,7 +10,7 @@ user_invocable: true
 
 Review, triage, fix, and reply inline to all unresolved feedback left by `github-copilot[bot]` on a GitHub Pull Request.
 
-## Workflow
+# Workflow
 
 # Step 1 — Detect the PR
 
@@ -25,38 +25,41 @@ If no open PR exists on the current branch, tell the user and stop.
 
 # Step 2 — Fetch all unresolved Copilot threads
 
-The REST API has no resolved/unresolved distinction, so use GraphQL. Also fetch each comment's `databaseId` — you'll need it to post inline replies later.
+The REST API has no resolved/unresolved distinction, so use GraphQL. Fetch both the thread `id` (to resolve the thread later) and each comment's `databaseId` (to post inline replies).
 
 ```bash
 gh api graphql -f query='
-  query($owner: String!, $repo: String!, $pr: Int!) {
-    repository(owner: $owner, name: $repo) {
-      pullRequest(number: $pr) {
-        reviewThreads(first: 100) {
-          nodes {
-            isResolved
-            path
-            line
-            comments(first: 10) {
-              nodes {
-                databaseId
-                author { login }
-                body
-                createdAt
-                url
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+	query($owner: String!, $repo: String!, $pr: Int!) {
+		repository(owner: $owner, name: $repo) {
+			pullRequest(number: $pr) {
+				reviewThreads(first: 100) {
+					nodes {
+						id
+						isResolved
+						path
+						line
+						comments(first: 10) {
+							nodes {
+								databaseId
+								author { login }
+								body
+								createdAt
+								url
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 ' -f owner=OWNER -f repo=REPO -F pr=NUMBER
 ```
 
 Keep threads where `isResolved: false` AND at least one comment has `author.login == "github-copilot[bot]"`.
 
-For each kept thread, record the `databaseId` of the Copilot comment — that's the ID you'll use when replying.
+For each kept thread, record:
+- The thread `id` (GraphQL ID)
+- The comment `databaseId` of the Copilot comment
 
 If `reviewThreads` returns exactly 100 nodes, paginate using `pageInfo.endCursor`.
 
@@ -98,7 +101,7 @@ Use this structure:
 
 ---
 
-### Critical (<X>)
+## Critical (<X>)
 
 1. `path/to/file.py` · line <N>
    > <Copilot's comment, quoted verbatim>
@@ -108,10 +111,10 @@ Use this structure:
 
 ---
 
-### Medium (<Y>)
+## Medium (<Y>)
 ...
 
-### Low (<Z>)
+## Low (<Z>)
 ...
 ```
 
@@ -121,7 +124,7 @@ The "Impact" line is your synthesis — turn Copilot's technical observation int
 
 After the report, ask:
 
-> "Want me to apply fixes? Options: all findings, critical only, or pick specific numbers."
+> "Want me to apply fixes? Options: all findings, critical only, or pick specific numbers. If you choose to skip, I will still reply and mark them resolved."
 
 Wait for the user's response before touching any files.
 
@@ -135,25 +138,37 @@ For each finding the user wants fixed:
 
 Keep a log of what was done for each finding (fixed / skipped / needs discussion), since you'll use it in Step 7.
 
-# Step 7 — Reply inline to every Copilot comment
+# Step 7 — Reply inline and resolve every Copilot thread
 
-After the fix pass is done, post an inline reply to **every** Copilot comment — including ones you didn't fix. This closes the loop and keeps the PR review history clean.
+You must post an inline reply to **every** Copilot comment and resolve the thread, even for the comments where you applied no code fixes. This closes the loop and keeps the PR review history clean.
 
-Reply using the REST API, using the `databaseId` collected in Step 2:
+First, post the reply comment using the REST API with the `databaseId` collected in Step 2:
 
 ```bash
 gh api repos/OWNER/REPO/pulls/NUMBER/comments/COMMENT_DATABASE_ID/replies \
-  -X POST \
-  -f body="Your reply here"
+	-X POST \
+	-f body="Your reply here"
 ```
 
 Tailor each reply to its outcome:
-
 - **Fixed**: "Fixed — [one sentence describing exactly what changed and why it resolves the issue]."
-- **Skipped (low priority / won't address this PR)**: "Acknowledged — this is a minor [style/naming/readability] concern. Not addressing it in this PR to keep the diff focused."
-- **Skipped (by user choice)**: "Noted — [brief reason the user gave, or a neutral acknowledgment]."
+- **Skipped / Acknowledged**: "Acknowledged — this is a minor [style/naming/readability] concern. Not addressing it in this PR to keep the diff focused."
+- **Skipped by user choice**: "Noted — [brief reason the user gave, or a neutral acknowledgment]."
 - **Needs discussion**: "Flagged for discussion — [explain why the fix isn't straightforward and what would need to happen]."
 
-Keep replies short and factual. The goal is that anyone reading the PR later can immediately understand the disposition of each Copilot finding without digging through commit history.
+Second, immediately mark the thread as resolved using the GraphQL API with the thread `id` collected in Step 2:
 
-After posting all replies, give the user a final summary: how many findings were fixed, how many were acknowledged, and whether anything needs follow-up.
+```bash
+gh api graphql -f query='
+	mutation($threadId: ID!) {
+		resolveReviewThread(input: {threadId: $threadId}) {
+			thread {
+				id
+				isResolved
+			}
+		}
+	}
+' -f threadId=THREAD_ID
+```
+
+After replying and resolving all threads, present a final summary to the user detailing how many findings were resolved and if any require further discussion.
