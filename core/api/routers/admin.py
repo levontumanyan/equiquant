@@ -1,7 +1,7 @@
 import logging
 import os
 import sqlite3
-import subprocess
+import subprocess  # nosec B404 - subprocess used only for osascript (macOS native dialog), not user input
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -119,7 +119,7 @@ async def update_setting_admin(key: str, update: SettingUpdate):
 @router.post("/admin/browse-directory")
 async def browse_directory():
 	"""Open a native macOS folder picker and return the selected path."""
-	result = subprocess.run(
+	result = subprocess.run(  # nosec B603 B607 - hardcoded osascript invocation, no user input in args
 		[
 			"osascript",
 			"-e",

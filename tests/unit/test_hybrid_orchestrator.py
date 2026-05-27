@@ -110,9 +110,17 @@ class TestHybridOrchestrator(unittest.IsolatedAsyncioTestCase):
 		mock_pool = MagicMock()
 		mock_executor_class.return_value = mock_pool
 
-		# Mock submit() to return a real concurrent.futures.Future
-		# to satisfy loop.run_in_executor and wrap_future assertions
-		mock_pool.submit.return_value = Future()
+		# Return a completed Future with a rate-limited result so asyncio.gather
+		# returns immediately, then asyncio.sleep(cooldown) raises CancelledError.
+		# (The old stagger sleep no longer exists in the round-based coordinator.)
+		def make_rate_limited_future(*args, **kwargs):
+			f = Future()
+			f.set_result(
+				(False, True, {})
+			)  # (success=False, is_rate_limited=True, data={})
+			return f
+
+		mock_pool.submit.side_effect = make_rate_limited_future
 
 		mock_process = MagicMock()
 		mock_process.pid = 12345

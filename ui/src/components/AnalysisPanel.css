@@ -417,6 +417,21 @@
 	border-color: #06b6d4;
 }
 
+.settings-toggle-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.75rem;
+	color: #d1d5db;
+	cursor: pointer;
+	padding-top: 0.25rem;
+}
+
+.settings-toggle-row input[type="checkbox"] {
+	accent-color: #06b6d4;
+	cursor: pointer;
+}
+
 .quick-actions {
 	display: flex;
 	align-items: center;

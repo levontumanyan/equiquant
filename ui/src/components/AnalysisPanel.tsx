@@ -51,6 +51,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [groupSaveStatus, setGroupSaveStatus] = useState<'idle' | 'saving' | 'error'>('idle')
 
 	const [scoringContext, setScoringContext] = useState<'global' | 'sector' | 'batch'>('global')
+	const [forceRefresh, setForceRefresh] = useState(false)
 	const [indexExpansion, setIndexExpansion] = useState<string | null>(null)
 	const [provider, setProvider] = useState('openbb')
 	const [showSettings, setShowSettings] = useState(false)
@@ -297,7 +298,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 			await fetchEventSource(`${API_BASE_URL}/api/analyze/stream`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ tickers, profile, context: scoringContext }),
+				body: JSON.stringify({ tickers, profile, context: scoringContext, force_refresh: forceRefresh }),
 				signal: controller.signal,
 				openWhenHidden: true,
 				onmessage(ev) {
@@ -693,6 +694,14 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 										<option value="openbb">OpenBB (Default)</option>
 										<option value="nasdaq" disabled>Nasdaq Data Link (Coming Soon)</option>
 									</select>
+									<label className="settings-toggle-row" title="Ignore cached data and fetch fresh quotes from the provider">
+										<input
+											type="checkbox"
+											checked={forceRefresh}
+											onChange={e => setForceRefresh(e.target.checked)}
+										/>
+										<span>Fresh run (bypass cache)</span>
+									</label>
 								</div>
 							)}
 						</div>
