@@ -139,7 +139,7 @@ def _track_analyzed_symbol(event: dict, analyzed_symbols: set) -> None:
 	"""
 	try:
 		analyzed_symbols.add(json.loads(event["data"])["symbol"].upper())
-	except Exception:
+	except Exception:  # nosec B110 - silently skip malformed SSE result events; symbol tracking is best-effort
 		pass
 
 
