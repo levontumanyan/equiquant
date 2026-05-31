@@ -2,19 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { API_BASE_URL } from '../config'
 import { useProfiles } from '../hooks/useProfiles'
+import { useAssets, type Asset } from '../hooks/useAssets'
 import ResultsGrid from './ResultsGrid'
 import CorrelationMap from './CorrelationMap'
 import SmartHeatmap from './SmartHeatmap'
 import type { AssetAnalysis } from '../types'
 import { Play, Loader2, AlertCircle, X, Plus, Search, Settings, Square, LayoutGrid, Network, LayoutDashboard, FileText, Zap } from 'lucide-react'
 import './AnalysisPanel.css'
-
-interface Asset {
-	symbol: string;
-	name: string;
-	sector: string | null;
-	asset_type: string | null;
-}
 
 interface Group {
 	name: string;
@@ -30,10 +24,10 @@ interface AnalysisPanelProps {
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	const [tickers, setTickers] = useState<string[]>([])
 	const [manualInput, setManualInput] = useState('')
-	const [availableAssets, setAvailableAssets] = useState<Asset[]>([])
 	const [assetSearch, setAssetSearch] = useState('')
 	const [profile, setProfile] = useState('balanced')
 	const { profiles } = useProfiles()
+	const { assets: availableAssets, filterAssets } = useAssets()
 	const [groups, setGroups] = useState<Group[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [results, setResults] = useState<AssetAnalysis[]>([])
@@ -70,15 +64,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 	}, [])
 
 	useEffect(() => {
-		const fetchInitial = async () => {
-			try {
-				const assetsRes = await fetch(`${API_BASE_URL}/api/assets`)
-				if (assetsRes.ok) setAvailableAssets(await assetsRes.json())
-			} catch (err) {
-				console.error('Failed to fetch initial data', err)
-			}
-		}
-		fetchInitial()
 		loadGroups()
 	}, [loadGroups])
 
@@ -165,29 +150,13 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		return map
 	}, [availableAssets])
 
-	const processedAssets = useMemo(() =>
-		availableAssets.map(a => ({
-			asset: a,
-			upperSymbol: a.symbol?.toUpperCase() || '',
-			upperName: a.name?.toUpperCase() || '',
-		})),
-		[availableAssets]
-	)
-
 	const tickerSet = useMemo(() => new Set(tickers), [tickers])
 	const newGroupTickerSet = useMemo(() => new Set(newGroupTickers), [newGroupTickers])
 
-	const newGroupFilteredAssets = useMemo(() => {
-		if (!newGroupSearch) return []
-		const search = newGroupSearch.toUpperCase()
-		return processedAssets
-			.filter(({ upperSymbol, upperName, asset }) =>
-				(upperSymbol.includes(search) || upperName.includes(search)) &&
-				!newGroupTickerSet.has(asset.symbol)
-			)
-			.map(({ asset }) => asset)
-			.slice(0, 8)
-	}, [newGroupSearch, processedAssets, newGroupTickerSet])
+	const newGroupFilteredAssets = useMemo(
+		() => filterAssets(newGroupSearch).filter(a => !newGroupTickerSet.has(a.symbol)),
+		[newGroupSearch, filterAssets, newGroupTickerSet]
+	)
 
 	const addNewGroupTicker = (symbol: string) => {
 		const input = symbol.toUpperCase().trim()
@@ -204,17 +173,10 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ openbbReady }) => {
 		setNewGroupTickers(newGroupTickers.filter(t => t !== symbol))
 	}
 
-	const filteredAssets = useMemo(() => {
-		if (!assetSearch) return []
-		const search = assetSearch.toUpperCase()
-		return processedAssets
-			.filter(({ upperSymbol, upperName, asset }) =>
-				(upperSymbol.includes(search) || upperName.includes(search)) &&
-				!tickerSet.has(asset.symbol)
-			)
-			.map(({ asset }) => asset)
-			.slice(0, 8)
-	}, [assetSearch, processedAssets, tickerSet])
+	const filteredAssets = useMemo(
+		() => filterAssets(assetSearch).filter(a => !tickerSet.has(a.symbol)),
+		[assetSearch, filterAssets, tickerSet]
+	)
 
 	const addTicker = (symbol: string) => {
 		const input = symbol.toUpperCase().trim()

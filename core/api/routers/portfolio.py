@@ -3,7 +3,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 
 from core.api.deps import repo
-from core.api.models import PortfolioCreate, TransactionCreate
+from core.api.models import PortfolioCreate, TransactionCreate, TransactionUpdate
 from core.logger import get_logger
 from core.orchestrator import fetch_data as orchestrator_fetch_data
 from core.orchestrator import run_bulk_analysis
@@ -167,6 +167,60 @@ async def record_transaction(portfolio_id: int, request: TransactionCreate):
 		)
 	except ValueError as e:
 		raise HTTPException(status_code=422, detail=str(e))
+	except HTTPException:
+		raise
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/portfolios/{portfolio_id}/transactions/{transaction_id}")
+async def update_transaction(
+	portfolio_id: int, transaction_id: int, request: TransactionUpdate
+):
+	"""Update an existing transaction and recalculate holdings."""
+	try:
+		result = repo.update_transaction(
+			transaction_id=transaction_id,
+			portfolio_id=portfolio_id,
+			symbol=request.symbol,
+			transaction_type=request.transaction_type,
+			quantity=request.quantity,
+			price_per_share=request.price_per_share,
+			transaction_date=request.transaction_date,
+			fees=request.fees,
+			notes=request.notes,
+			account=request.account,
+			bank=request.bank,
+			currency=request.currency,
+			total_amount=request.total_amount,
+			dividend_amount=request.dividend_amount,
+			total_cost_cad=request.total_cost_cad,
+		)
+		if result is None:
+			raise HTTPException(
+				status_code=404, detail=f"Transaction {transaction_id} not found"
+			)
+		return result
+	except ValueError as e:
+		raise HTTPException(status_code=422, detail=str(e))
+	except HTTPException:
+		raise
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/portfolios/{portfolio_id}/transactions/{transaction_id}")
+async def delete_transaction(portfolio_id: int, transaction_id: int):
+	"""Delete a transaction and recalculate holdings."""
+	try:
+		deleted = repo.delete_transaction(
+			transaction_id=transaction_id, portfolio_id=portfolio_id
+		)
+		if not deleted:
+			raise HTTPException(
+				status_code=404, detail=f"Transaction {transaction_id} not found"
+			)
+		return {"status": "ok"}
 	except HTTPException:
 		raise
 	except Exception as e:

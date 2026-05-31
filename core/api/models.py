@@ -184,6 +184,46 @@ class TransactionCreate(BaseModel):
 		return v
 
 
+class TransactionUpdate(BaseModel):
+	"""Request model for updating an existing transaction."""
+
+	symbol: str
+	transaction_type: Literal["BUY", "SELL", "DIVIDEND"]
+	quantity: float
+	price_per_share: float
+	transaction_date: str
+	fees: float = 0.0
+	notes: Optional[str] = None
+	account: Optional[str] = None
+	bank: Optional[str] = None
+	currency: str = "USD"
+	total_amount: Optional[float] = None
+	dividend_amount: Optional[float] = None
+	total_cost_cad: Optional[float] = None
+
+	@field_validator("symbol")
+	@classmethod
+	def normalise_symbol(cls, v: str) -> str:
+		"""Normalise ticker to uppercase."""
+		return v.strip().upper()
+
+	@field_validator("quantity", "price_per_share")
+	@classmethod
+	def positive_value(cls, v: float) -> float:
+		"""Reject non-positive quantities and prices."""
+		if v <= 0:
+			raise ValueError("Must be greater than zero")
+		return v
+
+	@field_validator("fees")
+	@classmethod
+	def non_negative_fees(cls, v: float) -> float:
+		"""Reject negative fees."""
+		if v < 0:
+			raise ValueError("Fees cannot be negative")
+		return v
+
+
 class TransactionResponse(BaseModel):
 	"""Response model for a recorded transaction."""
 

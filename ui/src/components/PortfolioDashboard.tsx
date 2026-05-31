@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent } from 'react'
+import { useAssets } from '../hooks/useAssets'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { PieChart, Pie, Cell, Tooltip } from 'recharts'
@@ -197,25 +198,48 @@ function AddTransactionModal({
 	portfolioId,
 	onClose,
 	onAdded,
+	existing,
 }: {
 	portfolioId: number
 	onClose: () => void
 	onAdded: (tx: Transaction) => void
+	existing?: Transaction
 }) {
-	const [symbol, setSymbol] = useState('')
-	const [type, setType] = useState<'BUY' | 'SELL' | 'DIVIDEND'>('BUY')
-	const [quantity, setQuantity] = useState('')
-	const [price, setPrice] = useState('')
-	const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-	const [fees, setFees] = useState('0')
-	const [account, setAccount] = useState('TFSA')
-	const [bank, setBank] = useState('RBC')
-	const [currency, setCurrency] = useState('CAD')
-	const [dividendAmount, setDividendAmount] = useState('')
-	const [totalCostCad, setTotalCostCad] = useState('')
-	const [notes, setNotes] = useState('')
+	const [symbol, setSymbol] = useState(existing?.symbol ?? '')
+	const [symbolSearch, setSymbolSearch] = useState('')
+	const { filterAssets } = useAssets()
+	const [type, setType] = useState<'BUY' | 'SELL' | 'DIVIDEND'>(existing?.transaction_type ?? 'BUY')
+	const [quantity, setQuantity] = useState(existing && existing.transaction_type !== 'DIVIDEND' ? String(existing.quantity) : '')
+	const [price, setPrice] = useState(existing && existing.transaction_type !== 'DIVIDEND' ? String(existing.price_per_share) : '')
+	const [date, setDate] = useState(existing?.transaction_date ?? new Date().toISOString().slice(0, 10))
+	const [fees, setFees] = useState(existing ? String(existing.fees) : '0')
+	const [account, setAccount] = useState(existing?.account_name ?? 'TFSA')
+	const [bank, setBank] = useState(existing?.bank_name ?? 'RBC')
+	const [currency, setCurrency] = useState(existing?.currency ?? 'CAD')
+	const [dividendAmount, setDividendAmount] = useState(existing?.dividend_amount != null ? String(existing.dividend_amount) : '')
+	const [notes, setNotes] = useState(existing?.notes ?? '')
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
+	const isEdit = existing != null
+
+	const symbolSuggestions = useMemo(
+		() => filterAssets(symbolSearch),
+		[symbolSearch, filterAssets]
+	)
+
+	function selectSymbol(sym: string) {
+		setSymbol(sym)
+		setSymbolSearch('')
+	}
+
+	const computedTotal = useMemo(() => {
+		const qty = parseFloat(quantity)
+		const px = parseFloat(price)
+		const fee = parseFloat(fees) || 0
+		if (type === 'DIVIDEND') return parseFloat(dividendAmount) || null
+		if (!qty || !px) return null
+		return type === 'SELL' ? qty * px - fee : qty * px + fee
+	}, [type, quantity, price, fees, dividendAmount])
 
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
@@ -227,8 +251,11 @@ function AddTransactionModal({
 		setLoading(true)
 		setError(null)
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/portfolios/${portfolioId}/transactions`, {
-				method: 'POST',
+			const url = isEdit
+				? `${API_BASE_URL}/api/portfolios/${portfolioId}/transactions/${existing!.id}`
+				: `${API_BASE_URL}/api/portfolios/${portfolioId}/transactions`
+			const res = await fetch(url, {
+				method: isEdit ? 'PUT' : 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					symbol: symbol.trim().toUpperCase(),
@@ -241,13 +268,13 @@ function AddTransactionModal({
 					bank: bank.trim() || null,
 					currency: currency,
 					dividend_amount: type === 'DIVIDEND' ? parseFloat(dividendAmount) : null,
-					total_cost_cad: parseFloat(totalCostCad) || null,
+					total_cost_cad: null,
 					notes: notes.trim() || null,
 				}),
 			})
 			if (!res.ok) {
 				const data = await res.json()
-				throw new Error(data.detail || 'Failed to record transaction')
+				throw new Error(data.detail || (isEdit ? 'Failed to update transaction' : 'Failed to record transaction'))
 			}
 			const tx: Transaction = await res.json()
 			onAdded(tx)
@@ -262,19 +289,41 @@ function AddTransactionModal({
 		<div className="pd-modal-overlay" onClick={onClose}>
 			<div className="pd-modal" onClick={e => e.stopPropagation()}>
 				<div className="pd-modal-header">
-					<h3>Add Transaction</h3>
+					<h3>{isEdit ? 'Edit Transaction' : 'Add Transaction'}</h3>
 					<button className="pd-icon-btn" onClick={onClose}>✕</button>
 				</div>
 				<form onSubmit={handleSubmit}>
 					<div className="pd-form-row">
 						<label>
 							Symbol
-							<input
-								autoFocus
-								value={symbol}
-								onChange={e => setSymbol(e.target.value.toUpperCase())}
-								placeholder="AAPL"
-							/>
+							<div className="pd-symbol-wrap">
+								<input
+									autoFocus
+									value={symbolSearch || symbol}
+									onChange={e => {
+										const v = e.target.value.toUpperCase()
+										setSymbolSearch(v)
+										setSymbol(v)
+									}}
+									onBlur={() => setTimeout(() => setSymbolSearch(''), 150)}
+									placeholder="AAPL"
+								/>
+								{symbolSuggestions.length > 0 && (
+									<div className="pd-symbol-dropdown">
+										{symbolSuggestions.map(a => (
+											<button
+												key={a.symbol}
+												type="button"
+												className="pd-symbol-item"
+												onMouseDown={() => selectSymbol(a.symbol)}
+											>
+												<span className="pd-symbol-ticker">{a.symbol}</span>
+												<span className="pd-symbol-name">{a.name}</span>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 						</label>
 						<label>
 							Type
@@ -333,8 +382,13 @@ function AddTransactionModal({
 							<input type="number" min="0" step="any" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" />
 						</label>
 						<label>
-							Total Cost CAD <span className="pd-optional">(optional)</span>
-							<input type="number" min="0" step="any" value={totalCostCad} onChange={e => setTotalCostCad(e.target.value)} placeholder="0.00" />
+							Total {type === 'BUY' ? '(incl. fees)' : type === 'SELL' ? '(after fees)' : ''}
+							<input
+								type="text"
+								readOnly
+								value={computedTotal !== null ? computedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+								className="pd-total-input"
+							/>
 						</label>
 					</div>
 					<label>
@@ -345,7 +399,7 @@ function AddTransactionModal({
 					<div className="pd-modal-actions">
 						<button type="button" className="pd-btn pd-btn-ghost" onClick={onClose}>Cancel</button>
 						<button type="submit" className="pd-btn pd-btn-primary" disabled={loading}>
-							{loading ? 'Saving…' : 'Save'}
+							{loading ? (isEdit ? 'Updating…' : 'Saving…') : (isEdit ? 'Update' : 'Save')}
 						</button>
 					</div>
 				</form>
@@ -676,7 +730,17 @@ function AccountsTable({ holdings, onTickerClick, onScoreClick }: {
 
 // ── Transaction ledger ────────────────────────────────────────────────────
 
-function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
+function TransactionLedger({
+	transactions,
+	onEdit,
+	onDelete,
+}: {
+	transactions: Transaction[]
+	onEdit: (tx: Transaction) => void
+	onDelete: (tx: Transaction) => void
+}) {
+	const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+
 	if (transactions.length === 0) {
 		return (
 			<div className="pd-empty">
@@ -701,6 +765,7 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 						<th className="pd-right">Total</th>
 						<th className="pd-right">Total (CAD)</th>
 						<th>Notes</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -712,6 +777,7 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 							? gross
 							: gross + tx.fees
 						const displayTotal = tx.total_amount !== null ? tx.total_amount : total
+						const confirming = confirmDeleteId === tx.id
 						return (
 							<tr key={tx.id}>
 								<td className="pd-muted">{fmtDate(tx.transaction_date)}</td>
@@ -739,6 +805,19 @@ function TransactionLedger({ transactions }: { transactions: Transaction[] }) {
 									{tx.total_cost_cad !== null ? `C$${fmtMoney(tx.total_cost_cad)}` : '—'}
 								</td>
 								<td className="pd-muted">{tx.notes ?? '—'}</td>
+								<td className="pd-tx-actions">
+									{confirming ? (
+										<>
+											<button className="pd-tx-btn pd-tx-confirm" onClick={() => { onDelete(tx); setConfirmDeleteId(null) }}>Confirm</button>
+											<button className="pd-tx-btn pd-tx-cancel" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+										</>
+									) : (
+										<>
+											<button className="pd-tx-btn pd-tx-edit" onClick={() => onEdit(tx)} title="Edit">✎</button>
+											<button className="pd-tx-btn pd-tx-delete" onClick={() => setConfirmDeleteId(tx.id)} title="Delete">✕</button>
+										</>
+									)}
+								</td>
 							</tr>
 						)
 					})}
@@ -758,6 +837,19 @@ export default function PortfolioDashboard() {
 	const [activeView, setActiveView] = useState<ActiveView>('holdings')
 	const [showCreateModal, setShowCreateModal] = useState(false)
 	const [showTxModal, setShowTxModal] = useState(false)
+	const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+	const [showPortfolioDropdown, setShowPortfolioDropdown] = useState(false)
+	const portfolioDropdownRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		function handleClickOutside(e: MouseEvent) {
+			if (portfolioDropdownRef.current && !portfolioDropdownRef.current.contains(e.target as Node)) {
+				setShowPortfolioDropdown(false)
+			}
+		}
+		document.addEventListener('mousedown', handleClickOutside)
+		return () => document.removeEventListener('mousedown', handleClickOutside)
+	}, [])
 	const [loadingPortfolios, setLoadingPortfolios] = useState(true)
 	const [loadingDetail, setLoadingDetail] = useState(false)
 	const [refreshing, setRefreshing] = useState(false)
@@ -865,20 +957,44 @@ export default function PortfolioDashboard() {
 		}
 	}
 
+	function refreshHoldings() {
+		if (!activePortfolio) return
+		Promise.all([
+			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/holdings`).then(r => r.json()),
+			fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}`).then(r => r.json()),
+		]).then(([h, p]) => {
+			setHoldings(Array.isArray(h) ? h : [])
+			setActivePortfolio(p)
+		}).catch(() => {})
+	}
+
 	function handleTransactionAdded(tx: Transaction) {
 		setTransactions(prev => [tx, ...prev])
-		if (activePortfolio) {
-			// Refresh holdings and portfolio stats (total_fees) together
-			Promise.all([
-				fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/holdings`).then(r => r.json()),
-				fetch(`${API_BASE_URL}/api/portfolios/${activePortfolio.id}`).then(r => r.json()),
-			]).then(([h, p]) => {
-				setHoldings(Array.isArray(h) ? h : [])
-				setActivePortfolio(p)
-			}).catch(() => {})
-		}
+		refreshHoldings()
 		setShowTxModal(false)
+		setEditingTx(null)
 		setActiveView('holdings')
+	}
+
+	function handleTransactionUpdated(tx: Transaction) {
+		setTransactions(prev => prev.map(t => t.id === tx.id ? tx : t))
+		refreshHoldings()
+		setEditingTx(null)
+	}
+
+	async function handleTransactionDeleted(tx: Transaction) {
+		if (!activePortfolio) return
+		try {
+			const res = await fetch(
+				`${API_BASE_URL}/api/portfolios/${activePortfolio.id}/transactions/${tx.id}`,
+				{ method: 'DELETE' }
+			)
+			if (!res.ok) throw new Error('Failed to delete transaction')
+			setTransactions(prev => prev.filter(t => t.id !== tx.id))
+			refreshHoldings()
+		} catch (err: any) {
+			setError(err.message)
+		}
 	}
 
 	function openRawDrawer(h: { symbol: string; name: string | null; sector: string | null; latest_score: number | null }) {
@@ -937,40 +1053,38 @@ export default function PortfolioDashboard() {
 
 	return (
 		<div className="pd-root">
-			{/* Sidebar */}
-			<aside className="pd-sidebar">
-				<div className="pd-sidebar-header">
-					<span className="pd-sidebar-title">Portfolios</span>
-					<button className="pd-btn pd-btn-primary pd-btn-sm" onClick={() => setShowCreateModal(true)}>+ New</button>
-				</div>
-
-				{loadingPortfolios ? (
-					<p className="pd-sidebar-empty">Loading…</p>
-				) : portfolios.length === 0 ? (
-					<p className="pd-sidebar-empty">No portfolios yet.</p>
-				) : (
-					<ul className="pd-portfolio-list">
-						{portfolios.map(p => (
-							<li
-								key={p.id}
-								className={`pd-portfolio-item${activePortfolio?.id === p.id ? ' pd-active' : ''}`}
-								onClick={() => setActivePortfolio(p)}
-							>
-								<div className="pd-portfolio-item-name">{p.name}</div>
-								<div className="pd-portfolio-item-meta">{p.transaction_count} {p.transaction_count === 1 ? 'trade' : 'trades'}</div>
-								<button
-									className="pd-delete-btn"
-									onClick={e => { e.stopPropagation(); handleDelete(p) }}
-									title="Delete portfolio"
-								>✕</button>
-							</li>
-						))}
-					</ul>
-				)}
-			</aside>
-
-			{/* Main panel */}
 			<main className={`pd-main${fullscreen ? ' pd-fullscreen' : ''}`}>
+				{/* Portfolio selector bar */}
+				<div className="pd-portfolio-bar">
+					<div className="pd-portfolio-selector" ref={portfolioDropdownRef}>
+						<button
+							className="pd-portfolio-trigger"
+							onClick={() => setShowPortfolioDropdown(v => !v)}
+							disabled={loadingPortfolios}
+						>
+							<span>{loadingPortfolios ? 'Loading…' : (activePortfolio?.name ?? 'Select portfolio')}</span>
+							<span className="pd-chevron">{showPortfolioDropdown ? '▴' : '▾'}</span>
+						</button>
+						{showPortfolioDropdown && portfolios.length > 0 && (
+							<div className="pd-portfolio-dropdown">
+								{portfolios.map(p => (
+									<button
+										key={p.id}
+										className={`pd-portfolio-option${activePortfolio?.id === p.id ? ' pd-active' : ''}`}
+										onClick={() => { setActivePortfolio(p); setShowPortfolioDropdown(false) }}
+									>
+										<span className="pd-portfolio-option-name">{p.name}</span>
+										<span className="pd-portfolio-option-meta">{p.transaction_count} {p.transaction_count === 1 ? 'trade' : 'trades'}</span>
+									</button>
+								))}
+							</div>
+						)}
+					</div>
+					<button className="pd-btn pd-btn-ghost pd-btn-sm" onClick={() => setShowCreateModal(true)}>+ New</button>
+					{activePortfolio && (
+						<button className="pd-btn pd-btn-ghost pd-btn-sm pd-btn-danger" onClick={() => handleDelete(activePortfolio)}>Delete</button>
+					)}
+				</div>
 				{error && (
 					<div className="pd-error-banner">
 						{error}
@@ -980,8 +1094,7 @@ export default function PortfolioDashboard() {
 
 				{!activePortfolio ? (
 					<div className="pd-no-selection">
-						<p>Select or create a portfolio to get started.</p>
-						<button className="pd-btn pd-btn-primary" onClick={() => setShowCreateModal(true)}>Create Portfolio</button>
+						<p>Use <strong>+ New</strong> above to create your first portfolio.</p>
 					</div>
 				) : (
 					<>
@@ -1108,7 +1221,11 @@ export default function PortfolioDashboard() {
 								onScoreClick={openWaterfall}
 							/>
 						) : (
-							<TransactionLedger transactions={transactions} />
+							<TransactionLedger
+							transactions={transactions}
+							onEdit={tx => setEditingTx(tx)}
+							onDelete={handleTransactionDeleted}
+						/>
 						)}
 					</>
 				)}
@@ -1134,6 +1251,14 @@ export default function PortfolioDashboard() {
 					portfolioId={activePortfolio.id}
 					onClose={() => setShowTxModal(false)}
 					onAdded={handleTransactionAdded}
+				/>
+			)}
+			{editingTx && activePortfolio && (
+				<AddTransactionModal
+					portfolioId={activePortfolio.id}
+					onClose={() => setEditingTx(null)}
+					onAdded={handleTransactionUpdated}
+					existing={editingTx}
 				/>
 			)}
 			<RawMetricsDrawer

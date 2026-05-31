@@ -1578,6 +1578,177 @@ class DatabaseRepository:
 			)
 			return [dict(row) for row in cursor.fetchall()]
 
+	def _rebuild_holdings(self, cursor: any, portfolio_id: int) -> None:
+		"""Rebuild portfolio_holdings from scratch by replaying all transactions in order.
+
+		Called after any mutation (update or delete) so the holdings cache always
+		reflects the current transaction ledger.
+
+		Args:
+			cursor: Active database cursor (caller holds the lock).
+			portfolio_id: Owning portfolio primary key.
+		"""
+		cursor.execute(
+			"DELETE FROM portfolio_holdings WHERE portfolio_id = ?", (portfolio_id,)
+		)
+		cursor.execute(
+			"""
+			SELECT * FROM transactions
+			WHERE portfolio_id = ?
+			ORDER BY transaction_date ASC, created_at ASC
+			""",
+			(portfolio_id,),
+		)
+		for row in cursor.fetchall():
+			tx = dict(row)
+			if tx["transaction_type"] == "DIVIDEND":
+				continue
+			try:
+				self._update_portfolio_holdings(
+					cursor,
+					portfolio_id,
+					tx["symbol"],
+					tx["transaction_type"],
+					tx["quantity"],
+					tx["price_per_share"],
+					tx["fees"],
+					tx["account_id"],
+					tx["currency"],
+				)
+			except ValueError:
+				# Skip transactions that are now invalid (e.g. oversell after an edit)
+				pass
+
+	def update_transaction(
+		self,
+		transaction_id: int,
+		portfolio_id: int,
+		symbol: str,
+		transaction_type: str,
+		quantity: float,
+		price_per_share: float,
+		transaction_date: str,
+		fees: float = 0.0,
+		notes: Optional[str] = None,
+		account: Optional[str] = None,
+		bank: Optional[str] = None,
+		currency: str = "USD",
+		total_amount: Optional[float] = None,
+		dividend_amount: Optional[float] = None,
+		total_cost_cad: Optional[float] = None,
+	) -> Optional[dict]:
+		"""Update an existing transaction and rebuild the holdings cache.
+
+		Args:
+			transaction_id: Primary key of the transaction to update.
+			portfolio_id: Owning portfolio (used for ownership check).
+			symbol: Normalised ticker symbol.
+			transaction_type: One of 'BUY', 'SELL', 'DIVIDEND'.
+			quantity: Number of shares.
+			price_per_share: Price per share.
+			transaction_date: ISO-8601 date string.
+			fees: Brokerage fees.
+			notes: Optional free-text note.
+			account: Optional account name.
+			bank: Optional bank name.
+			currency: Currency of the transaction.
+			total_amount: Optional explicit total gross amount.
+			dividend_amount: Optional dividend payout amount.
+			total_cost_cad: Optional CAD total cost.
+
+		Returns:
+			Updated transaction row as a dict, or None if not found.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+
+			cursor.execute(
+				"SELECT id FROM transactions WHERE id = ? AND portfolio_id = ?",
+				(transaction_id, portfolio_id),
+			)
+			if cursor.fetchone() is None:
+				return None
+
+			account_id = self._resolve_account_id(cursor, portfolio_id, account, bank)
+
+			cursor.execute(
+				"""
+				UPDATE transactions
+				SET symbol = ?, transaction_type = ?, quantity = ?, price_per_share = ?,
+				transaction_date = ?, fees = ?, currency = ?, total_amount = ?,
+				dividend_amount = ?, total_cost_cad = ?, notes = ?, account_id = ?
+				WHERE id = ? AND portfolio_id = ?
+				""",
+				(
+					symbol,
+					transaction_type,
+					quantity,
+					price_per_share,
+					transaction_date,
+					fees,
+					currency,
+					total_amount,
+					dividend_amount,
+					total_cost_cad,
+					notes,
+					account_id,
+					transaction_id,
+					portfolio_id,
+				),
+			)
+			self._rebuild_holdings(cursor, portfolio_id)
+			cursor.execute(
+				"UPDATE portfolios SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+				(portfolio_id,),
+			)
+			conn.commit()
+
+			cursor.execute(
+				"""
+				SELECT t.*, acc.name AS account_name, b.name AS bank_name
+				FROM transactions t
+				LEFT JOIN accounts acc ON acc.id = t.account_id
+				LEFT JOIN banks b ON b.id = acc.bank_id
+				WHERE t.id = ?
+				""",
+				(transaction_id,),
+			)
+			return dict(cursor.fetchone())
+
+	def delete_transaction(self, transaction_id: int, portfolio_id: int) -> bool:
+		"""Delete a transaction and rebuild the holdings cache.
+
+		Args:
+			transaction_id: Primary key of the transaction to remove.
+			portfolio_id: Owning portfolio (used for ownership check).
+
+		Returns:
+			True if deleted, False if not found.
+		"""
+		with self._lock:
+			conn = self.db.get_connection()
+			cursor = conn.cursor()
+
+			cursor.execute(
+				"SELECT id FROM transactions WHERE id = ? AND portfolio_id = ?",
+				(transaction_id, portfolio_id),
+			)
+			if cursor.fetchone() is None:
+				return False
+
+			cursor.execute(
+				"DELETE FROM transactions WHERE id = ? AND portfolio_id = ?",
+				(transaction_id, portfolio_id),
+			)
+			self._rebuild_holdings(cursor, portfolio_id)
+			cursor.execute(
+				"UPDATE portfolios SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+				(portfolio_id,),
+			)
+			conn.commit()
+			return True
+
 	def get_holdings(self, portfolio_id: int) -> List[dict]:
 		"""Return current holdings for a portfolio, enriched with asset metadata and pricing.
 
