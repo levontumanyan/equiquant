@@ -4,6 +4,7 @@ from core.openbb_client import get_openbb_data
 from core.schema import AssetData, AssetType
 
 from .base import BaseProvider
+from .mappings import OPENBB_METRIC_MAP
 
 
 class OpenBBProvider(BaseProvider):
@@ -19,13 +20,18 @@ class OpenBBProvider(BaseProvider):
 		elif raw_data.get("issue_type") == "etf":
 			asset_type = AssetType.ETF
 
+		metrics = {
+			canonical: raw_data.get(provider_key)
+			for provider_key, canonical in OPENBB_METRIC_MAP.items()
+		}
+
 		return AssetData(
 			symbol=raw_data.get("symbol", symbol),
 			asset_type=asset_type,
 			name=raw_data.get("name") or raw_data.get("long_name"),
 			sector=raw_data.get("sector"),
 			industry=raw_data.get("industry_category"),
-			metrics=raw_data,
+			metrics=metrics,
 			raw_data=raw_data,
 		)
 
