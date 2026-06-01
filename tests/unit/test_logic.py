@@ -5,6 +5,7 @@ import pytest
 from core.analysis.indices import get_index_components
 from core.analysis.preprocessing import postprocess_score, preprocess_metric_value
 from core.database import DatabaseManager, DatabaseRepository
+from core.metrics import FORWARD_PE, INSTITUTION_OWNERSHIP, PE_RATIO, TRAILING_PE
 from core.profiles import get_profile_weights
 from core.schema import AssetData
 from core.utils.formatters import format_display_value
@@ -25,29 +26,35 @@ def repo(tmp_path):
 
 
 def test_preprocess_metric_value():
-	asset = AssetData(symbol="TEST", metrics={"dividendYield": 0.05})
+	asset = AssetData(symbol="TEST", metrics={})
 
-	# Normal case
-	assert preprocess_metric_value("dividendYield", 0.05, asset) == 0.05
+	# Normal numeric value passes through
+	assert preprocess_metric_value("pe_ratio", 15.0, asset) == 15.0
 
-	# Fallback case
-	assert preprocess_metric_value("yield", None, asset) == 0.05
+	# Institution ownership capped at 1.0
+	assert preprocess_metric_value(INSTITUTION_OWNERSHIP, 1.5, asset) == 1.0
+	assert preprocess_metric_value(INSTITUTION_OWNERSHIP, 0.85, asset) == 0.85
 
-	# Institutional cap
-	assert preprocess_metric_value("heldPercentInstitutions", 1.5, asset) == 1.0
-
-	# Invalid data
+	# Invalid data returns None
 	assert preprocess_metric_value("test", "not a number", asset) is None
+	assert preprocess_metric_value("test", None, asset) is None
 
-	# NaN handling (Fix for #164)
+	# NaN handling (fix for #164)
 	assert preprocess_metric_value("test", float("nan"), asset) is None
 
 
-def test_postprocess_score():
-	# Negative P/E should result in 0 score
-	assert postprocess_score("trailingPE", -5.0, 0.5) == 0.0
-	# Normal case should be unchanged
-	assert postprocess_score("trailingPE", 15.0, 0.5) == 0.5
+def test_postprocess_score_pe_family():
+	# Negative P/E — all three P/E family members — must return 0
+	assert postprocess_score(PE_RATIO, -5.0, 0.5) == 0.0
+	assert postprocess_score(FORWARD_PE, -86.14, 1.0) == 0.0
+	assert postprocess_score(TRAILING_PE, -12.0, 0.9) == 0.0
+
+	# Positive P/E passes through unchanged
+	assert postprocess_score(PE_RATIO, 15.0, 0.5) == 0.5
+	assert postprocess_score(FORWARD_PE, 20.0, 0.7) == 0.7
+
+	# Non-PE metrics are unaffected even when negative
+	assert postprocess_score("revenue_growth", -0.05, 0.1) == 0.1
 
 
 def test_profile_weights_loading(repo):

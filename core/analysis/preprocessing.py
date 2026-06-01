@@ -1,6 +1,7 @@
 import math
 from typing import Any, Optional
 
+from core.metrics import INSTITUTION_OWNERSHIP, PE_FAMILY
 from core.schema import AssetData
 
 
@@ -8,29 +9,16 @@ def preprocess_metric_value(
 	metric_key: str, val: Any, asset: AssetData
 ) -> Optional[float]:
 	"""
-	Apply normalization and special handling for specific metrics.
-	"""
-	# Handle missing or non-numeric data
-	if val is None:
-		# Special fallback for dividend yield keys
-		if metric_key in [
-			"dividendYield",
-			"trailingAnnualDividendYield",
-			"yield",
-			"trailingAnnualDividendRate",
-		]:
-			alt_keys = [
-				"dividendYield",
-				"trailingAnnualDividendYield",
-				"yield",
-				"trailingAnnualDividendRate",
-			]
-			for key in alt_keys:
-				alt_val = asset.get(key)
-				if alt_val is not None:
-					val = float(alt_val)
-					break
+	Normalise and validate a raw metric value before scoring.
 
+	Args:
+		metric_key: Canonical metric key (from core.metrics).
+		val: Raw value from AssetData.
+		asset: Full asset object for cross-metric lookups.
+
+	Returns:
+		Cleaned float, or None if the value is missing or non-numeric.
+	"""
 	if (
 		val is None
 		or not isinstance(val, (int, float))
@@ -38,11 +26,11 @@ def preprocess_metric_value(
 	):
 		return None
 
-	# Convert to float
 	val = float(val)
 
-	# === SPECIAL HANDLING FOR INSTITUTIONAL OWNERSHIP ===
-	if metric_key == "heldPercentInstitutions":
+	# institution_ownership can exceed 1.0 due to reporting anomalies (e.g.
+	# double-counting across share classes); cap to a valid ownership fraction.
+	if metric_key == INSTITUTION_OWNERSHIP:
 		val = min(val, 1.0)
 
 	return val
@@ -50,10 +38,19 @@ def preprocess_metric_value(
 
 def postprocess_score(metric_key: str, val: float, pct: float) -> float:
 	"""
-	Apply logic that overrides the calculated percentage score.
+	Override a calculated score based on domain validity rules.
+
+	Args:
+		metric_key: Canonical metric key (from core.metrics).
+		val: The raw numeric value that was scored.
+		pct: The score produced by the formula (0.0–1.0).
+
+	Returns:
+		Adjusted score.
 	"""
-	# === SPECIAL HANDLING FOR NEGATIVE VALUATION RATIOS ===
-	if metric_key in ["pegRatio", "trailingPE", "forwardPE"] and val < 0:
+	# P/E family: negative earnings make the ratio mathematically undefined.
+	# Industry convention (Bloomberg, FactSet) is N/A — score 0.
+	if metric_key in PE_FAMILY and val < 0:
 		return 0.0
 
 	return pct
