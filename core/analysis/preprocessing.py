@@ -28,8 +28,8 @@ def preprocess_metric_value(
 
 	val = float(val)
 
-	# Raw OpenBB institution_ownership can exceed 1.0 when reported as a
-	# fraction rather than a percentage; cap to avoid artificially perfect scores.
+	# institution_ownership can exceed 1.0 due to reporting anomalies (e.g.
+	# double-counting across share classes); cap to a valid ownership fraction.
 	if metric_key == INSTITUTION_OWNERSHIP:
 		val = min(val, 1.0)
 
